@@ -6,8 +6,20 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddKeyVaultIfConfigured(builder.Configuration);
 
 builder.Services.AddApplicationServices();
-builder.Services.AddInfrastructureServices(builder.Configuration);
+builder.Services.AddInfrastructureServices(builder.Configuration); 
 builder.Services.AddWebServices();
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(
+        policy =>
+        {
+            policy.WithOrigins("http://localhost:*")
+                       .SetIsOriginAllowedToAllowWildcardSubdomains()
+                       .AllowAnyHeader()
+                       .AllowAnyMethod();
+        });
+});
 
 var app = builder.Build();
 
@@ -22,6 +34,7 @@ else
     app.UseHsts();
 }
 
+app.UseCors();
 app.UseHealthChecks("/health");
 app.UseHttpsRedirection();
 app.UseStaticFiles();

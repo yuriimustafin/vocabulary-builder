@@ -5,6 +5,9 @@ using VocabularyBuilder.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 
 using ZymLabs.NSwag.FluentValidation;
+using VocabularyBuilder.Application.Parsers;
+using VocabularyBuilder.Infrastructure.Exporters;
+using VocabularyBuilder.Infrastructure.Parsers;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -15,6 +18,10 @@ public static class DependencyInjection
         services.AddDatabaseDeveloperPageExceptionFilter();
 
         services.AddScoped<IUser, CurrentUser>();
+
+        // TODO: Make it configurable
+        services.AddScoped<IWordReferenceParser, OxfordParser>();
+        services.AddScoped<IWordsExporter, RewordCsvExporter>();
 
         services.AddHttpContextAccessor();
 

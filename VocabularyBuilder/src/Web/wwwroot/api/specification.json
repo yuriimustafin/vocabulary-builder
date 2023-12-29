@@ -319,6 +319,26 @@
           }
         }
       }
+    },
+    "/api/NewWords": {
+      "post": {
+        "tags": [
+          "NewWords"
+        ],
+        "operationId": "NewWords_LookupWords",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
