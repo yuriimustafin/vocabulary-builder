@@ -365,3 +365,4 @@ FodyWeavers.xsd
 #DB files 
 *.backup
 *.db
+/VocabularyBuilder/src/Infrastructure/Data/Migrations/backup.zip

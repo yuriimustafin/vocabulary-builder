@@ -14,6 +14,8 @@ public class RewordCsvExporter : IWordsExporter
         var result = new StringBuilder();
         foreach (var word in words)
         {
+            if(word.Senses is null)
+                continue;
             result.Append($"\"{word.Headword}\";\"\";");
             result.Append("\"");
             var examples = new List<string>();

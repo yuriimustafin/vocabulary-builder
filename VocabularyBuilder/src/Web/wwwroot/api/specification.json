@@ -338,6 +338,34 @@
             }
           }
         }
+      },
+      "get": {
+        "tags": [
+          "NewWords"
+        ],
+        "operationId": "NewWords_SaveWord",
+        "parameters": [
+          {
+            "name": "Word",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
