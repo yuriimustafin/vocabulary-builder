@@ -2,6 +2,7 @@
 using VocabularyBuilder.Domain.ValueObjects;
 using FluentAssertions;
 using NUnit.Framework;
+using System.Text.RegularExpressions;
 
 namespace VocabularyBuilder.Domain.UnitTests.ValueObjects;
 
@@ -16,6 +17,20 @@ public class ColourTests
 
         colour.Code.Should().Be(code);
     }
+
+
+    [Test]
+    public void Test()
+    {
+        var str = "tes 1 a  aaa";
+        var digitsOnly = Regex.Replace(str, @"[^\d]", "");
+
+        var isParsed = int.TryParse(digitsOnly, out var num);
+
+        isParsed.Should().Be(true);
+        num.Should().Be(1);
+    }
+
 
     [Test]
     public void ToStringReturnsCode()

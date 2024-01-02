@@ -4,6 +4,7 @@ using VocabularyBuilder.Domain.Entities;
 using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using VocabularyBuilder.Domain.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Infrastructure.Data;
 
@@ -16,6 +17,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<TodoItem> TodoItems => Set<TodoItem>();
 
     public DbSet<Word> Words => Set<Word>();
+
+    public DbSet<ImportedBookWord> ImportedBookWords => Set<ImportedBookWord>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

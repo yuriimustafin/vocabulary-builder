@@ -367,6 +367,26 @@
           }
         }
       }
+    },
+    "/api/NewWords/import-kindle": {
+      "get": {
+        "tags": [
+          "NewWords"
+        ],
+        "operationId": "NewWords_ImportKindle",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {

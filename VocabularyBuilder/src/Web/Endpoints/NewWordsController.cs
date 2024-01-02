@@ -42,4 +42,10 @@ public class NewWordsController : ControllerBase
     {
         return await _sender.Send(command);
     }
+
+    [HttpGet("import-kindle")]
+    public Task<string> ImportKindle()
+    {
+        throw new NotImplementedException();
+    }
 }
