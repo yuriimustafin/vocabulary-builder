@@ -22,6 +22,7 @@ public static class DependencyInjection
         // TODO: Make it configurable
         services.AddScoped<IWordReferenceParser, OxfordParser>();
         services.AddScoped<IWordsExporter, RewordCsvExporter>();
+        services.AddScoped<IBookImportParser, BookImportParser>();
 
         services.AddHttpContextAccessor();
 

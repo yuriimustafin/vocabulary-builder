@@ -2,9 +2,11 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.ImportWords.Commands;
 using VocabularyBuilder.Application.Parsers;
-using VocabularyBuilder.Application.Words.Commands.CreateWord;
+using VocabularyBuilder.Application.Words.Commands;
 using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace VocabularyBuilder.Web.Endpoints;
 
@@ -44,8 +46,8 @@ public class NewWordsController : ControllerBase
     }
 
     [HttpGet("import-kindle")]
-    public Task<string> ImportKindle()
+    public async Task<int> ImportKindle([FromQuery] ImportBookWordsCommand command)
     {
-        throw new NotImplementedException();
+        return await _sender.Send(command);
     }
 }

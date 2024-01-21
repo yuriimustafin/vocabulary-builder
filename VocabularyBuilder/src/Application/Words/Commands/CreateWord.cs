@@ -7,7 +7,7 @@ using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.TodoLists.Commands.CreateTodoList;
 using VocabularyBuilder.Domain.Entities;
 
-namespace VocabularyBuilder.Application.Words.Commands.CreateWord;
+namespace VocabularyBuilder.Application.Words.Commands;
 public record CreateWordCommand(string Word) : IRequest<string>;
 public class CreateWordCommandHandler : IRequestHandler<CreateWordCommand, string>
 {

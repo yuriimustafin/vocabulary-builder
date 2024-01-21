@@ -374,13 +374,24 @@
           "NewWords"
         ],
         "operationId": "NewWords_ImportKindle",
+        "parameters": [
+          {
+            "name": "FilePath",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "type": "integer",
+                  "format": "int32"
                 }
               }
             }

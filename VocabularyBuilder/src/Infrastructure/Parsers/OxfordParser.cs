@@ -10,6 +10,10 @@ using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Entities;
 
 namespace VocabularyBuilder.Infrastructure.Parsers;
+
+// TODO: Create IParser<T> with Parse method returning T collection
+// where "Word? GetWord(IDocument document)" -> that Parse method
+// TODO: Consider moving that to App layer.
 public class OxfordParser : IWordReferenceParser
 {
     public async Task<IEnumerable<Word>> GetWords(IEnumerable<string> searchedWords)
@@ -27,7 +31,6 @@ public class OxfordParser : IWordReferenceParser
             // for now searchedWord is a URL
             var address = HttpUtility.UrlDecode(searchedWord);
             var document = await context.OpenAsync(address);
-            var title = document.Title;
             var word = GetWord(document);
             if (word != null)
             {
@@ -37,6 +40,25 @@ public class OxfordParser : IWordReferenceParser
 
         return words;
     }
+
+    // Consider using these code outside of the class and receive String as an input:
+    /*
+        string url = "http://example.com"; // Replace with your URL
+        HttpClient client = new HttpClient();
+
+        try
+        {
+            string htmlContent = await client.GetStringAsync(url);
+            await ParseHtmlContent(htmlContent);
+        }
+        catch (HttpRequestException e)
+        {
+            Console.WriteLine($"Error fetching the HTML content: {e.Message}");
+        }
+     -------
+            var parser = new HtmlParser();
+            var document = await parser.ParseDocumentAsync(html);
+     */
 
     private Word? GetWord(IDocument document)
     {

@@ -515,8 +515,12 @@ export class NewWordsClient {
         return Promise.resolve<string>(null as any);
     }
 
-    newWords_ImportKindle(): Promise<string> {
-        let url_ = this.baseUrl + "/api/NewWords/import-kindle";
+    newWords_ImportKindle(filePath: string | undefined): Promise<number> {
+        let url_ = this.baseUrl + "/api/NewWords/import-kindle?";
+        if (filePath === null)
+            throw new Error("The parameter 'filePath' cannot be null.");
+        else if (filePath !== undefined)
+            url_ += "FilePath=" + encodeURIComponent("" + filePath) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -531,7 +535,7 @@ export class NewWordsClient {
         });
     }
 
-    protected processNewWords_ImportKindle(response: Response): Promise<string> {
+    protected processNewWords_ImportKindle(response: Response): Promise<number> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -548,7 +552,7 @@ export class NewWordsClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<string>(null as any);
+        return Promise.resolve<number>(null as any);
     }
 }
 
