@@ -7,6 +7,7 @@ using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
@@ -25,14 +26,26 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
 
     public async Task<int> Handle(ImportBookWordsCommand request, CancellationToken cancellationToken)
     {
+        var filepath = request.FilePath
+                .Trim()
+                .Trim('"', '\'');
         try
         {
-            string fileContent = File.ReadAllText(request.FilePath);
-            var words = await _bookParser.GetWords(fileContent);
+            string fileContent = File.ReadAllText(filepath);
+            var importingWords = await _bookParser.GetWords(fileContent);
+            var storedWords = _context.ImportedBookWords
+                    .Select(x => new { Word = x.Headword, x.Page });
 
-            _context.ImportedBookWords.AddRange(words);
+            // TODO: Improve it later and take BookInfo into consideration. Investigate what query will be generated here. 
+            importingWords = importingWords
+                .Where(iw => !storedWords
+                    .Any(sw => sw.Word == iw.Headword && sw.Page == iw.Page))
+                .ToList();
+
+            _context.ImportedBookWords.AddRange(importingWords);
             await _context.SaveChangesAsync(cancellationToken);
-            return words.Count();
+
+            return importingWords.Count();
         }
         catch (IOException e)
         {

@@ -3,5 +3,5 @@
 namespace VocabularyBuilder.Application.Parsers;
 public interface IBookImportParser
 {
-    Task<IEnumerable<ImportedBookWord>> GetWords(string htmlContent);
+    Task<IList<ImportedBookWord>> GetWords(string htmlContent);
 }

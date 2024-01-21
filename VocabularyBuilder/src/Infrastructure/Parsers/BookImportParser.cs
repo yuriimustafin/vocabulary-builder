@@ -13,7 +13,7 @@ using VocabularyBuilder.Domain.Entities;
 namespace VocabularyBuilder.Infrastructure.Parsers;
 public class BookImportParser : IBookImportParser
 {
-    public async Task<IEnumerable<ImportedBookWord>> GetWords(string htmlContent)
+    public async Task<IList<ImportedBookWord>> GetWords(string htmlContent)
     {
         var result = new List<ImportedBookWord>();
         var parser = new HtmlParser();
