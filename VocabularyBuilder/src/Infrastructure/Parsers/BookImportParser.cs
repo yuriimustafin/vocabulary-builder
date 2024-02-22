@@ -49,7 +49,8 @@ public class BookImportParser : IBookImportParser
                     new ImportedBookWord() 
                     { 
                         Headword = elements[i].InnerHtml, 
-                        Page = ExtractDigits(currentNoteHeading) 
+                        Heading = currentNoteHeading,
+                        Status = ImportWordStatus.Added
                     });
             }
         }
