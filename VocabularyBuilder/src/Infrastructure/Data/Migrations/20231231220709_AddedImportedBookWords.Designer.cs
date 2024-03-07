@@ -162,7 +162,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.ImportedBook.BookInfo", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.BookInfo", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -193,7 +193,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("BookInfo");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.ImportedBook.Chapter", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.Chapter", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -224,7 +224,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("Chapter");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.ImportedBook.ImportedBookWord", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.ImportedBookWord", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -270,7 +270,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("ImportedBookWords");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Sense", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Sense", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -308,7 +308,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("Sense");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoItem", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -355,7 +355,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("TodoItems");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoList", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -385,7 +385,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("TodoLists");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Word", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Word", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -534,13 +534,13 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.ImportedBook.ImportedBookWord", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.ImportedBookWord", b =>
                 {
-                    b.HasOne("VocabularyBuilder.Domain.Entities.ImportedBook.BookInfo", "Book")
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.BookInfo", "Book")
                         .WithMany()
                         .HasForeignKey("BookId");
 
-                    b.HasOne("VocabularyBuilder.Domain.Entities.ImportedBook.Chapter", "Chapter")
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.Chapter", "Chapter")
                         .WithMany()
                         .HasForeignKey("ChapterId");
 
@@ -549,16 +549,16 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.Navigation("Chapter");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Sense", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Sense", b =>
                 {
-                    b.HasOne("VocabularyBuilder.Domain.Entities.Word", null)
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", null)
                         .WithMany("Senses")
                         .HasForeignKey("WordId");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoItem", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoItem", b =>
                 {
-                    b.HasOne("VocabularyBuilder.Domain.Entities.TodoList", "List")
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.TodoList", "List")
                         .WithMany("Items")
                         .HasForeignKey("ListId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -567,7 +567,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.Navigation("List");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoList", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
                 {
                     b.OwnsOne("VocabularyBuilder.Domain.ValueObjects.Colour", "Colour", b1 =>
                         {
@@ -590,12 +590,12 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoList", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
                 {
                     b.Navigation("Items");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Word", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Word", b =>
                 {
                     b.Navigation("Senses");
                 });

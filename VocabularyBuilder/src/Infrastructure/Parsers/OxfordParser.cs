@@ -7,7 +7,7 @@ using AngleSharp.Dom;
 using AngleSharp;
 using System.Web;
 using VocabularyBuilder.Application.Parsers;
-using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Infrastructure.Parsers;
 

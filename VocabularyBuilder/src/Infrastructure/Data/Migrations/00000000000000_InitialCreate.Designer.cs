@@ -25,7 +25,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoItem", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoItem", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -72,7 +72,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("TodoItems");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoList", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -304,9 +304,9 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoItem", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoItem", b =>
                 {
-                    b.HasOne("VocabularyBuilder.Domain.Entities.TodoList", "List")
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.TodoList", "List")
                         .WithMany("Items")
                         .HasForeignKey("ListId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -315,7 +315,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                     b.Navigation("List");
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoList", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
                 {
                     b.OwnsOne("VocabularyBuilder.Domain.ValueObjects.Colour", "Colour", b1 =>
                         {
@@ -389,7 +389,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.TodoList", b =>
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
                 {
                     b.Navigation("Items");
                 });

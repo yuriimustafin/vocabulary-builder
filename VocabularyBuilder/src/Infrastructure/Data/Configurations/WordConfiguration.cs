@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
-using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Infrastructure.Data.Configurations;
 public class WordConfiguration : IEntityTypeConfiguration<Word>

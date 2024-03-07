@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace VocabularyBuilder.Domain.Entities.ImportedBook;
+namespace VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 public enum ImportWordStatus
 {
     Added,

@@ -8,8 +8,8 @@ using System.Threading.Tasks;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
-using VocabularyBuilder.Domain.Entities;
-using VocabularyBuilder.Domain.Entities.ImportedBook;
+using VocabularyBuilder.Domain.Samples.Entities;
+using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;

@@ -1,7 +1,7 @@
 ﻿using VocabularyBuilder.Application.Common.Exceptions;
 using VocabularyBuilder.Application.TodoLists.Commands.CreateTodoList;
 using VocabularyBuilder.Application.TodoLists.Commands.UpdateTodoList;
-using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Application.FunctionalTests.TodoLists.Commands;
 

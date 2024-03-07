@@ -4,11 +4,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VocabularyBuilder.Application.Parsers;
-using VocabularyBuilder.Domain.Entities.ImportedBook;
+using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 using AngleSharp.Dom;
 using AngleSharp;
 using AngleSharp.Html.Parser;
-using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Infrastructure.Parsers;
 public class BookImportParser : IBookImportParser

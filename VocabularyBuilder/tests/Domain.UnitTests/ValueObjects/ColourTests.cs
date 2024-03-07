@@ -1,8 +1,8 @@
-﻿using VocabularyBuilder.Domain.Exceptions;
-using VocabularyBuilder.Domain.ValueObjects;
-using FluentAssertions;
+﻿using FluentAssertions;
 using NUnit.Framework;
 using System.Text.RegularExpressions;
+using VocabularyBuilder.Domain.Samples.Exceptions;
+using VocabularyBuilder.Domain.Samples.ValueObjects;
 
 namespace VocabularyBuilder.Domain.UnitTests.ValueObjects;
 

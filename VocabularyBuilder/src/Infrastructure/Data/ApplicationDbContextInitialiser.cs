@@ -1,6 +1,6 @@
 ﻿using System.Runtime.InteropServices;
 using VocabularyBuilder.Domain.Constants;
-using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Identity;

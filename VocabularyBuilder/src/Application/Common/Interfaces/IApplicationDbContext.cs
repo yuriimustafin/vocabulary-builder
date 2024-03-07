@@ -1,5 +1,5 @@
-﻿using VocabularyBuilder.Domain.Entities;
-using VocabularyBuilder.Domain.Entities.ImportedBook;
+﻿using VocabularyBuilder.Domain.Samples.Entities;
+using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Application.Common.Interfaces;
 

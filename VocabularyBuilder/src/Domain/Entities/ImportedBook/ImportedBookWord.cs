@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using VocabularyBuilder.Domain.Helpers;
 
-namespace VocabularyBuilder.Domain.Entities.ImportedBook;
+namespace VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 public class ImportedBookWord : BaseAuditableEntity
 {
     public required string Headword { get; set; }

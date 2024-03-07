@@ -1,6 +1,6 @@
 ﻿using VocabularyBuilder.Application.Common.Behaviours;
 using VocabularyBuilder.Application.Common.Interfaces;
-using VocabularyBuilder.Application.TodoItems.Commands.CreateTodoItem;
+using VocabularyBuilder.Application.Samples.TodoItems.Commands.CreateTodoItem;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;

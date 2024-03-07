@@ -1,9 +1,9 @@
-﻿using VocabularyBuilder.Application.TodoItems.Commands.CreateTodoItem;
-using VocabularyBuilder.Application.TodoItems.Commands.UpdateTodoItem;
-using VocabularyBuilder.Application.TodoItems.Commands.UpdateTodoItemDetail;
+﻿using VocabularyBuilder.Application.Samples.TodoItems.Commands.CreateTodoItem;
+using VocabularyBuilder.Application.Samples.TodoItems.Commands.UpdateTodoItem;
+using VocabularyBuilder.Application.Samples.TodoItems.Commands.UpdateTodoItemDetail;
 using VocabularyBuilder.Application.TodoLists.Commands.CreateTodoList;
-using VocabularyBuilder.Domain.Entities;
-using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Domain.Samples.Entities;
+using VocabularyBuilder.Domain.Samples.Enums;
 
 namespace VocabularyBuilder.Application.FunctionalTests.TodoItems.Commands;
 

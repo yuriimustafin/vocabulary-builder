@@ -1,6 +1,6 @@
 ﻿using VocabularyBuilder.Application.TodoLists.Queries.GetTodos;
-using VocabularyBuilder.Domain.Entities;
-using VocabularyBuilder.Domain.ValueObjects;
+using VocabularyBuilder.Domain.Samples.Entities;
+using VocabularyBuilder.Domain.Samples.ValueObjects;
 
 namespace VocabularyBuilder.Application.FunctionalTests.TodoLists.Queries;
 

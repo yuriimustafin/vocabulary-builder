@@ -5,8 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore;
-using VocabularyBuilder.Domain.Entities;
-using VocabularyBuilder.Domain.Entities.ImportedBook;
+using VocabularyBuilder.Domain.Samples.Entities;
+using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Infrastructure.Data.Configurations;
 public class ImportedBookWordConfiguration : IEntityTypeConfiguration<ImportedBookWord>

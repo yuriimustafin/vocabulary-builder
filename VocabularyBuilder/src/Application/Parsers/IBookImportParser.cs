@@ -1,4 +1,4 @@
-﻿using VocabularyBuilder.Domain.Entities.ImportedBook;
+﻿using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Application.Parsers;
 public interface IBookImportParser

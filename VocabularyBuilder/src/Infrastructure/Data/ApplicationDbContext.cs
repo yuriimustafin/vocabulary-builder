@@ -1,10 +1,10 @@
 ﻿using System.Reflection;
 using VocabularyBuilder.Application.Common.Interfaces;
-using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
-using VocabularyBuilder.Domain.Entities.ImportedBook;
+using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Infrastructure.Data;
 

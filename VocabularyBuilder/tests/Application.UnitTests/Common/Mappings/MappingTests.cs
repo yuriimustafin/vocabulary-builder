@@ -2,11 +2,11 @@
 using System.Runtime.Serialization;
 using AutoMapper;
 using VocabularyBuilder.Application.Common.Interfaces;
-using VocabularyBuilder.Application.Common.Models;
-using VocabularyBuilder.Application.TodoItems.Queries.GetTodoItemsWithPagination;
+using VocabularyBuilder.Application.Samples.TodoItems.Queries.GetTodoItemsWithPagination;
 using VocabularyBuilder.Application.TodoLists.Queries.GetTodos;
-using VocabularyBuilder.Domain.Entities;
+using VocabularyBuilder.Domain.Samples.Entities;
 using NUnit.Framework;
+using VocabularyBuilder.Application.Samples.Common.Models;
 
 namespace VocabularyBuilder.Application.UnitTests.Common.Mappings;
 
