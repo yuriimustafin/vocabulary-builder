@@ -77,6 +77,7 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
         importingWords = importingWords
             .AsEnumerable()
             .Where(iw => !storedWords
+            // TODO: Override Equals for ImportedBookWord
                 .Any(sw => sw.Word == iw.Headword && sw.Page == iw.ExtractDigitsFromHeading()))
             .ToList();
 

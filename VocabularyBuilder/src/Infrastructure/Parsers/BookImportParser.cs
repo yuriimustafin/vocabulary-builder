@@ -57,18 +57,4 @@ public class BookImportParser : IBookImportParser
         return result;
 
     }
-
-    private int ExtractDigits(string? str)
-    {
-        string digitStr = new string(str?.Where(char.IsDigit).ToArray());
-
-        if (!string.IsNullOrEmpty(digitStr))
-        {
-            return int.Parse(digitStr);
-        }
-        else
-        {
-            return 0;
-        }
-    }
 }
