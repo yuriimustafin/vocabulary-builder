@@ -5,6 +5,7 @@ using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
+using System.Reflection.Emit;
 
 namespace VocabularyBuilder.Infrastructure.Data;
 
@@ -22,6 +23,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.Entity<ImportedBookWord>()
+            .HasOne(ibw => ibw.Word)
+            .WithMany()
+            .HasForeignKey(ibw => ibw.WordId);
+
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
         base.OnModelCreating(builder);

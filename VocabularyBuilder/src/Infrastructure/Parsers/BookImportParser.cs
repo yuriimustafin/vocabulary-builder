@@ -48,8 +48,8 @@ public class BookImportParser : IBookImportParser
                 result.Add(
                     new ImportedBookWord() 
                     { 
-                        Headword = elements[i].InnerHtml, 
-                        Heading = currentNoteHeading,
+                        Headword = elements[i].InnerHtml.Trim(), 
+                        Heading = currentNoteHeading?.Trim(),
                         Status = ImportWordStatus.Added
                     });
             }

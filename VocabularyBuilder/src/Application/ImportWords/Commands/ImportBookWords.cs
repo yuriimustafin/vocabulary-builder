@@ -87,18 +87,42 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
 
     private async Task GenerateWordsInDb(CancellationToken cancellationToken)
     {
-        var newWords = _context.ImportedBookWords
-                .Where(x => x.Status == ImportWordStatus.Added)
-                .Select(x => new Word()
-                {
-                    Headword = x.TrimmedHeadword()
-                });
+        var addedImportedWords = _context.ImportedBookWords
+                .Where(x => x.Status == ImportWordStatus.Added);
+        var trimmedImportedWords = addedImportedWords.AsEnumerable().Select(x => x.TrimmedHeadword());
+        var dublicatingWords = _context.Words
+                .Where(w => trimmedImportedWords.Contains(w.Headword))
+                .GroupBy(w => w.Headword)
+                .Select(grp => grp.First())
+                // from biz logic it is more immportant to get here distinct headwords than rely on IDs
+                .ToDictionary(w => w.Headword, w => w);
+        var newWords = new List<Word>();
 
-        // TODO: ImportedBookWords STATUSES!!
-        // TODO: ImportedBookWords and Words - add links between!
+        foreach (var importedWord in addedImportedWords)
+        {
+            var trimmedHeadWord = importedWord.TrimmedHeadword();
+            if (dublicatingWords.ContainsKey(trimmedHeadWord))
+            {
+                var dubWord = dublicatingWords[trimmedHeadWord];
+                dubWord.EncounterCount++;
+                importedWord.Word = dubWord;
+            }
+            else
+            {
+                var newWord = new Word()
+                {
+                    Headword = importedWord.TrimmedHeadword()
+                };
+                importedWord.Word = newWord;
+                dublicatingWords.Add(newWord.Headword, newWord);
+                newWords.Add(newWord);
+            }
+            importedWord.Status = ImportWordStatus.Processed;
+        }
 
         _context.Words.AddRange(newWords);
         await _context.SaveChangesAsync(cancellationToken);
+
     }
 
     private async Task AddFrequency(CancellationToken cancellationToken)

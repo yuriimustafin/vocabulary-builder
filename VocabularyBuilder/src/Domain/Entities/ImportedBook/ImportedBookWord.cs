@@ -20,6 +20,10 @@ public class ImportedBookWord : BaseAuditableEntity
 
     public ImportWordStatus? Status{ get; set; }
 
+    public int? WordId { get; set; }
+    
+    public Word? Word { get; set; }
+
     public string TrimmedHeadword()
     {
         return Headword.Trim().Trim('"', '\'', '.', ',', ';', ':', '/', '-', '!', '?').Trim();
