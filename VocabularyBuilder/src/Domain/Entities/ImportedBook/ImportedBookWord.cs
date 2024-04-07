@@ -26,7 +26,7 @@ public class ImportedBookWord : BaseAuditableEntity
 
     public string TrimmedHeadword()
     {
-        return Headword.Trim().Trim('"', '\'', '.', ',', ';', ':', '/', '-', '!', '?').Trim();
+        return Headword.Trim().Trim('"', '\'', '.', ',', ';', ':', '/', '-', '!', '?').Trim().ToLower();
     }
 
     public int ExtractDigitsFromHeading() => StringHelper.ExtractDigits(Heading);

@@ -7,6 +7,10 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using VocabularyBuilder.Application.Parsers;
+using VocabularyBuilder.Infrastructure.Parsers;
+using VocabularyBuilder.Infrastructure.Exporters;
+using VocabularyBuilder.Application.Ai;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -43,6 +47,11 @@ public static class DependencyInjection
 
         services.AddAuthorization(options =>
             options.AddPolicy(Policies.CanPurge, policy => policy.RequireRole(Roles.Administrator)));
+
+        // TODO: Make it configurable
+        services.AddScoped<IWordReferenceParser, OxfordParser>();
+        services.AddScoped<IWordsExporter, RewordCsvExporter>();
+        services.AddScoped<IBookImportParser, BookImportParser>();
 
         return services;
     }

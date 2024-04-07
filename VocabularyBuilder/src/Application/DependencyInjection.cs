@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using VocabularyBuilder.Application.Common.Behaviours;
+using VocabularyBuilder.Application.Parsers;
 
 namespace Microsoft.Extensions.DependencyInjection;
 

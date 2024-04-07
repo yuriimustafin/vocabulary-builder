@@ -11,6 +11,7 @@ using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 using VocabularyBuilder.Domain.Helpers;
+using Microsoft.EntityFrameworkCore;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
@@ -104,14 +105,15 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
             if (dublicatingWords.ContainsKey(trimmedHeadWord))
             {
                 var dubWord = dublicatingWords[trimmedHeadWord];
-                dubWord.EncounterCount++;
+                dubWord.EncounterCount++; 
                 importedWord.Word = dubWord;
             }
             else
             {
                 var newWord = new Word()
                 {
-                    Headword = importedWord.TrimmedHeadword()
+                    Headword = importedWord.TrimmedHeadword(),
+                    EncounterCount = 1
                 };
                 importedWord.Word = newWord;
                 dublicatingWords.Add(newWord.Headword, newWord);
