@@ -11,6 +11,7 @@ using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Infrastructure.Parsers;
 using VocabularyBuilder.Infrastructure.Exporters;
 using VocabularyBuilder.Application.Ai;
+using VocabularyBuilder.Infrastructure.HttpClients;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -19,6 +20,7 @@ public static class DependencyInjection
     public static IServiceCollection AddInfrastructureServices(this IServiceCollection services, IConfiguration configuration)
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
+        var aiApiKey = configuration["OpenAI:ApiKey"] ?? "";
 
         Guard.Against.Null(connectionString, message: "Connection string 'DefaultConnection' not found.");
 
@@ -52,6 +54,9 @@ public static class DependencyInjection
         services.AddScoped<IWordReferenceParser, OxfordParser>();
         services.AddScoped<IWordsExporter, RewordCsvExporter>();
         services.AddScoped<IBookImportParser, BookImportParser>();
+
+        services.AddScoped<IGptClient>(x =>
+            ActivatorUtilities.CreateInstance<GptClient>(x, aiApiKey));
 
         return services;
     }

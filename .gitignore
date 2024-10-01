@@ -366,3 +366,6 @@ FodyWeavers.xsd
 *.backup
 *.db
 /VocabularyBuilder/src/Infrastructure/Data/Migrations/backup.zip
+/VocabularyBuilder/src/Web/appsettings.Development.json
+appsettings.Development.json
+/VocabularyBuilder/src/Web/appsettings.Development.json

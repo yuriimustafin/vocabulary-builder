@@ -373,7 +373,7 @@
         "tags": [
           "NewWords"
         ],
-        "operationId": "NewWords_ImportKindle",
+        "operationId": "NewWords_ImportKindleGET",
         "parameters": [
           {
             "name": "FilePath",
@@ -392,6 +392,38 @@
                 "schema": {
                   "type": "integer",
                   "format": "int32"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/NewWords/audio-text": {
+      "post": {
+        "tags": [
+          "NewWords"
+        ],
+        "operationId": "NewWords_ImportKindlePOST",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateTextForAudioCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "string"
                 }
               }
             }
@@ -649,6 +681,18 @@
           "summary": {
             "type": "string",
             "nullable": true
+          }
+        }
+      },
+      "CreateTextForAudioCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "words": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       }

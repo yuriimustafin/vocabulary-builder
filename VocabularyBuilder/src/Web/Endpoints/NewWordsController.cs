@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Exercises.Commands;
 using VocabularyBuilder.Application.ImportWords.Commands;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
@@ -47,6 +48,13 @@ public class NewWordsController : ControllerBase
 
     [HttpGet("import-kindle")]
     public async Task<int> ImportKindle([FromQuery] ImportBookWordsCommand command)
+    {
+        return await _sender.Send(command);
+    }
+
+
+    [HttpPost("audio-text")]
+    public async Task<string> GenerateText([FromBody] CreateTextForAudioCommand command)
     {
         return await _sender.Send(command);
     }

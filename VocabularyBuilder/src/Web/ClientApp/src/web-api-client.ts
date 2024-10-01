@@ -515,7 +515,7 @@ export class NewWordsClient {
         return Promise.resolve<string>(null as any);
     }
 
-    newWords_ImportKindle(filePath: string | undefined): Promise<number> {
+    newWords_ImportKindleGET(filePath: string | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords/import-kindle?";
         if (filePath === null)
             throw new Error("The parameter 'filePath' cannot be null.");
@@ -531,11 +531,11 @@ export class NewWordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processNewWords_ImportKindle(_response);
+            return this.processNewWords_ImportKindleGET(_response);
         });
     }
 
-    protected processNewWords_ImportKindle(response: Response): Promise<number> {
+    protected processNewWords_ImportKindleGET(response: Response): Promise<number> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -553,6 +553,46 @@ export class NewWordsClient {
             });
         }
         return Promise.resolve<number>(null as any);
+    }
+
+    newWords_ImportKindlePOST(command: CreateTextForAudioCommand): Promise<string> {
+        let url_ = this.baseUrl + "/api/NewWords/audio-text";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processNewWords_ImportKindlePOST(_response);
+        });
+    }
+
+    protected processNewWords_ImportKindlePOST(response: Response): Promise<string> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<string>(null as any);
     }
 }
 
@@ -1137,6 +1177,50 @@ export interface IWeatherForecast {
     temperatureC?: number;
     temperatureF?: number;
     summary?: string | undefined;
+}
+
+export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
+    words?: string[];
+
+    constructor(data?: ICreateTextForAudioCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["words"])) {
+                this.words = [] as any;
+                for (let item of _data["words"])
+                    this.words!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): CreateTextForAudioCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateTextForAudioCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.words)) {
+            data["words"] = [];
+            for (let item of this.words)
+                data["words"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface ICreateTextForAudioCommand {
+    words?: string[];
 }
 
 export class SwaggerException extends Error {
