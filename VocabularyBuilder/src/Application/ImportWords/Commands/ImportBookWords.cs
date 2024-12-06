@@ -1,17 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Text.RegularExpressions;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
-using VocabularyBuilder.Application.Words.Commands;
+using VocabularyBuilder.Domain.Helpers;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
-using VocabularyBuilder.Domain.Helpers;
-using Microsoft.EntityFrameworkCore;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 

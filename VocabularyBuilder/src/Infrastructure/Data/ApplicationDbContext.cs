@@ -5,6 +5,7 @@ using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
+using VocabularyBuilder.Domain.Entities.Frequency;
 using System.Reflection.Emit;
 
 namespace VocabularyBuilder.Infrastructure.Data;
@@ -19,6 +20,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<Word> Words => Set<Word>();
 
+    public DbSet<FrequencyWord> FrequencyWords => Set<FrequencyWord>();
+
     public DbSet<ImportedBookWord> ImportedBookWords => Set<ImportedBookWord>();
 
     protected override void OnModelCreating(ModelBuilder builder)
@@ -27,6 +30,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasOne(ibw => ibw.Word)
             .WithMany()
             .HasForeignKey(ibw => ibw.WordId);
+
+        builder.Entity<FrequencyWord>()
+            .HasMany(fw => fw.DerivedForms)
+            .WithOne(fw => fw.Lemma)
+            .HasForeignKey(fw => fw.LemmaId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 

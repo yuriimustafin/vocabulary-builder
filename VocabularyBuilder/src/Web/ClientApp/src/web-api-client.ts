@@ -515,7 +515,7 @@ export class NewWordsClient {
         return Promise.resolve<string>(null as any);
     }
 
-    newWords_ImportKindleGET(filePath: string | undefined): Promise<number> {
+    newWords_ImportKindle(filePath: string | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords/import-kindle?";
         if (filePath === null)
             throw new Error("The parameter 'filePath' cannot be null.");
@@ -531,11 +531,11 @@ export class NewWordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processNewWords_ImportKindleGET(_response);
+            return this.processNewWords_ImportKindle(_response);
         });
     }
 
-    protected processNewWords_ImportKindleGET(response: Response): Promise<number> {
+    protected processNewWords_ImportKindle(response: Response): Promise<number> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -555,7 +555,7 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    newWords_ImportKindlePOST(command: CreateTextForAudioCommand): Promise<string> {
+    newWords_GenerateText(command: CreateTextForAudioCommand): Promise<string> {
         let url_ = this.baseUrl + "/api/NewWords/audio-text";
         url_ = url_.replace(/[?&]$/, "");
 
@@ -571,11 +571,11 @@ export class NewWordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processNewWords_ImportKindlePOST(_response);
+            return this.processNewWords_GenerateText(_response);
         });
     }
 
-    protected processNewWords_ImportKindlePOST(response: Response): Promise<string> {
+    protected processNewWords_GenerateText(response: Response): Promise<string> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };

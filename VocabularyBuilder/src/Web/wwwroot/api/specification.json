@@ -373,7 +373,7 @@
         "tags": [
           "NewWords"
         ],
-        "operationId": "NewWords_ImportKindleGET",
+        "operationId": "NewWords_ImportKindle",
         "parameters": [
           {
             "name": "FilePath",
@@ -404,7 +404,7 @@
         "tags": [
           "NewWords"
         ],
-        "operationId": "NewWords_ImportKindlePOST",
+        "operationId": "NewWords_GenerateText",
         "requestBody": {
           "x-name": "command",
           "content": {

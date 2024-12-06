@@ -1,4 +1,5 @@
-﻿using VocabularyBuilder.Domain.Samples.Entities;
+﻿using VocabularyBuilder.Domain.Entities.Frequency;
+using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Application.Common.Interfaces;
@@ -10,6 +11,8 @@ public interface IApplicationDbContext
     DbSet<TodoItem> TodoItems { get; }
 
     DbSet<Word> Words { get; }
+
+    DbSet<FrequencyWord> FrequencyWords { get; }
 
     DbSet<ImportedBookWord> ImportedBookWords { get; }
 
