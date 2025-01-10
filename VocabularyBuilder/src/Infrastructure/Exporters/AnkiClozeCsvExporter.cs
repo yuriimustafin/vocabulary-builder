@@ -17,7 +17,8 @@ internal class AnkiClozeCsvExporter : IWordsExporter
             if (word.Senses is null)
                 continue;
             result.Append("Cloze;");
-            result.Append($"\"{ClozeWholeString(word.Headword)}\r\n");
+            result.Append($"\"{ClozeWholeString(word.Headword)} &nbsp;&nbsp;" +
+                $"{(word.Transcription is null ? "" : ClozeWholeString(word.Transcription))}<br />");
             for (var i = 0; i < word.Senses.Count(); i++)
             {
                 var sense = word.Senses.ElementAt(i);
@@ -25,16 +26,15 @@ internal class AnkiClozeCsvExporter : IWordsExporter
                     ClozeWord(
                         MakeValidLine(sense.Definition), 
                         word.Headword), 
-                    2);
-                result.Append($"( {i + 1} ) {senseDefinition}. \r\n");
+                        2);
+                result.Append($"( {i + 1} ) {senseDefinition}.");
                 if (sense.Examples.Any())
                 {
-                    result.Append("<details>\n<summary>Samples</summary>\n<p>");
+                    result.Append("<details><summary>Samples</summary><p>");
                     var example = String.Join(" | ", sense.Examples);
                     result.Append(ClozeWord(MakeValidLine(example), word.Headword));
-                    result.Append("</p>\n</details>");
+                    result.Append("</p></details>");
                 }
-                result.Append("\r\n");
             }
             result.Append("\";\r\n");
         }

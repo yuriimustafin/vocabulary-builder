@@ -83,6 +83,8 @@ public class OxfordParser : IWordReferenceParser
                 return null;
             }
 
+            var transcription = document.QuerySelector(".phons_n_am .phon")?.TextContent;
+
             var senses = new List<Sense>();
             var senseElements = document.QuerySelectorAll("li.sense");
             foreach (var senseElement in senseElements)
@@ -104,6 +106,7 @@ public class OxfordParser : IWordReferenceParser
             return new Word()
             {
                 Headword = headword,
+                Transcription = transcription,
                 Senses = senses
             };
         }
