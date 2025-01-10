@@ -30,6 +30,7 @@ public class NewWordsController : ControllerBase
     //[Consumes("text/plain")]
     public async Task<string> LookupWords()
     {
+        // Can be a list of URL to the Oxford dictionary or just words
         string wordList;
         using (StreamReader reader = new StreamReader(Request.Body, Encoding.UTF8))
         {
@@ -37,7 +38,13 @@ public class NewWordsController : ControllerBase
         }
         var wordsForParsing = wordList.Split('\n');
         var words = await _wordReferenceParser.GetWords(wordsForParsing);
-        return _wordsExporter.ExportWords(words);
+
+        // TODO: FIX THE ISSUE with perpetual response to postman!!!!!
+        // it worked with links, and works with 1 word (that is appended to the search URL), but doesn't work with a list of words
+        
+        var result = _wordsExporter.ExportWords(words);
+        Console.WriteLine(result);
+        return result;
     }
 
     [HttpGet]

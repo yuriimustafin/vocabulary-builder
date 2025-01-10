@@ -8,6 +8,7 @@ using AngleSharp;
 using System.Web;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Samples.Entities;
+using Microsoft.Identity.Client;
 
 namespace VocabularyBuilder.Infrastructure.Parsers;
 
@@ -16,6 +17,7 @@ namespace VocabularyBuilder.Infrastructure.Parsers;
 // TODO: Consider moving that to App layer.
 public class OxfordParser : IWordReferenceParser
 {
+    const string SearchUrl = "https://www.oxfordlearnersdictionaries.com/us/search/english/?q=";
     public async Task<IEnumerable<Word>> GetWords(IEnumerable<string> searchedWords)
     {
         var config = Configuration.Default.WithDefaultLoader();
@@ -29,16 +31,27 @@ public class OxfordParser : IWordReferenceParser
 
             //https://www.oxfordlearnersdictionaries.com/us/definition/english/grade_1?q=grade - FIX: idioms included as senses
             // for now searchedWord is a URL
-            var address = HttpUtility.UrlDecode(searchedWord);
+            var address = HttpUtility.UrlDecode(GetAddress(searchedWord));
             var document = await context.OpenAsync(address);
             var word = GetWord(document);
             if (word != null)
             {
                 words.Add(word);
+                Console.WriteLine(word.Headword);
             }
         }
 
         return words;
+    }
+
+    private string GetAddress(string searchedWord)
+    {
+        searchedWord = searchedWord.Trim().Replace("\r", "").Replace("\n", "").Trim();
+        if (searchedWord.Contains("https://"))
+        {
+            return searchedWord;
+        }
+        return SearchUrl + searchedWord;
     }
 
     // Consider using these code outside of the class and receive String as an input:
@@ -62,35 +75,43 @@ public class OxfordParser : IWordReferenceParser
 
     private Word? GetWord(IDocument document)
     {
-        var headword = document.QuerySelector("h1")?.TextContent;
-        if (headword == null)
+        try
         {
+            var headword = document.QuerySelector("h1")?.TextContent;
+            if (headword == null)
+            {
+                return null;
+            }
+
+            var senses = new List<Sense>();
+            var senseElements = document.QuerySelectorAll("li.sense");
+            foreach (var senseElement in senseElements)
+            {
+                var def = senseElement.QuerySelector(".def")?.TextContent;
+                var examples = senseElement
+                    .QuerySelectorAll("ul.examples li")
+                    .Select(x => x.TextContent);
+                if (def is not null)
+                {
+                    senses.Add(
+                        new Sense()
+                        {
+                            Definition = def,
+                            Examples = examples
+                        });
+                }
+            }
+            return new Word()
+            {
+                Headword = headword,
+                Senses = senses
+            };
+        }
+        catch 
+        {
+            Console.WriteLine(document.Url);
             return null;
         }
-
-        var senses = new List<Sense>();
-        var senseElements = document.QuerySelectorAll("li.sense");
-        foreach (var senseElement in senseElements)
-        {
-            var def = senseElement.QuerySelector(".def")?.TextContent;
-            var examples = senseElement
-                .QuerySelectorAll("ul.examples li")
-                .Select(x => x.TextContent);
-            if (def is not null)
-            {
-                senses.Add(
-                    new Sense()
-                    {
-                        Definition = def,
-                        Examples = examples
-                    });
-            }
-        }
-        return new Word()
-        {
-            Headword = headword,
-            Senses = senses
-        };
     }
 
 }
