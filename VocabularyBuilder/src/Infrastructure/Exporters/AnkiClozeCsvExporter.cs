@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Primitives;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Samples.Entities;
 
@@ -16,7 +17,14 @@ internal class AnkiClozeCsvExporter : IWordsExporter
         {
             if (word.Senses is null)
                 continue;
-            result.Append("Cloze;");
+            // TODO: Move note type and deck name to settings
+            /* 
+                #separator:Semicolon
+                #html:true
+                #deck column:1 
+            */
+            result.Append("English::Vocabulary;");
+            result.Append(word.Headword + ";");
             result.Append($"\"{ClozeWholeString(word.Headword)} &nbsp;&nbsp;" +
                 $"{(word.Transcription is null ? "" : ClozeWholeString(word.Transcription))}<br />");
             for (var i = 0; i < word.Senses.Count(); i++)
@@ -36,7 +44,12 @@ internal class AnkiClozeCsvExporter : IWordsExporter
                     result.Append("</p></details>");
                 }
             }
-            result.Append("\";\r\n");
+            result.Append("\";");
+            if (word.Headword.Length > 0)
+            {
+                result.Append(word.Headword[0] + ";");
+            }
+            result.Append("\r\n");
         }
         return result.ToString();
     }
