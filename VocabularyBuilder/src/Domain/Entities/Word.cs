@@ -11,6 +11,9 @@ public class Word : BaseAuditableEntity
     // TODO: Consider renaming/using instead Lemma
     public required string Headword { get; set; }
     public string? Transcription { get; set; }
+
+    // TODO: Change it to enum
+    public string? PartOfSpeech{ get; set; }
     public IList<Sense>? Senses { get; set; }
     public IList<string>? Examples { get; set; }
     public int? Frequency { get; set; }

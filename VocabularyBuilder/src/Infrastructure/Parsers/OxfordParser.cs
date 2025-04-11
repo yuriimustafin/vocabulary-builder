@@ -84,6 +84,7 @@ public class OxfordParser : IWordReferenceParser
             }
 
             var transcription = document.QuerySelector(".phons_n_am .phon")?.TextContent;
+            var partOfSpeech = document.QuerySelector(".webtop .pos")?.TextContent;
 
             var senses = new List<Sense>();
             var senseElements = document.QuerySelectorAll("li.sense");
@@ -107,6 +108,7 @@ public class OxfordParser : IWordReferenceParser
             {
                 Headword = headword,
                 Transcription = transcription,
+                PartOfSpeech = partOfSpeech,
                 Senses = senses
             };
         }

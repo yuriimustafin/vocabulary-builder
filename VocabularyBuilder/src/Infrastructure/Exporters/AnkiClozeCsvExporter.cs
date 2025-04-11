@@ -25,8 +25,13 @@ internal class AnkiClozeCsvExporter : IWordsExporter
             */
             result.Append("English::Vocabulary;");
             result.Append(word.Headword + ";");
-            result.Append($"\"{ClozeWholeString(word.Headword)} &nbsp;&nbsp;" +
-                $"{(word.Transcription is null ? "" : ClozeWholeString(word.Transcription))}<br />");
+            result.Append($"\"<span class='headword'>{ClozeWholeString(word.Headword)}</span> &nbsp;&nbsp;" +
+                $"{
+                    (word.Transcription is null 
+                    ? "" 
+                    : "<span class='transcription'>" + ClozeWholeString(word.Transcription) + "</span>")
+                    }<br />");
+            result.Append(word.PartOfSpeech is null ? "" : $"<span class='pos'>{word.PartOfSpeech}</span>");
             for (var i = 0; i < word.Senses.Count(); i++)
             {
                 var sense = word.Senses.ElementAt(i);
@@ -35,10 +40,10 @@ internal class AnkiClozeCsvExporter : IWordsExporter
                         MakeValidLine(sense.Definition), 
                         word.Headword), 
                         2);
-                result.Append($"( {i + 1} ) {senseDefinition}.");
+                result.Append($"<span class='def'>( {i + 1} ) {senseDefinition}.</span>");
                 if (sense.Examples.Any())
                 {
-                    result.Append("<details><summary>Samples</summary><p>");
+                    result.Append("<details class='samples'><summary>Samples</summary><p>");
                     var example = String.Join(" | ", sense.Examples);
                     result.Append(ClozeWord(MakeValidLine(example), word.Headword));
                     result.Append("</p></details>");

@@ -1,0 +1,6 @@
+const anchors = document.querySelectorAll('#myWordlist a[href]');
+const hrefs = Array.from(anchors, a => a.getAttribute('href'));
+const multilineText = hrefs.join("\n");
+
+// This copies to clipboard in many browsers' dev consoles:
+copy(multilineText);
