@@ -26,7 +26,14 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
-    await app.InitialiseDatabaseAsync();
+    // TODO: FIX THE ISSUE!!!!
+
+    //if (!Environment.CommandLine.Contains("nswag", StringComparison.OrdinalIgnoreCase)
+    //&& !AppDomain.CurrentDomain.FriendlyName.Contains("NSwag", StringComparison.OrdinalIgnoreCase)
+    //&& !AppDomain.CurrentDomain.FriendlyName.Contains("ef", StringComparison.OrdinalIgnoreCase))
+    //{
+    //    await app.InitialiseDatabaseAsync();
+    //}
 }
 else
 {
@@ -39,7 +46,7 @@ app.UseHealthChecks("/health");
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-app.UseSwaggerUi3(settings =>
+app.UseSwaggerUi(settings =>
 {
     settings.Path = "/api";
     settings.DocumentPath = "/api/specification.json";

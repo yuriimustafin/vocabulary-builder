@@ -3,6 +3,7 @@
     <PropertyGroup>
         <RootNamespace>VocabularyBuilder.Application.UnitTests</RootNamespace>
         <AssemblyName>VocabularyBuilder.Application.UnitTests</AssemblyName>
+        <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>

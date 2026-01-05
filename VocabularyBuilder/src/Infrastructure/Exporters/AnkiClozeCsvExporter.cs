@@ -25,7 +25,7 @@ internal class AnkiClozeCsvExporter : IWordsExporter
             */
             result.Append("English::Vocabulary;");
             result.Append(word.Headword + ";");
-            result.Append($"\"<span class='headword'>{ClozeWholeString(word.Headword)}</span> &nbsp;&nbsp;" +
+            result.Append($"\"<span class='headword'>{ClozeWholeString(word.GetHeadword())}</span> &nbsp;&nbsp;" +
                 $"{
                     (word.Transcription is null 
                     ? "" 

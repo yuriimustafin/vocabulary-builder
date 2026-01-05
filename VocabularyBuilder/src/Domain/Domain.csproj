@@ -3,6 +3,7 @@
   <PropertyGroup>
     <RootNamespace>VocabularyBuilder.Domain</RootNamespace>
     <AssemblyName>VocabularyBuilder.Domain</AssemblyName>
+    <TargetFramework>net9.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>

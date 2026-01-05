@@ -3,6 +3,7 @@
     <PropertyGroup>
         <RootNamespace>VocabularyBuilder.Infrastructure.IntegrationTests</RootNamespace>
         <AssemblyName>VocabularyBuilder.Infrastructure.IntegrationTests</AssemblyName>
+        <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>

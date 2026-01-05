@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VocabularyBuilder.Infrastructure.Data;
 
@@ -11,9 +12,11 @@ using VocabularyBuilder.Infrastructure.Data;
 namespace VocabularyBuilder.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20250504013117_CheckPendingChanges")]
+    partial class CheckPendingChanges
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -189,7 +192,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasIndex("LemmaId");
 
-                    b.ToTable("FrequencyWords", (string)null);
+                    b.ToTable("FrequencyWords");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.BookInfo", b =>
@@ -220,7 +223,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BookInfo", (string)null);
+                    b.ToTable("BookInfo");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.Chapter", b =>
@@ -251,7 +254,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Chapter", (string)null);
+                    b.ToTable("Chapter");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.ImportedBookWord", b =>
@@ -305,7 +308,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.ToTable("ImportedBookWords", (string)null);
+                    b.ToTable("ImportedBookWords");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Sense", b =>
@@ -346,7 +349,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.ToTable("Sense", (string)null);
+                    b.ToTable("Sense");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoItem", b =>
@@ -393,7 +396,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasIndex("ListId");
 
-                    b.ToTable("TodoItems", (string)null);
+                    b.ToTable("TodoItems");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
@@ -423,7 +426,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TodoLists", (string)null);
+                    b.ToTable("TodoLists");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Word", b =>
@@ -468,7 +471,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Words", (string)null);
+                    b.ToTable("Words");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", b =>
@@ -650,7 +653,7 @@ namespace VocabularyBuilder.Infrastructure.Data.Migrations
 
                             b1.HasKey("TodoListId");
 
-                            b1.ToTable("TodoLists", (string)null);
+                            b1.ToTable("TodoLists");
 
                             b1.WithOwner()
                                 .HasForeignKey("TodoListId");

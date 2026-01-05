@@ -18,4 +18,12 @@ public class Word : BaseAuditableEntity
     public IList<string>? Examples { get; set; }
     public int? Frequency { get; set; }
     public int EncounterCount { get; set; }
+
+    public string GetHeadword()
+    {
+        var prefix = (PartOfSpeech is not null && PartOfSpeech.ToLower().Contains("verb")) 
+            ? "to " 
+            : "";
+        return prefix + Headword;
+    }
 }

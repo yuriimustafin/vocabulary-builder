@@ -3,6 +3,7 @@
     <PropertyGroup>
         <RootNamespace>VocabularyBuilder.Web.AcceptanceTests</RootNamespace>
         <AssemblyName>VocabularyBuilder.Web.AcceptanceTests</AssemblyName>
+        <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>

@@ -3,6 +3,7 @@
     <PropertyGroup>
         <RootNamespace>VocabularyBuilder.Application.FunctionalTests</RootNamespace>
         <AssemblyName>VocabularyBuilder.Application.FunctionalTests</AssemblyName>
+        <TargetFramework>net9.0</TargetFramework>
     </PropertyGroup>
 
     <ItemGroup>
