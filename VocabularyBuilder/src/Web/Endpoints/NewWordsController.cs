@@ -6,8 +6,6 @@ using VocabularyBuilder.Application.Exercises.Commands;
 using VocabularyBuilder.Application.ImportWords.Commands;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace VocabularyBuilder.Web.Endpoints;
 
@@ -19,6 +17,7 @@ public class NewWordsController : ControllerBase
     private readonly IWordReferenceParser _wordReferenceParser;
     private readonly IWordsExporter _wordsExporter;
     private readonly ISender _sender;
+    
     public NewWordsController(IWordReferenceParser wordReferenceParser, IWordsExporter wordsExporter, ISender sender)
     {
         this._wordReferenceParser = wordReferenceParser;
@@ -39,6 +38,20 @@ public class NewWordsController : ControllerBase
         var wordsForParsing = wordList.Split('\n');
         var words = await _wordReferenceParser.GetWords(wordsForParsing);
 
+        // Save words to the database
+        foreach (var word in words)
+        {
+            await _sender.Send(new UpsertWordCommand
+            {
+                Headword = word.Headword,
+                Transcription = word.Transcription,
+                PartOfSpeech = word.PartOfSpeech,
+                Frequency = word.Frequency,
+                EncounterCount = word.EncounterCount,
+                Examples = word.Examples?.ToList()
+            });
+        }
+
         // TODO: FIX THE ISSUE with perpetual response to postman!!!!!
         // it worked with links, and works with 1 word (that is appended to the search URL), but doesn't work with a list of words
         
@@ -48,7 +61,7 @@ public class NewWordsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<string> SaveWord([FromQuery] CreateWordCommand command)
+    public async Task<int> SaveWord([FromQuery] CreateWordCommand command)
     {
         return await _sender.Send(command);
     }

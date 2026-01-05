@@ -429,6 +429,205 @@ export class WeatherForecastsClient {
     }
 }
 
+export class WordsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
+    }
+
+    getWords(): Promise<WordDto[]> {
+        let url_ = this.baseUrl + "/api/Words";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetWords(_response);
+        });
+    }
+
+    protected processGetWords(response: Response): Promise<WordDto[]> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(WordDto.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<WordDto[]>(null as any);
+    }
+
+    createWord(command: CreateWordCommand): Promise<number> {
+        let url_ = this.baseUrl + "/api/Words";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processCreateWord(_response);
+        });
+    }
+
+    protected processCreateWord(response: Response): Promise<number> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<number>(null as any);
+    }
+
+    getWord(id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/Words/{id}";
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetWord(_response);
+        });
+    }
+
+    protected processGetWord(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    updateWord(id: number, command: UpdateWordCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/Words/{id}";
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdateWord(_response);
+        });
+    }
+
+    protected processUpdateWord(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    deleteWord(id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/Words/{id}";
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDeleteWord(_response);
+        });
+    }
+
+    protected processDeleteWord(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class NewWordsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -475,12 +674,24 @@ export class NewWordsClient {
         return Promise.resolve<string>(null as any);
     }
 
-    newWords_SaveWord(word: string | undefined): Promise<string> {
+    newWords_SaveWord(headword: string | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, frequency: number | null | undefined, encounterCount: number | undefined, examples: string[] | null | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords?";
-        if (word === null)
-            throw new Error("The parameter 'word' cannot be null.");
-        else if (word !== undefined)
-            url_ += "Word=" + encodeURIComponent("" + word) + "&";
+        if (headword === null)
+            throw new Error("The parameter 'headword' cannot be null.");
+        else if (headword !== undefined)
+            url_ += "Headword=" + encodeURIComponent("" + headword) + "&";
+        if (transcription !== undefined && transcription !== null)
+            url_ += "Transcription=" + encodeURIComponent("" + transcription) + "&";
+        if (partOfSpeech !== undefined && partOfSpeech !== null)
+            url_ += "PartOfSpeech=" + encodeURIComponent("" + partOfSpeech) + "&";
+        if (frequency !== undefined && frequency !== null)
+            url_ += "Frequency=" + encodeURIComponent("" + frequency) + "&";
+        if (encounterCount === null)
+            throw new Error("The parameter 'encounterCount' cannot be null.");
+        else if (encounterCount !== undefined)
+            url_ += "EncounterCount=" + encodeURIComponent("" + encounterCount) + "&";
+        if (examples !== undefined && examples !== null)
+            examples && examples.forEach(item => { url_ += "Examples=" + encodeURIComponent("" + item) + "&"; });
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -495,7 +706,7 @@ export class NewWordsClient {
         });
     }
 
-    protected processNewWords_SaveWord(response: Response): Promise<string> {
+    protected processNewWords_SaveWord(response: Response): Promise<number> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -512,7 +723,7 @@ export class NewWordsClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<string>(null as any);
+        return Promise.resolve<number>(null as any);
     }
 
     newWords_ImportKindle(filePath: string | undefined): Promise<number> {
@@ -1177,6 +1388,206 @@ export interface IWeatherForecast {
     temperatureC?: number;
     temperatureF?: number;
     summary?: string | undefined;
+}
+
+export class WordDto implements IWordDto {
+    id?: number;
+    headword?: string;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    frequency?: number | undefined;
+    encounterCount?: number;
+    examples?: string[];
+
+    constructor(data?: IWordDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.headword = _data["headword"];
+            this.transcription = _data["transcription"];
+            this.partOfSpeech = _data["partOfSpeech"];
+            this.frequency = _data["frequency"];
+            this.encounterCount = _data["encounterCount"];
+            if (Array.isArray(_data["examples"])) {
+                this.examples = [] as any;
+                for (let item of _data["examples"])
+                    this.examples!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): WordDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new WordDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["headword"] = this.headword;
+        data["transcription"] = this.transcription;
+        data["partOfSpeech"] = this.partOfSpeech;
+        data["frequency"] = this.frequency;
+        data["encounterCount"] = this.encounterCount;
+        if (Array.isArray(this.examples)) {
+            data["examples"] = [];
+            for (let item of this.examples)
+                data["examples"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IWordDto {
+    id?: number;
+    headword?: string;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    frequency?: number | undefined;
+    encounterCount?: number;
+    examples?: string[];
+}
+
+export class CreateWordCommand implements ICreateWordCommand {
+    headword?: string;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    frequency?: number | undefined;
+    encounterCount?: number;
+    examples?: string[] | undefined;
+
+    constructor(data?: ICreateWordCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.headword = _data["headword"];
+            this.transcription = _data["transcription"];
+            this.partOfSpeech = _data["partOfSpeech"];
+            this.frequency = _data["frequency"];
+            this.encounterCount = _data["encounterCount"];
+            if (Array.isArray(_data["examples"])) {
+                this.examples = [] as any;
+                for (let item of _data["examples"])
+                    this.examples!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): CreateWordCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateWordCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["headword"] = this.headword;
+        data["transcription"] = this.transcription;
+        data["partOfSpeech"] = this.partOfSpeech;
+        data["frequency"] = this.frequency;
+        data["encounterCount"] = this.encounterCount;
+        if (Array.isArray(this.examples)) {
+            data["examples"] = [];
+            for (let item of this.examples)
+                data["examples"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface ICreateWordCommand {
+    headword?: string;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    frequency?: number | undefined;
+    encounterCount?: number;
+    examples?: string[] | undefined;
+}
+
+export class UpdateWordCommand implements IUpdateWordCommand {
+    id?: number;
+    headword?: string;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    frequency?: number | undefined;
+    encounterCount?: number;
+    examples?: string[] | undefined;
+
+    constructor(data?: IUpdateWordCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.headword = _data["headword"];
+            this.transcription = _data["transcription"];
+            this.partOfSpeech = _data["partOfSpeech"];
+            this.frequency = _data["frequency"];
+            this.encounterCount = _data["encounterCount"];
+            if (Array.isArray(_data["examples"])) {
+                this.examples = [] as any;
+                for (let item of _data["examples"])
+                    this.examples!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): UpdateWordCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateWordCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["headword"] = this.headword;
+        data["transcription"] = this.transcription;
+        data["partOfSpeech"] = this.partOfSpeech;
+        data["frequency"] = this.frequency;
+        data["encounterCount"] = this.encounterCount;
+        if (Array.isArray(this.examples)) {
+            data["examples"] = [];
+            for (let item of this.examples)
+                data["examples"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IUpdateWordCommand {
+    id?: number;
+    headword?: string;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    frequency?: number | undefined;
+    encounterCount?: number;
+    examples?: string[] | undefined;
 }
 
 export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {

@@ -31,7 +31,7 @@ public static class DependencyInjection
         {
             options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
 
-            options.UseSqlServer(connectionString,
+            options.UseSqlite(connectionString,
                 x => x.MigrationsAssembly("VocabularyBuilder.Infrastructure"));
         });
 
