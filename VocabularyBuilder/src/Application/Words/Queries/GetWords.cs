@@ -17,6 +17,7 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
     public async Task<List<WordDto>> Handle(GetWordsQuery request, CancellationToken cancellationToken)
     {
         var words = await _context.Words
+            .Include(w => w.WordEncounters)
             .OrderBy(w => w.Headword)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
@@ -28,7 +29,7 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
             Transcription = w.Transcription,
             PartOfSpeech = w.PartOfSpeech,
             Frequency = w.Frequency,
-            EncounterCount = w.EncounterCount,
+            EncounterCount = w.WordEncounters?.Count ?? 0,
             Examples = w.Examples?.ToList() ?? new List<string>()
         }).ToList();
     }

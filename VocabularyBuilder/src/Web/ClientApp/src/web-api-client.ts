@@ -638,8 +638,10 @@ export class NewWordsClient {
         this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
     }
 
-    newWords_LookupWords(): Promise<string> {
-        let url_ = this.baseUrl + "/api/NewWords";
+    newWords_LookupWords(listName: string | null | undefined): Promise<string> {
+        let url_ = this.baseUrl + "/api/NewWords?";
+        if (listName !== undefined && listName !== null)
+            url_ += "listName=" + encodeURIComponent("" + listName) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -674,7 +676,7 @@ export class NewWordsClient {
         return Promise.resolve<string>(null as any);
     }
 
-    newWords_SaveWord(headword: string | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, frequency: number | null | undefined, encounterCount: number | undefined, examples: string[] | null | undefined): Promise<number> {
+    newWords_SaveWord(headword: string | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, frequency: number | null | undefined, examples: string[] | null | undefined, source: WordEncounterSource | undefined, sourceIdentifier: string | null | undefined, context: string | null | undefined, notes: string | null | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords?";
         if (headword === null)
             throw new Error("The parameter 'headword' cannot be null.");
@@ -686,12 +688,18 @@ export class NewWordsClient {
             url_ += "PartOfSpeech=" + encodeURIComponent("" + partOfSpeech) + "&";
         if (frequency !== undefined && frequency !== null)
             url_ += "Frequency=" + encodeURIComponent("" + frequency) + "&";
-        if (encounterCount === null)
-            throw new Error("The parameter 'encounterCount' cannot be null.");
-        else if (encounterCount !== undefined)
-            url_ += "EncounterCount=" + encodeURIComponent("" + encounterCount) + "&";
         if (examples !== undefined && examples !== null)
             examples && examples.forEach(item => { url_ += "Examples=" + encodeURIComponent("" + item) + "&"; });
+        if (source === null)
+            throw new Error("The parameter 'source' cannot be null.");
+        else if (source !== undefined)
+            url_ += "Source=" + encodeURIComponent("" + source) + "&";
+        if (sourceIdentifier !== undefined && sourceIdentifier !== null)
+            url_ += "SourceIdentifier=" + encodeURIComponent("" + sourceIdentifier) + "&";
+        if (context !== undefined && context !== null)
+            url_ += "Context=" + encodeURIComponent("" + context) + "&";
+        if (notes !== undefined && notes !== null)
+            url_ += "Notes=" + encodeURIComponent("" + notes) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1463,8 +1471,11 @@ export class CreateWordCommand implements ICreateWordCommand {
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;
-    encounterCount?: number;
     examples?: string[] | undefined;
+    source?: WordEncounterSource;
+    sourceIdentifier?: string | undefined;
+    context?: string | undefined;
+    notes?: string | undefined;
 
     constructor(data?: ICreateWordCommand) {
         if (data) {
@@ -1481,12 +1492,15 @@ export class CreateWordCommand implements ICreateWordCommand {
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
             this.frequency = _data["frequency"];
-            this.encounterCount = _data["encounterCount"];
             if (Array.isArray(_data["examples"])) {
                 this.examples = [] as any;
                 for (let item of _data["examples"])
                     this.examples!.push(item);
             }
+            this.source = _data["source"];
+            this.sourceIdentifier = _data["sourceIdentifier"];
+            this.context = _data["context"];
+            this.notes = _data["notes"];
         }
     }
 
@@ -1503,12 +1517,15 @@ export class CreateWordCommand implements ICreateWordCommand {
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
         data["frequency"] = this.frequency;
-        data["encounterCount"] = this.encounterCount;
         if (Array.isArray(this.examples)) {
             data["examples"] = [];
             for (let item of this.examples)
                 data["examples"].push(item);
         }
+        data["source"] = this.source;
+        data["sourceIdentifier"] = this.sourceIdentifier;
+        data["context"] = this.context;
+        data["notes"] = this.notes;
         return data;
     }
 }
@@ -1518,8 +1535,19 @@ export interface ICreateWordCommand {
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;
-    encounterCount?: number;
     examples?: string[] | undefined;
+    source?: WordEncounterSource;
+    sourceIdentifier?: string | undefined;
+    context?: string | undefined;
+    notes?: string | undefined;
+}
+
+export enum WordEncounterSource {
+    Manual = 0,
+    KindleHighlights = 1,
+    OxfordDictionaryList = 2,
+    ImportedFile = 3,
+    Api = 4,
 }
 
 export class UpdateWordCommand implements IUpdateWordCommand {
@@ -1528,7 +1556,6 @@ export class UpdateWordCommand implements IUpdateWordCommand {
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;
-    encounterCount?: number;
     examples?: string[] | undefined;
 
     constructor(data?: IUpdateWordCommand) {
@@ -1547,7 +1574,6 @@ export class UpdateWordCommand implements IUpdateWordCommand {
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
             this.frequency = _data["frequency"];
-            this.encounterCount = _data["encounterCount"];
             if (Array.isArray(_data["examples"])) {
                 this.examples = [] as any;
                 for (let item of _data["examples"])
@@ -1570,7 +1596,6 @@ export class UpdateWordCommand implements IUpdateWordCommand {
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
         data["frequency"] = this.frequency;
-        data["encounterCount"] = this.encounterCount;
         if (Array.isArray(this.examples)) {
             data["examples"] = [];
             for (let item of this.examples)
@@ -1586,7 +1611,6 @@ export interface IUpdateWordCommand {
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;
-    encounterCount?: number;
     examples?: string[] | undefined;
 }
 

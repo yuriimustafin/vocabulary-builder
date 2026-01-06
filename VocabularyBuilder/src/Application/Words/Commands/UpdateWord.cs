@@ -10,7 +10,6 @@ public record UpdateWordCommand : IRequest
     public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
     public int? Frequency { get; init; }
-    public int EncounterCount { get; init; }
     public List<string>? Examples { get; init; }
 }
 
@@ -34,7 +33,6 @@ public class UpdateWordCommandHandler : IRequestHandler<UpdateWordCommand>
         entity.Transcription = request.Transcription;
         entity.PartOfSpeech = request.PartOfSpeech;
         entity.Frequency = request.Frequency;
-        entity.EncounterCount = request.EncounterCount;
         entity.Examples = request.Examples;
 
         await _context.SaveChangesAsync(cancellationToken);

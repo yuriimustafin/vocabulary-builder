@@ -365,6 +365,8 @@ FodyWeavers.xsd
 #DB files 
 *.backup
 *.db
+*.db-shm
+*.db-wal
 /VocabularyBuilder/src/Infrastructure/Data/Migrations/backup.zip
 /VocabularyBuilder/src/Web/appsettings.Development.json
 appsettings.Development.json

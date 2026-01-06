@@ -17,7 +17,16 @@ public class Word : BaseAuditableEntity
     public IList<Sense>? Senses { get; set; }
     public IList<string>? Examples { get; set; }
     public int? Frequency { get; set; }
-    public int EncounterCount { get; set; }
+    
+    /// <summary>
+    /// Collection of all encounters/additions of this word from various sources
+    /// </summary>
+    public ICollection<WordEncounter> WordEncounters { get; set; } = new List<WordEncounter>();
+
+    /// <summary>
+    /// Computed property to get the total encounter count
+    /// </summary>
+    public int EncounterCount => WordEncounters?.Count ?? 0;
 
     public string GetHeadword()
     {

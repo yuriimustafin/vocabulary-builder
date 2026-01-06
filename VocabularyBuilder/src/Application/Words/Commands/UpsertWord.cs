@@ -1,4 +1,5 @@
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Application.Words.Commands;
@@ -9,8 +10,13 @@ public record UpsertWordCommand : IRequest<int>
     public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
     public int? Frequency { get; init; }
-    public int EncounterCount { get; init; }
     public List<string>? Examples { get; init; }
+    
+    // Properties for creating WordEncounter
+    public WordEncounterSource Source { get; init; } = WordEncounterSource.Manual;
+    public string? SourceIdentifier { get; init; }
+    public string? Context { get; init; }
+    public string? Notes { get; init; }
 }
 
 public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
@@ -25,7 +31,7 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
     public async Task<int> Handle(UpsertWordCommand request, CancellationToken cancellationToken)
     {
         var existingWord = await _context.Words
-            .AsNoTracking()
+            .Include(w => w.WordEncounters)
             .FirstOrDefaultAsync(w => w.Headword == request.Headword, cancellationToken);
 
         if (existingWord == null)
@@ -37,28 +43,64 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 Transcription = request.Transcription,
                 PartOfSpeech = request.PartOfSpeech,
                 Frequency = request.Frequency,
-                EncounterCount = request.EncounterCount,
                 Examples = request.Examples
             };
 
             _context.Words.Add(newWord);
             await _context.SaveChangesAsync(cancellationToken);
             
+            // Create the encounter record
+            await CreateWordEncounter(newWord.Id, request, cancellationToken);
+            
             return newWord.Id;
         }
         else
         {
-            // Update existing word
+            // Update existing word (only if new information is provided)
             existingWord.Transcription = request.Transcription ?? existingWord.Transcription;
             existingWord.PartOfSpeech = request.PartOfSpeech ?? existingWord.PartOfSpeech;
             existingWord.Frequency = request.Frequency ?? existingWord.Frequency;
-            existingWord.EncounterCount++;
             existingWord.Examples = request.Examples ?? existingWord.Examples;
 
             _context.Words.Update(existingWord);
+            
+            // Create new encounter record (idempotency check based on SourceIdentifier)
+            await CreateWordEncounter(existingWord.Id, request, cancellationToken);
+            
             await _context.SaveChangesAsync(cancellationToken);
             
             return existingWord.Id;
         }
+    }
+
+    private async Task CreateWordEncounter(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
+    {
+        // Generate SourceIdentifier from today's date if not provided (for manual entries)
+        var sourceIdentifier = request.SourceIdentifier ?? DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
+        
+        // Check if this encounter already exists (idempotency check)
+        var existingEncounter = await _context.WordEncounters
+            .FirstOrDefaultAsync(we => 
+                we.WordId == wordId && 
+                we.SourceIdentifier == sourceIdentifier &&
+                we.Source == request.Source, 
+                cancellationToken);
+
+        if (existingEncounter != null)
+        {
+            // Encounter already exists, don't create duplicate
+            return;
+        }
+
+        var encounter = new WordEncounter
+        {
+            WordId = wordId,
+            Source = request.Source,
+            SourceIdentifier = sourceIdentifier,
+            Context = request.Context,
+            Notes = request.Notes
+        };
+
+        _context.WordEncounters.Add(encounter);
     }
 }

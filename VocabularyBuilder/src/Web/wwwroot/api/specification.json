@@ -463,6 +463,17 @@
           "NewWords"
         ],
         "operationId": "NewWords_LookupWords",
+        "parameters": [
+          {
+            "name": "listName",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 1
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -519,15 +530,6 @@
             "x-position": 4
           },
           {
-            "name": "EncounterCount",
-            "in": "query",
-            "schema": {
-              "type": "integer",
-              "format": "int32"
-            },
-            "x-position": 5
-          },
-          {
             "name": "Examples",
             "in": "query",
             "style": "form",
@@ -539,7 +541,42 @@
                 "type": "string"
               }
             },
+            "x-position": 5
+          },
+          {
+            "name": "Source",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/WordEncounterSource"
+            },
             "x-position": 6
+          },
+          {
+            "name": "SourceIdentifier",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 7
+          },
+          {
+            "name": "Context",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 8
+          },
+          {
+            "name": "Notes",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 9
           }
         ],
         "responses": {
@@ -929,18 +966,47 @@
             "format": "int32",
             "nullable": true
           },
-          "encounterCount": {
-            "type": "integer",
-            "format": "int32"
-          },
           "examples": {
             "type": "array",
             "nullable": true,
             "items": {
               "type": "string"
             }
+          },
+          "source": {
+            "$ref": "#/components/schemas/WordEncounterSource"
+          },
+          "sourceIdentifier": {
+            "type": "string",
+            "nullable": true
+          },
+          "context": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
           }
         }
+      },
+      "WordEncounterSource": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Manual",
+          "KindleHighlights",
+          "OxfordDictionaryList",
+          "ImportedFile",
+          "Api"
+        ],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
       },
       "UpdateWordCommand": {
         "type": "object",
@@ -965,10 +1031,6 @@
             "type": "integer",
             "format": "int32",
             "nullable": true
-          },
-          "encounterCount": {
-            "type": "integer",
-            "format": "int32"
           },
           "examples": {
             "type": "array",

@@ -1,6 +1,7 @@
 ﻿using System.Text.RegularExpressions;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
+using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
@@ -81,42 +82,139 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
     private async Task GenerateWordsInDb(CancellationToken cancellationToken)
     {
         var addedImportedWords = _context.ImportedBookWords
-                .Where(x => x.Status == ImportWordStatus.Added);
-        var trimmedImportedWords = addedImportedWords.AsEnumerable().Select(x => x.TrimmedHeadword());
-        var dublicatingWords = _context.Words
-                .Where(w => trimmedImportedWords.Contains(w.Headword))
-                .GroupBy(w => w.Headword)
-                .Select(grp => grp.First())
-                // from biz logic it is more immportant to get here distinct headwords than rely on IDs
-                .ToDictionary(w => w.Headword, w => w);
-        var newWords = new List<Word>();
+                .Where(x => x.Status == ImportWordStatus.Added)
+                .ToList();
 
-        foreach (var importedWord in addedImportedWords)
+        var existingWordsDict = await GetExistingWordsDictionary(addedImportedWords, cancellationToken);
+        var (newWords, wordEncounters) = ProcessImportedWords(addedImportedWords, existingWordsDict);
+
+        await SaveNewWords(newWords, cancellationToken);
+        AddEncountersForNewWords(newWords, addedImportedWords, wordEncounters);
+        await SaveUniqueEncounters(wordEncounters, cancellationToken);
+    }
+
+    private async Task<Dictionary<string, Word>> GetExistingWordsDictionary(
+        List<ImportedBookWord> importedWords, 
+        CancellationToken cancellationToken)
+    {
+        var trimmedImportedWords = importedWords.Select(x => x.TrimmedHeadword());
+        
+        return await _context.Words
+            .Where(w => trimmedImportedWords.Contains(w.Headword))
+            .GroupBy(w => w.Headword)
+            .Select(grp => grp.First())
+            .ToDictionaryAsync(w => w.Headword, w => w, cancellationToken);
+    }
+
+    private (List<Word> newWords, List<WordEncounter> encounters) ProcessImportedWords(
+        List<ImportedBookWord> importedWords,
+        Dictionary<string, Word> existingWordsDict)
+    {
+        var newWords = new List<Word>();
+        var wordEncounters = new List<WordEncounter>();
+
+        foreach (var importedWord in importedWords)
         {
             var trimmedHeadWord = importedWord.TrimmedHeadword();
-            if (dublicatingWords.ContainsKey(trimmedHeadWord))
+            var sourceIdentifier = importedWord.GetUniqueSourceIdentifier();
+            
+            if (existingWordsDict.ContainsKey(trimmedHeadWord))
             {
-                var dubWord = dublicatingWords[trimmedHeadWord];
-                dubWord.EncounterCount++; 
-                importedWord.Word = dubWord;
+                var existingWord = existingWordsDict[trimmedHeadWord];
+                importedWord.Word = existingWord;
+                
+                wordEncounters.Add(CreateEncounter(
+                    existingWord.Id, 
+                    sourceIdentifier, 
+                    importedWord.Book?.Title, 
+                    importedWord.Note));
             }
             else
             {
-                var newWord = new Word()
-                {
-                    Headword = importedWord.TrimmedHeadword(),
-                    EncounterCount = 1
-                };
+                var newWord = new Word { Headword = trimmedHeadWord };
                 importedWord.Word = newWord;
-                dublicatingWords.Add(newWord.Headword, newWord);
+                existingWordsDict.Add(newWord.Headword, newWord);
                 newWords.Add(newWord);
             }
+            
             importedWord.Status = ImportWordStatus.Processed;
         }
 
-        _context.Words.AddRange(newWords);
-        await _context.SaveChangesAsync(cancellationToken);
+        return (newWords, wordEncounters);
+    }
 
+    private WordEncounter CreateEncounter(int wordId, string sourceIdentifier, string? context, string? notes)
+    {
+        return new WordEncounter
+        {
+            WordId = wordId,
+            Source = WordEncounterSource.KindleHighlights,
+            SourceIdentifier = sourceIdentifier,
+            Context = context,
+            Notes = notes
+        };
+    }
+
+    private async Task SaveNewWords(List<Word> newWords, CancellationToken cancellationToken)
+    {
+        if (newWords.Any())
+        {
+            _context.Words.AddRange(newWords);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    private void AddEncountersForNewWords(
+        List<Word> newWords,
+        List<ImportedBookWord> importedWords,
+        List<WordEncounter> wordEncounters)
+    {
+        foreach (var newWord in newWords)
+        {
+            var importedWord = importedWords.First(iw => iw.Word == newWord);
+            var sourceIdentifier = importedWord.GetUniqueSourceIdentifier();
+            
+            wordEncounters.Add(CreateEncounter(
+                newWord.Id,
+                sourceIdentifier,
+                importedWord.Book?.Title,
+                importedWord.Note));
+        }
+    }
+
+    private async Task SaveUniqueEncounters(
+        List<WordEncounter> wordEncounters,
+        CancellationToken cancellationToken)
+    {
+        var uniqueEncounters = new List<WordEncounter>();
+        
+        foreach (var encounter in wordEncounters)
+        {
+            if (!string.IsNullOrEmpty(encounter.SourceIdentifier))
+            {
+                var exists = await _context.WordEncounters
+                    .AnyAsync(we => 
+                        we.WordId == encounter.WordId && 
+                        we.SourceIdentifier == encounter.SourceIdentifier &&
+                        we.Source == encounter.Source, 
+                        cancellationToken);
+                
+                if (!exists)
+                {
+                    uniqueEncounters.Add(encounter);
+                }
+            }
+            else
+            {
+                uniqueEncounters.Add(encounter);
+            }
+        }
+
+        if (uniqueEncounters.Any())
+        {
+            _context.WordEncounters.AddRange(uniqueEncounters);
+            await _context.SaveChangesAsync(cancellationToken);
+        }
     }
 
     private async Task AddFrequency(CancellationToken cancellationToken)

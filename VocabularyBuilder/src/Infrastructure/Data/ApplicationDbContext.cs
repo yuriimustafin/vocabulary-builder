@@ -20,12 +20,26 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<Word> Words => Set<Word>();
 
+    public DbSet<WordEncounter> WordEncounters => Set<WordEncounter>();
+
     public DbSet<FrequencyWord> FrequencyWords => Set<FrequencyWord>();
 
     public DbSet<ImportedBookWord> ImportedBookWords => Set<ImportedBookWord>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.Entity<WordEncounter>()
+            .HasOne(we => we.Word)
+            .WithMany(w => w.WordEncounters)
+            .HasForeignKey(we => we.WordId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Create unique index for idempotency check
+        builder.Entity<WordEncounter>()
+            .HasIndex(we => new { we.WordId, we.Source, we.SourceIdentifier })
+            .IsUnique()
+            .HasFilter("[SourceIdentifier] IS NOT NULL");
+
         builder.Entity<ImportedBookWord>()
             .HasOne(ibw => ibw.Word)
             .WithMany()

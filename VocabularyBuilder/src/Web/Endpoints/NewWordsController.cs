@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Security.Cryptography;
+using System.Text;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using VocabularyBuilder.Application.Common.Interfaces;
@@ -6,6 +7,7 @@ using VocabularyBuilder.Application.Exercises.Commands;
 using VocabularyBuilder.Application.ImportWords.Commands;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Web.Endpoints;
 
@@ -27,16 +29,21 @@ public class NewWordsController : ControllerBase
 
     [HttpPost]
     //[Consumes("text/plain")]
-    public async Task<string> LookupWords()
+    public async Task<string> LookupWords([FromQuery] string? listName = null)
     {
         // Can be a list of URL to the Oxford dictionary or just words
-        string wordList;
+        string unparsedWordList;
         using (StreamReader reader = new StreamReader(Request.Body, Encoding.UTF8))
         {
-            wordList = await reader.ReadToEndAsync();
+            unparsedWordList = await reader.ReadToEndAsync();
         }
-        var wordsForParsing = wordList.Split('\n');
+        var wordsForParsing = unparsedWordList.Split('\n');
         var words = await _wordReferenceParser.GetWords(wordsForParsing);
+
+        // Generate source identifier: use listName if provided, otherwise hash of the word list
+        var sourceIdentifierBase = !string.IsNullOrWhiteSpace(listName) 
+            ? listName 
+            : ComputeListHash(unparsedWordList);
 
         // Save words to the database
         foreach (var word in words)
@@ -47,8 +54,10 @@ public class NewWordsController : ControllerBase
                 Transcription = word.Transcription,
                 PartOfSpeech = word.PartOfSpeech,
                 Frequency = word.Frequency,
-                EncounterCount = word.EncounterCount,
-                Examples = word.Examples?.ToList()
+                Examples = word.Examples?.ToList(),
+                Source = WordEncounterSource.OxfordDictionaryList,
+                SourceIdentifier = $"{sourceIdentifierBase}:{word.Headword}",
+                Context = !string.IsNullOrWhiteSpace(listName) ? listName : "Oxford Dictionary Import"
             });
         }
 
@@ -77,5 +86,12 @@ public class NewWordsController : ControllerBase
     public async Task<string> GenerateText([FromBody] CreateTextForAudioCommand command)
     {
         return await _sender.Send(command);
+    }
+
+    private static string ComputeListHash(string content)
+    {
+        using var sha256 = SHA256.Create();
+        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(content));
+        return Convert.ToHexString(hashBytes)[..16]; // Use first 16 chars for readability
     }
 }
