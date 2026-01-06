@@ -19,7 +19,6 @@ export class Words extends Component {
         transcription: '',
         partOfSpeech: '',
         frequency: '',
-        encounterCount: 0,
         examples: ''
       },
       isEditing: false
@@ -50,7 +49,6 @@ export class Words extends Component {
         transcription: '',
         partOfSpeech: '',
         frequency: '',
-        encounterCount: 0,
         examples: ''
       },
       isEditing: false
@@ -84,7 +82,6 @@ export class Words extends Component {
         transcription: word.transcription || '',
         partOfSpeech: word.partOfSpeech || '',
         frequency: word.frequency || '',
-        encounterCount: word.encounterCount || 0,
         examples: word.examples ? word.examples.join('\n') : ''
       }
     });
@@ -105,7 +102,6 @@ export class Words extends Component {
         transcription: formData.transcription || null,
         partOfSpeech: formData.partOfSpeech || null,
         frequency: formData.frequency ? parseInt(formData.frequency) : null,
-        encounterCount: parseInt(formData.encounterCount) || 0,
         examples: examplesArray.length > 0 ? examplesArray : null
       };
 
@@ -250,16 +246,6 @@ export class Words extends Component {
                   name="frequency"
                   id="frequency"
                   value={formData.frequency}
-                  onChange={this.handleInputChange}
-                />
-              </FormGroup>
-              <FormGroup>
-                <Label for="encounterCount">Encounter Count</Label>
-                <Input
-                  type="number"
-                  name="encounterCount"
-                  id="encounterCount"
-                  value={formData.encounterCount}
                   onChange={this.handleInputChange}
                 />
               </FormGroup>
