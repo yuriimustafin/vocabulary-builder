@@ -33,16 +33,15 @@ public class ImportedBookWord : BaseAuditableEntity
 
     /// <summary>
     /// Generates a unique identifier from the Kindle heading for idempotency.
-    /// Format: "BookTitle:Headword:RawHeading" to ensure uniqueness per word per location
-    /// Example: "Catching Fire:leached:Highlight(yellow) - 1 > Page 1 · Location 29"
+    /// Format: "BookTitle:Headword:PageNumber" to ensure uniqueness per word per page
+    /// Example: "Harry Potter and the Goblet of Fire:gnarled:6"
     /// </summary>
     public string GetUniqueSourceIdentifier()
     {
         var bookTitle = Book?.Title ?? "Unknown";
-        var heading = Heading ?? "NoHeading";
+        var pageNumber = StringHelper.ExtractPageNumber(Heading);
         
-        // Use book title, headword, and the full heading text to ensure uniqueness
-        // This handles cases where multiple words are on the same page
-        return $"{bookTitle}:{TrimmedHeadword()}:{heading}";
+        // Use book title, headword, and page number to ensure uniqueness
+        return $"{bookTitle}:{TrimmedHeadword()}:{pageNumber}";
     }
 }

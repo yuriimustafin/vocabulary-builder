@@ -733,16 +733,29 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    newWords_ImportKindle(filePath: string | undefined): Promise<number> {
-        let url_ = this.baseUrl + "/api/NewWords/import-kindle?";
-        if (filePath === null)
-            throw new Error("The parameter 'filePath' cannot be null.");
-        else if (filePath !== undefined)
-            url_ += "FilePath=" + encodeURIComponent("" + filePath) + "&";
+    newWords_ImportKindle(contentType: string | null | undefined, contentDisposition: string | null | undefined, headers: any[] | null | undefined, length: number | undefined, name: string | null | undefined, fileName: string | null | undefined): Promise<number> {
+        let url_ = this.baseUrl + "/api/NewWords/import-kindle";
         url_ = url_.replace(/[?&]$/, "");
 
+        const content_ = new FormData();
+        if (contentType !== null && contentType !== undefined)
+            content_.append("ContentType", contentType.toString());
+        if (contentDisposition !== null && contentDisposition !== undefined)
+            content_.append("ContentDisposition", contentDisposition.toString());
+        if (headers !== null && headers !== undefined)
+            headers.forEach(item_ => content_.append("Headers", item_.toString()));
+        if (length === null || length === undefined)
+            throw new Error("The parameter 'length' cannot be null.");
+        else
+            content_.append("Length", length.toString());
+        if (name !== null && name !== undefined)
+            content_.append("Name", name.toString());
+        if (fileName !== null && fileName !== undefined)
+            content_.append("FileName", fileName.toString());
+
         let options_: RequestInit = {
-            method: "GET",
+            body: content_,
+            method: "POST",
             headers: {
                 "Accept": "application/json"
             }

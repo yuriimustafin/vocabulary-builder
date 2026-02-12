@@ -9,7 +9,7 @@ using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
 // Later if we will have more than 1 source of book words - this class can become a context for strategies
-public record ImportBookWordsCommand(string FilePath) : IRequest<int>;
+public record ImportBookWordsCommand(string FileContent) : IRequest<int>;
 public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsCommand, int>
 {
     private readonly IApplicationDbContext _context;
@@ -26,8 +26,8 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
     // TODO: Consider using Notifications or IPipelineBehavior
     public async Task<int> Handle(ImportBookWordsCommand request, CancellationToken cancellationToken)
     {
-        var importingWords = await GetWordsFromFile(request);
-        Console.WriteLine("GetWordsFromFile");
+        var importingWords = await GetWordsFromContent(request);
+        Console.WriteLine("GetWordsFromContent");
 
         await SaveNewWordsToDb(importingWords, cancellationToken);
         Console.WriteLine("SaveNewWordsToDb");
@@ -41,20 +41,16 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
         return importingWords is not null ? importingWords.Count() : 0;
     }
 
-    private async Task<IList<ImportedBookWord>?> GetWordsFromFile(ImportBookWordsCommand request)
+    private async Task<IList<ImportedBookWord>?> GetWordsFromContent(ImportBookWordsCommand request)
     {
-        var filepath = request.FilePath
-                .Trim()
-                .Trim('"', '\'');
         IList<ImportedBookWord>? importingWords = null;
         try
         {
-            string fileContent = File.ReadAllText(filepath);
-            importingWords = await _bookParser.GetWords(fileContent);
+            importingWords = await _bookParser.GetWords(request.FileContent);
         }
-        catch (IOException e)
+        catch (Exception e)
         {
-            Console.WriteLine($"An error occurred while reading the file: {e.Message}");
+            Console.WriteLine($"An error occurred while parsing the file content: {e.Message}");
         }
         return importingWords;
     }

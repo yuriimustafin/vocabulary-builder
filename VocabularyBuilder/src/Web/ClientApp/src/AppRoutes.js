@@ -3,6 +3,7 @@ import { FetchData } from "./components/FetchData";
 import { Home } from "./components/Home";
 import { Words } from "./components/Words";
 import { BulkImport } from "./components/BulkImport";
+import { KindleImport } from "./components/KindleImport";
 
 const AppRoutes = [
   {
@@ -24,6 +25,10 @@ const AppRoutes = [
   {
     path: '/bulk-import',
     element: <BulkImport />
+  },
+  {
+    path: '/kindle-import',
+    element: <KindleImport />
   }
 ];
 

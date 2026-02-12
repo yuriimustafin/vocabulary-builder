@@ -19,7 +19,16 @@ public class BookImportParser : IBookImportParser
         var parser = new HtmlParser();
         var document = await parser.ParseDocumentAsync(htmlContent);
 
-        var elements = document.QuerySelector(".bodyContainer")?.QuerySelectorAll("div");
+        var bodyContainer = document.QuerySelector(".bodyContainer");
+        if (bodyContainer is null)
+        {
+            return result;
+        }
+
+        // Extract book information
+        var bookInfo = ExtractBookInfo(bodyContainer);
+
+        var elements = bodyContainer.QuerySelectorAll("div");
         if (elements is null)
         {
             return result;
@@ -50,11 +59,28 @@ public class BookImportParser : IBookImportParser
                     { 
                         Headword = elements[i].InnerHtml.Trim(), 
                         Heading = currentNoteHeading?.Trim(),
-                        Status = ImportWordStatus.Added
+                        Status = ImportWordStatus.Added,
+                        Book = bookInfo
                     });
             }
         }
         return result;
+    }
 
+    private BookInfo? ExtractBookInfo(IElement bodyContainer)
+    {
+        var bookTitleElement = bodyContainer.QuerySelector(".bookTitle");
+        var authorsElement = bodyContainer.QuerySelector(".authors");
+
+        if (bookTitleElement is null)
+        {
+            return null;
+        }
+
+        return new BookInfo
+        {
+            Title = bookTitleElement.TextContent?.Trim(),
+            Authors = authorsElement?.TextContent?.Trim()
+        };
     }
 }

@@ -62,10 +62,22 @@ public class NewWordsController : ControllerBase
         return await _sender.Send(command);
     }
 
-    [HttpGet("import-kindle")]
-    public async Task<int> ImportKindle([FromQuery] ImportBookWordsCommand command)
+    [HttpPost("import-kindle")]
+    public async Task<ActionResult<int>> ImportKindle([FromForm] IFormFile file)
     {
-        return await _sender.Send(command);
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("No file uploaded");
+        }
+
+        string fileContent;
+        using (var reader = new StreamReader(file.OpenReadStream(), Encoding.UTF8))
+        {
+            fileContent = await reader.ReadToEndAsync();
+        }
+
+        var result = await _sender.Send(new ImportBookWordsCommand(fileContent));
+        return Ok(result);
     }
 
 

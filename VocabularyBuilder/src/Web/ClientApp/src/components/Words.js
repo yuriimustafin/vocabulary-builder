@@ -148,6 +148,9 @@ export class Words extends Component {
             <Button color="success" tag={Link} to="/bulk-import">
               Bulk Import
             </Button>
+            <Button color="info" tag={Link} to="/kindle-import">
+              Import from Kindle
+            </Button>
             <Button color="primary" onClick={this.toggleModal}>
               Add New Word
             </Button>

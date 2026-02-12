@@ -597,21 +597,46 @@
       }
     },
     "/api/NewWords/import-kindle": {
-      "get": {
+      "post": {
         "tags": [
           "NewWords"
         ],
         "operationId": "NewWords_ImportKindle",
-        "parameters": [
-          {
-            "name": "FilePath",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            },
-            "x-position": 1
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "ContentType": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "ContentDisposition": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "Headers": {
+                    "type": "array",
+                    "nullable": true,
+                    "items": {}
+                  },
+                  "Length": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "Name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "FileName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
           }
-        ],
+        },
         "responses": {
           "200": {
             "description": "",
