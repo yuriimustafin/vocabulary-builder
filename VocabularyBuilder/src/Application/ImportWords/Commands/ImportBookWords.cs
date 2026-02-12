@@ -1,6 +1,8 @@
 ﻿using System.Text.RegularExpressions;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
+using VocabularyBuilder.Application.Words.Commands;
+using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -8,263 +10,131 @@ using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
-// Later if we will have more than 1 source of book words - this class can become a context for strategies
 public record ImportBookWordsCommand(string FileContent) : IRequest<int>;
+
 public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsCommand, int>
 {
-    private readonly IApplicationDbContext _context;
     private readonly IBookImportParser _bookParser;
-    private readonly IMediator _mediator;
+    private readonly ISender _sender;
 
-    public ImportBookWordsCommandHandler(IApplicationDbContext context, IBookImportParser bookParser, IMediator mediator)
+    public ImportBookWordsCommandHandler(IBookImportParser bookParser, ISender sender)
     {
-        _context = context;
         _bookParser = bookParser;
-        _mediator = mediator;
+        _sender = sender;
     }
 
-    // TODO: Consider using Notifications or IPipelineBehavior
     public async Task<int> Handle(ImportBookWordsCommand request, CancellationToken cancellationToken)
     {
-        var importingWords = await GetWordsFromContent(request);
-        Console.WriteLine("GetWordsFromContent");
+        var importedWords = await ParseKindleHtml(request.FileContent);
+        if (importedWords == null || !importedWords.Any())
+            return 0;
 
-        await SaveNewWordsToDb(importingWords, cancellationToken);
-        Console.WriteLine("SaveNewWordsToDb");
+        var uniqueHeadwords = importedWords
+            .Select(w => w.TrimmedHeadword())
+            .Distinct()
+            .ToList();
 
-        await GenerateWordsInDb(cancellationToken);
-        Console.WriteLine("GenerateWordsInDb");
+        var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
+        {
+            Words = uniqueHeadwords,
+            SourceType = DictionarySourceType.Oxford
+        }, cancellationToken);
+        
+        // Map from the original searched term to the lookup result
+        // Each result now explicitly tracks what was searched, handling "does" -> "do" redirects
+        var lookupMap = lookupResults.ToDictionary(
+            lr => lr.SearchedTerm,
+            lr => lr
+        );
 
-        await AddFrequency(cancellationToken);
-        Console.WriteLine("AddFrequency");
-
-        return importingWords is not null ? importingWords.Count() : 0;
+        return await ImportWords(importedWords, lookupMap, cancellationToken);
     }
 
-    private async Task<IList<ImportedBookWord>?> GetWordsFromContent(ImportBookWordsCommand request)
+    private async Task<IList<ImportedBookWord>?> ParseKindleHtml(string htmlContent)
     {
-        IList<ImportedBookWord>? importingWords = null;
         try
         {
-            importingWords = await _bookParser.GetWords(request.FileContent);
+            return await _bookParser.GetWords(htmlContent);
         }
         catch (Exception e)
         {
-            Console.WriteLine($"An error occurred while parsing the file content: {e.Message}");
+            Console.WriteLine($"Error parsing Kindle HTML: {e.Message}");
+            return null;
         }
-        return importingWords;
     }
 
-    private async Task SaveNewWordsToDb(IList<ImportedBookWord>? importingWords, CancellationToken cancellationToken)
-    {
-        if (importingWords is null)
-            return;
-        var storedWords = _context.ImportedBookWords
-                    .AsEnumerable()
-                    .Select(x => new { Word = x.Headword, Page = x.ExtractDigitsFromHeading() });
-
-        // TODO: Improve it later and take BookInfo into consideration. Investigate what query will be generated here. 
-        importingWords = importingWords
-            .AsEnumerable()
-            .Where(iw => !storedWords
-            // TODO: Override Equals for ImportedBookWord
-                .Any(sw => sw.Word == iw.Headword && sw.Page == iw.ExtractDigitsFromHeading()))
-            .ToList();
-
-        _context.ImportedBookWords.AddRange(importingWords);
-        await _context.SaveChangesAsync(cancellationToken);
-    }
-
-    private async Task GenerateWordsInDb(CancellationToken cancellationToken)
-    {
-        var addedImportedWords = _context.ImportedBookWords
-                .Where(x => x.Status == ImportWordStatus.Added)
-                .ToList();
-
-        var existingWordsDict = await GetExistingWordsDictionary(addedImportedWords, cancellationToken);
-        var (newWords, wordEncounters) = ProcessImportedWords(addedImportedWords, existingWordsDict);
-
-        await SaveNewWords(newWords, cancellationToken);
-        AddEncountersForNewWords(newWords, addedImportedWords, wordEncounters);
-        await SaveUniqueEncounters(wordEncounters, cancellationToken);
-    }
-
-    private async Task<Dictionary<string, Word>> GetExistingWordsDictionary(
-        List<ImportedBookWord> importedWords, 
+    private async Task<int> ImportWords(
+        IList<ImportedBookWord> importedWords,
+        Dictionary<string, WordLookupResult> lookupMap,
         CancellationToken cancellationToken)
     {
-        var trimmedImportedWords = importedWords.Select(x => x.TrimmedHeadword());
-        
-        return await _context.Words
-            .Where(w => trimmedImportedWords.Contains(w.Headword))
-            .GroupBy(w => w.Headword)
-            .Select(grp => grp.First())
-            .ToDictionaryAsync(w => w.Headword, w => w, cancellationToken);
-    }
-
-    private (List<Word> newWords, List<WordEncounter> encounters) ProcessImportedWords(
-        List<ImportedBookWord> importedWords,
-        Dictionary<string, Word> existingWordsDict)
-    {
-        var newWords = new List<Word>();
-        var wordEncounters = new List<WordEncounter>();
+        var importedCount = 0;
 
         foreach (var importedWord in importedWords)
         {
-            var trimmedHeadWord = importedWord.TrimmedHeadword();
-            var sourceIdentifier = importedWord.GetUniqueSourceIdentifier();
-            
-            if (existingWordsDict.ContainsKey(trimmedHeadWord))
-            {
-                var existingWord = existingWordsDict[trimmedHeadWord];
-                importedWord.Word = existingWord;
-                
-                wordEncounters.Add(CreateEncounter(
-                    existingWord.Id, 
-                    sourceIdentifier, 
-                    importedWord.Book?.Title, 
-                    importedWord.Note));
-            }
-            else
-            {
-                var newWord = new Word { Headword = trimmedHeadWord };
-                importedWord.Word = newWord;
-                existingWordsDict.Add(newWord.Headword, newWord);
-                newWords.Add(newWord);
-            }
-            
-            importedWord.Status = ImportWordStatus.Processed;
+            var upsertCommand = BuildUpsertCommand(importedWord, lookupMap);
+            await _sender.Send(upsertCommand, cancellationToken);
+            importedCount++;
         }
 
-        return (newWords, wordEncounters);
+        return importedCount;
     }
 
-    private WordEncounter CreateEncounter(int wordId, string sourceIdentifier, string? context, string? notes)
+    private UpsertWordCommand BuildUpsertCommand(
+        ImportedBookWord importedWord,
+        Dictionary<string, WordLookupResult> lookupMap)
     {
-        return new WordEncounter
+        var trimmedHeadword = importedWord.TrimmedHeadword();
+        
+        if (lookupMap.TryGetValue(trimmedHeadword, out var lookupResult))
         {
-            WordId = wordId,
+            return CreateUpsertCommandFromLookup(importedWord, lookupResult);
+        }
+        
+        return CreateUpsertCommandFromImportedWord(importedWord, trimmedHeadword);
+    }
+
+    private UpsertWordCommand CreateUpsertCommandFromLookup(
+        ImportedBookWord importedWord,
+        WordLookupResult lookupResult)
+    {
+        return new UpsertWordCommand
+        {
+            Headword = lookupResult.Word.Headword,
+            Transcription = lookupResult.Word.Transcription,
+            PartOfSpeech = lookupResult.Word.PartOfSpeech,
+            Frequency = lookupResult.Word.Frequency,
+            Examples = lookupResult.Word.Examples?.ToList(),
             Source = WordEncounterSource.KindleHighlights,
-            SourceIdentifier = sourceIdentifier,
-            Context = context,
-            Notes = notes
+            SourceIdentifier = BuildSourceIdentifier(importedWord, lookupResult.Word.Headword),
+            Context = importedWord.Book?.Title,
+            Notes = importedWord.Note,
+            DictionarySources = lookupResult.DictionarySources.Any() 
+                ? lookupResult.DictionarySources 
+                : null
         };
     }
 
-    private async Task SaveNewWords(List<Word> newWords, CancellationToken cancellationToken)
+    private UpsertWordCommand CreateUpsertCommandFromImportedWord(
+        ImportedBookWord importedWord,
+        string trimmedHeadword)
     {
-        if (newWords.Any())
-        {
-            _context.Words.AddRange(newWords);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
-    }
-
-    private void AddEncountersForNewWords(
-        List<Word> newWords,
-        List<ImportedBookWord> importedWords,
-        List<WordEncounter> wordEncounters)
-    {
-        foreach (var newWord in newWords)
-        {
-            var importedWord = importedWords.First(iw => iw.Word == newWord);
-            var sourceIdentifier = importedWord.GetUniqueSourceIdentifier();
-            
-            wordEncounters.Add(CreateEncounter(
-                newWord.Id,
-                sourceIdentifier,
-                importedWord.Book?.Title,
-                importedWord.Note));
-        }
-    }
-
-    private async Task SaveUniqueEncounters(
-        List<WordEncounter> wordEncounters,
-        CancellationToken cancellationToken)
-    {
-        var uniqueEncounters = new List<WordEncounter>();
+        Console.WriteLine($"No dictionary result for '{importedWord.Headword}', using trimmed form: {trimmedHeadword}");
         
-        foreach (var encounter in wordEncounters)
+        return new UpsertWordCommand
         {
-            if (!string.IsNullOrEmpty(encounter.SourceIdentifier))
-            {
-                var exists = await _context.WordEncounters
-                    .AnyAsync(we => 
-                        we.WordId == encounter.WordId && 
-                        we.SourceIdentifier == encounter.SourceIdentifier &&
-                        we.Source == encounter.Source, 
-                        cancellationToken);
-                
-                if (!exists)
-                {
-                    uniqueEncounters.Add(encounter);
-                }
-            }
-            else
-            {
-                uniqueEncounters.Add(encounter);
-            }
-        }
-
-        if (uniqueEncounters.Any())
-        {
-            _context.WordEncounters.AddRange(uniqueEncounters);
-            await _context.SaveChangesAsync(cancellationToken);
-        }
+            Headword = trimmedHeadword,
+            Source = WordEncounterSource.KindleHighlights,
+            SourceIdentifier = BuildSourceIdentifier(importedWord, trimmedHeadword),
+            Context = importedWord.Book?.Title,
+            Notes = importedWord.Note
+        };
     }
 
-    private async Task AddFrequency(CancellationToken cancellationToken)
+    private string BuildSourceIdentifier(ImportedBookWord importedWord, string normalizedHeadword)
     {
-        var wordsForAddingFrequency = _context.Words.Where(x => x.Frequency == null);
-
-        // TODO: Remove hardcode!
-        var filePath = "D:\\__Education\\English\\lemma.en.txt";
-        try
-        {
-            using (StreamReader reader = new StreamReader(filePath))
-            {
-                string? line;
-                int cnt = 0;
-                while ((line = reader.ReadLine()) != null)
-                {
-                    var foundWords = wordsForAddingFrequency
-                            .Where(x => x.Frequency == null && line.Contains(x.Headword));
-
-
-                    if (foundWords.Count() > 0)
-                    {
-                        foreach (var word in foundWords)
-                        {
-                            if (ContainsWholeWord(line, word.Headword))
-                            {
-                                word.Frequency = StringHelper.ExtractDigits(line);
-                            }
-                        }
-                    }
-                    if (cnt % 1000 == 0)
-                    {
-                        Console.WriteLine("cnt: " + cnt);
-                    }
-                    cnt++;
-                }
-            }
-        }
-        catch (IOException e)
-        {
-            Console.WriteLine($"An error occurred while reading the file: {e.Message}");
-        }
-
-        foreach (var unchangedWord in wordsForAddingFrequency.Where(x => x.Frequency == null))
-        {
-            unchangedWord.Frequency ??= -1;
-        }
-
-        await _context.SaveChangesAsync(cancellationToken);
-    }
-
-    private bool ContainsWholeWord(string input, string word)
-    {
-        string pattern = $@"\b{Regex.Escape(word)}\b";
-        return Regex.IsMatch(input, pattern);
+        var bookTitle = importedWord.Book?.Title ?? "Unknown";
+        var pageNumber = StringHelper.ExtractPageNumber(importedWord.Heading);
+        return $"{bookTitle}:{normalizedHeadword}:{pageNumber}";
     }
 }

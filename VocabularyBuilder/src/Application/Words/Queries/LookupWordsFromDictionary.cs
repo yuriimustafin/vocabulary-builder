@@ -10,6 +10,7 @@ namespace VocabularyBuilder.Application.Words.Queries;
 /// </summary>
 public class WordLookupResult
 {
+    public string SearchedTerm { get; set; } = string.Empty;
     public Word Word { get; set; } = null!;
     public List<WordDictionarySource> DictionarySources { get; set; } = new();
 }
@@ -56,6 +57,7 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
                 {
                     results.Add(new WordLookupResult
                     {
+                        SearchedTerm = normalizedWord,
                         Word = parsedWord,
                         DictionarySources = new List<WordDictionarySource>()
                     });
@@ -77,10 +79,11 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
         if (uncachedWords.Any())
         {
             Console.WriteLine($"Fetching {uncachedWords.Count} words from dictionary");
-            var fetchedResults = await _wordReferenceParser.GetWordsWithSource(uncachedWords);
+            var fetchedResults = (await _wordReferenceParser.GetWordsWithSource(uncachedWords)).ToList();
             
-            foreach (var parseResult in fetchedResults)
+            for (int i = 0; i < uncachedWords.Count && i < fetchedResults.Count; i++)
             {
+                var parseResult = fetchedResults[i];
                 var dictionarySource = new WordDictionarySource
                 {
                     SourceType = request.SourceType,
@@ -90,6 +93,7 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
                 
                 results.Add(new WordLookupResult
                 {
+                    SearchedTerm = uncachedWords[i].Trim().ToLower(),
                     Word = parseResult.Word,
                     DictionarySources = new List<WordDictionarySource> { dictionarySource }
                 });
