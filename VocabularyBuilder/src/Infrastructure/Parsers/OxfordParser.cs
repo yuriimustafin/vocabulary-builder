@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using AngleSharp.Dom;
 using AngleSharp;
+using AngleSharp.Html.Parser;
 using System.Web;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -18,6 +19,7 @@ namespace VocabularyBuilder.Infrastructure.Parsers;
 public class OxfordParser : IWordReferenceParser
 {
     const string SearchUrl = "https://www.oxfordlearnersdictionaries.com/us/search/english/?q=";
+    
     public async Task<IEnumerable<Word>> GetWords(IEnumerable<string> searchedWords)
     {
         var config = Configuration.Default.WithDefaultLoader();
@@ -42,6 +44,45 @@ public class OxfordParser : IWordReferenceParser
         }
 
         return words;
+    }
+
+    /// <summary>
+    /// Get words with their source HTML and URL for caching
+    /// </summary>
+    public async Task<IEnumerable<WordParseResult>> GetWordsWithSource(IEnumerable<string> searchedWords)
+    {
+        var config = Configuration.Default.WithDefaultLoader();
+        var context = BrowsingContext.New(config);
+        var results = new List<WordParseResult>();
+
+        foreach (var searchedWord in searchedWords)
+        {
+            var address = HttpUtility.UrlDecode(GetAddress(searchedWord));
+            var document = await context.OpenAsync(address);
+            var word = GetWord(document);
+            if (word != null)
+            {
+                results.Add(new WordParseResult
+                {
+                    Word = word,
+                    SourceHtml = document.DocumentElement.OuterHtml,
+                    SourceUrl = address
+                });
+                Console.WriteLine(word.Headword);
+            }
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Parse word from cached HTML content instead of fetching from Oxford
+    /// </summary>
+    public async Task<Word?> GetWordFromCachedHtml(string cachedHtml)
+    {
+        var parser = new HtmlParser();
+        var document = await parser.ParseDocumentAsync(cachedHtml);
+        return GetWord(document);
     }
 
     private string GetAddress(string searchedWord)

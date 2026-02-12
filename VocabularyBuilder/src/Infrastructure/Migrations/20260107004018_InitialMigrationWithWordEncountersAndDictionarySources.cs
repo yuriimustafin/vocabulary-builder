@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace VocabularyBuilder.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class SqliteInitial : Migration
+    public partial class InitialMigrationWithWordEncountersAndDictionarySources : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -140,7 +140,6 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     PartOfSpeech = table.Column<string>(type: "TEXT", nullable: true),
                     Examples = table.Column<string>(type: "TEXT", nullable: true),
                     Frequency = table.Column<int>(type: "INTEGER", nullable: true),
-                    EncounterCount = table.Column<int>(type: "INTEGER", nullable: false),
                     Created = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
                     CreatedBy = table.Column<string>(type: "TEXT", nullable: true),
                     LastModified = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
@@ -348,6 +347,59 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         principalColumn: "Id");
                 });
 
+            migrationBuilder.CreateTable(
+                name: "WordDictionarySources",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    WordId = table.Column<int>(type: "INTEGER", nullable: false),
+                    SourceType = table.Column<int>(type: "INTEGER", nullable: false),
+                    SourceHtml = table.Column<string>(type: "TEXT", nullable: false),
+                    SourceUrl = table.Column<string>(type: "TEXT", nullable: true),
+                    Created = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    CreatedBy = table.Column<string>(type: "TEXT", nullable: true),
+                    LastModified = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    LastModifiedBy = table.Column<string>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WordDictionarySources", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WordDictionarySources_Words_WordId",
+                        column: x => x.WordId,
+                        principalTable: "Words",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "WordEncounters",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "INTEGER", nullable: false)
+                        .Annotation("Sqlite:Autoincrement", true),
+                    WordId = table.Column<int>(type: "INTEGER", nullable: false),
+                    Source = table.Column<int>(type: "INTEGER", nullable: false),
+                    SourceIdentifier = table.Column<string>(type: "TEXT", nullable: true),
+                    Context = table.Column<string>(type: "TEXT", nullable: true),
+                    Notes = table.Column<string>(type: "TEXT", nullable: true),
+                    Created = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    CreatedBy = table.Column<string>(type: "TEXT", nullable: true),
+                    LastModified = table.Column<DateTimeOffset>(type: "TEXT", nullable: false),
+                    LastModifiedBy = table.Column<string>(type: "TEXT", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WordEncounters", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_WordEncounters_Words_WordId",
+                        column: x => x.WordId,
+                        principalTable: "Words",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
             migrationBuilder.CreateIndex(
                 name: "IX_AspNetRoleClaims_RoleId",
                 table: "AspNetRoleClaims",
@@ -414,6 +466,19 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                 name: "IX_TodoItems_ListId",
                 table: "TodoItems",
                 column: "ListId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WordDictionarySources_WordId_SourceType",
+                table: "WordDictionarySources",
+                columns: new[] { "WordId", "SourceType" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WordEncounters_WordId_Source_SourceIdentifier",
+                table: "WordEncounters",
+                columns: new[] { "WordId", "Source", "SourceIdentifier" },
+                unique: true,
+                filter: "[SourceIdentifier] IS NOT NULL");
         }
 
         /// <inheritdoc />
@@ -447,6 +512,12 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                 name: "TodoItems");
 
             migrationBuilder.DropTable(
+                name: "WordDictionarySources");
+
+            migrationBuilder.DropTable(
+                name: "WordEncounters");
+
+            migrationBuilder.DropTable(
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
@@ -459,10 +530,10 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                 name: "Chapter");
 
             migrationBuilder.DropTable(
-                name: "Words");
+                name: "TodoLists");
 
             migrationBuilder.DropTable(
-                name: "TodoLists");
+                name: "Words");
         }
     }
 }

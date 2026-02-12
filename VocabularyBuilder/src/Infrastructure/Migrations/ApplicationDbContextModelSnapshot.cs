@@ -414,9 +414,6 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("EncounterCount")
-                        .HasColumnType("INTEGER");
-
                     b.PrimitiveCollection<string>("Examples")
                         .HasColumnType("TEXT");
 
@@ -443,6 +440,87 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Words");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordDictionarySource", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceHtml")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SourceType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceUrl")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WordId", "SourceType")
+                        .IsUnique();
+
+                    b.ToTable("WordDictionarySources");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordEncounter", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Context")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Notes")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Source")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SourceIdentifier")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WordId", "Source", "SourceIdentifier")
+                        .IsUnique()
+                        .HasFilter("[SourceIdentifier] IS NOT NULL");
+
+                    b.ToTable("WordEncounters");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", b =>
@@ -633,6 +711,28 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordDictionarySource", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany("DictionarySources")
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Word");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordEncounter", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany("WordEncounters")
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Word");
+                });
+
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Frequency.FrequencyWord", b =>
                 {
                     b.Navigation("DerivedForms");
@@ -645,7 +745,11 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Word", b =>
                 {
+                    b.Navigation("DictionarySources");
+
                     b.Navigation("Senses");
+
+                    b.Navigation("WordEncounters");
                 });
 #pragma warning restore 612, 618
         }

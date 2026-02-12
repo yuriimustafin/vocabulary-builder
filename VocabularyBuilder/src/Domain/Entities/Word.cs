@@ -22,6 +22,11 @@ public class Word : BaseAuditableEntity
     /// Collection of all encounters/additions of this word from various sources
     /// </summary>
     public ICollection<WordEncounter> WordEncounters { get; set; } = new List<WordEncounter>();
+    
+    /// <summary>
+    /// Collection of cached dictionary sources for this word (Oxford, Webster, etc.)
+    /// </summary>
+    public ICollection<WordDictionarySource> DictionarySources { get; set; } = new List<WordDictionarySource>();
 
     /// <summary>
     /// Computed property to get the total encounter count

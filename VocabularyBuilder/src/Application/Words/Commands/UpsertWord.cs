@@ -17,6 +17,9 @@ public record UpsertWordCommand : IRequest<int>
     public string? SourceIdentifier { get; init; }
     public string? Context { get; init; }
     public string? Notes { get; init; }
+    
+    // Dictionary sources for caching (optional)
+    public List<WordDictionarySource>? DictionarySources { get; init; }
 }
 
 public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
@@ -49,8 +52,20 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             _context.Words.Add(newWord);
             await _context.SaveChangesAsync(cancellationToken);
             
+            // Add dictionary sources if provided
+            if (request.DictionarySources != null && request.DictionarySources.Any())
+            {
+                foreach (var source in request.DictionarySources)
+                {
+                    source.WordId = newWord.Id;
+                    _context.WordDictionarySources.Add(source);
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }
+            
             // Create the encounter record
             await CreateWordEncounter(newWord.Id, request, cancellationToken);
+            await _context.SaveChangesAsync(cancellationToken);
             
             return newWord.Id;
         }
@@ -63,6 +78,25 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             existingWord.Examples = request.Examples ?? existingWord.Examples;
 
             _context.Words.Update(existingWord);
+            
+            // Add new dictionary sources if provided (unique constraint will prevent duplicates)
+            if (request.DictionarySources != null && request.DictionarySources.Any())
+            {
+                foreach (var source in request.DictionarySources)
+                {
+                    // Check if this source type already exists
+                    var existingSource = await _context.WordDictionarySources
+                        .FirstOrDefaultAsync(
+                            wds => wds.WordId == existingWord.Id && wds.SourceType == source.SourceType,
+                            cancellationToken);
+                    
+                    if (existingSource == null)
+                    {
+                        source.WordId = existingWord.Id;
+                        _context.WordDictionarySources.Add(source);
+                    }
+                }
+            }
             
             // Create new encounter record (idempotency check based on SourceIdentifier)
             await CreateWordEncounter(existingWord.Id, request, cancellationToken);

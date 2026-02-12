@@ -457,12 +457,12 @@
         }
       }
     },
-    "/api/NewWords": {
+    "/api/NewWords/import": {
       "post": {
         "tags": [
           "NewWords"
         ],
-        "operationId": "NewWords_LookupWords",
+        "operationId": "NewWords_ImportWords",
         "parameters": [
           {
             "name": "listName",
@@ -480,13 +480,15 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "string"
+                  "$ref": "#/components/schemas/ImportWordsFromDictionaryResult"
                 }
               }
             }
           }
         }
-      },
+      }
+    },
+    "/api/NewWords": {
       "get": {
         "tags": [
           "NewWords"
@@ -1035,6 +1037,26 @@
           "examples": {
             "type": "array",
             "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ImportWordsFromDictionaryResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "wordsImported": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "encountersCreated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "importedWords": {
+            "type": "array",
             "items": {
               "type": "string"
             }

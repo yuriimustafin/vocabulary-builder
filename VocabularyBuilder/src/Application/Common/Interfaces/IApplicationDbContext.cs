@@ -13,6 +13,8 @@ public interface IApplicationDbContext
     DbSet<Word> Words { get; }
 
     DbSet<WordEncounter> WordEncounters { get; }
+    
+    DbSet<WordDictionarySource> WordDictionarySources { get; }
 
     DbSet<FrequencyWord> FrequencyWords { get; }
 

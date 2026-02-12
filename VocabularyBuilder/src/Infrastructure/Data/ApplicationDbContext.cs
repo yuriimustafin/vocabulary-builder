@@ -21,6 +21,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<Word> Words => Set<Word>();
 
     public DbSet<WordEncounter> WordEncounters => Set<WordEncounter>();
+    
+    public DbSet<WordDictionarySource> WordDictionarySources => Set<WordDictionarySource>();
 
     public DbSet<FrequencyWord> FrequencyWords => Set<FrequencyWord>();
 
@@ -39,6 +41,17 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasIndex(we => new { we.WordId, we.Source, we.SourceIdentifier })
             .IsUnique()
             .HasFilter("[SourceIdentifier] IS NOT NULL");
+
+        builder.Entity<WordDictionarySource>()
+            .HasOne(wds => wds.Word)
+            .WithMany(w => w.DictionarySources)
+            .HasForeignKey(wds => wds.WordId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Create unique index to prevent duplicate sources for same word
+        builder.Entity<WordDictionarySource>()
+            .HasIndex(wds => new { wds.WordId, wds.SourceType })
+            .IsUnique();
 
         builder.Entity<ImportedBookWord>()
             .HasOne(ibw => ibw.Word)

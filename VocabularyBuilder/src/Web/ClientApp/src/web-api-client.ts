@@ -638,8 +638,8 @@ export class NewWordsClient {
         this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
     }
 
-    newWords_LookupWords(listName: string | null | undefined): Promise<string> {
-        let url_ = this.baseUrl + "/api/NewWords?";
+    newWords_ImportWords(listName: string | null | undefined): Promise<ImportWordsFromDictionaryResult> {
+        let url_ = this.baseUrl + "/api/NewWords/import?";
         if (listName !== undefined && listName !== null)
             url_ += "listName=" + encodeURIComponent("" + listName) + "&";
         url_ = url_.replace(/[?&]$/, "");
@@ -652,11 +652,11 @@ export class NewWordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processNewWords_LookupWords(_response);
+            return this.processNewWords_ImportWords(_response);
         });
     }
 
-    protected processNewWords_LookupWords(response: Response): Promise<string> {
+    protected processNewWords_ImportWords(response: Response): Promise<ImportWordsFromDictionaryResult> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -664,8 +664,7 @@ export class NewWordsClient {
             return response.text().then((_responseText) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-                result200 = resultData200 !== undefined ? resultData200 : <any>null;
-    
+            result200 = ImportWordsFromDictionaryResult.fromJS(resultData200);
             return result200;
             });
         } else if (status !== 200 && status !== 204) {
@@ -673,7 +672,7 @@ export class NewWordsClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<string>(null as any);
+        return Promise.resolve<ImportWordsFromDictionaryResult>(null as any);
     }
 
     newWords_SaveWord(headword: string | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, frequency: number | null | undefined, examples: string[] | null | undefined, source: WordEncounterSource | undefined, sourceIdentifier: string | null | undefined, context: string | null | undefined, notes: string | null | undefined): Promise<number> {
@@ -1612,6 +1611,58 @@ export interface IUpdateWordCommand {
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;
     examples?: string[] | undefined;
+}
+
+export class ImportWordsFromDictionaryResult implements IImportWordsFromDictionaryResult {
+    wordsImported?: number;
+    encountersCreated?: number;
+    importedWords?: string[];
+
+    constructor(data?: IImportWordsFromDictionaryResult) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.wordsImported = _data["wordsImported"];
+            this.encountersCreated = _data["encountersCreated"];
+            if (Array.isArray(_data["importedWords"])) {
+                this.importedWords = [] as any;
+                for (let item of _data["importedWords"])
+                    this.importedWords!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): ImportWordsFromDictionaryResult {
+        data = typeof data === 'object' ? data : {};
+        let result = new ImportWordsFromDictionaryResult();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["wordsImported"] = this.wordsImported;
+        data["encountersCreated"] = this.encountersCreated;
+        if (Array.isArray(this.importedWords)) {
+            data["importedWords"] = [];
+            for (let item of this.importedWords)
+                data["importedWords"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IImportWordsFromDictionaryResult {
+    wordsImported?: number;
+    encountersCreated?: number;
+    importedWords?: string[];
 }
 
 export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {

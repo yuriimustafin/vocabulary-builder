@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Table } from 'reactstrap';
+import { Link } from 'react-router-dom';
 import { WordsClient } from '../web-api-client.ts';
 
 export class Words extends Component {
@@ -143,9 +144,14 @@ export class Words extends Component {
       <div>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h1>Words</h1>
-          <Button color="primary" onClick={this.toggleModal}>
-            Add New Word
-          </Button>
+          <div className="d-flex gap-2">
+            <Button color="success" tag={Link} to="/bulk-import">
+              Bulk Import
+            </Button>
+            <Button color="primary" onClick={this.toggleModal}>
+              Add New Word
+            </Button>
+          </div>
         </div>
 
         <Table striped hover>

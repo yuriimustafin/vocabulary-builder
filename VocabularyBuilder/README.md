@@ -1,21 +1,78 @@
 ﻿# VocabularyBuilder
 
+A vocabulary learning application with word tracking, encounter history, and multi-dictionary support. Built with ASP.NET Core and React.
+
 The project was generated using the [Clean.Architecture.Solution.Template](https://github.com/jasontaylordev/VocabularyBuilder) version 8.0.0.
 
-## Build
+## Prerequisites
 
-Run `dotnet build -tl` to build the solution.
+- [.NET 9.0 SDK](https://dotnet.microsoft.com/download/dotnet/9.0)
+- [Node.js](https://nodejs.org/) (for React frontend)
 
-## Run
+## Getting Started
 
-To run the web application:
+### 1. Clone the Repository
 
 ```bash
-cd .\src\Web\
+git clone https://github.com/[your-username]/vocabulary-builder.git
+cd vocabulary-builder/VocabularyBuilder
+```
+
+### 2. Trust the Development Certificate
+
+To avoid SSL certificate warnings in your browser, trust the .NET development certificate:
+
+```bash
+dotnet dev-certs https --trust
+```
+
+Click "Yes" when prompted. This is a one-time setup step.
+
+### 3. Create the Database
+
+The application uses SQLite with Entity Framework Core migrations. Create the database:
+
+```bash
+dotnet ef database update --project src/Infrastructure --startup-project src/Web
+```
+
+**Note:** If you need to start fresh, simply delete the `app.db` file in `src/Web/` and run the command again.
+
+### 4. Build the Solution
+
+```bash
+dotnet build -tl
+```
+
+### 5. Run the Application
+
+```bash
+cd src/Web
 dotnet watch run
 ```
 
-Navigate to https://localhost:5001. The application will automatically reload if you change any of the source files.
+The application will start at:
+- **HTTPS**: https://localhost:5001
+- **HTTP**: http://localhost:5000
+
+The React frontend will be automatically compiled and served. The application will automatically reload if you change any source files.
+
+## Features
+
+- **Word Management**: Add, edit, and delete vocabulary words
+- **Bulk Import**: Import multiple words from Oxford Learners Dictionary
+- **Encounter Tracking**: Track each time you encounter a word (with idempotency)
+- **Dictionary Caching**: Stores HTML from dictionary sources to avoid re-fetching
+- **Multiple Sources**: Support for Kindle highlights, manual entries, and dictionary imports
+
+## Database Migrations
+
+If you make changes to entities, create a new migration:
+
+```bash
+dotnet ef migrations add YourMigrationName --project src/Infrastructure --startup-project src/Web
+dotnet ef database update --project src/Infrastructure --startup-project src/Web
+```
 
 ## Code Styles & Formatting
 
