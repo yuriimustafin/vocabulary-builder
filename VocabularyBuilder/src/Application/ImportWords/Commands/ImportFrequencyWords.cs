@@ -27,7 +27,17 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
         }
 
         var lines = await File.ReadAllLinesAsync(request.FilePath, cancellationToken);
+        
+        // Disable auto detect changes for better performance if supported
+        var supportsChangeTracker = _context.ChangeTracker != null;
+        if (supportsChangeTracker)
+        {
+            _context.ChangeTracker!.AutoDetectChangesEnabled = false;
+        }
+        
+        var batchSize = 1000;
         var importedCount = 0;
+        var currentBatch = 0;
 
         foreach (var line in lines)
         {
@@ -42,23 +52,43 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
             var lemma = CreateLemma(parts[0]);
             _context.FrequencyWords.Add(lemma);
             
-            // Save to get the ID for the lemma
-            await _context.SaveChangesAsync(cancellationToken);
-            
             // Parse and create derived forms if they exist
             if (parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]))
             {
-                var derivedForms = CreateDerivedForms(parts[1], lemma.Id);
+                var derivedForms = CreateDerivedFormsWithParent(parts[1], lemma);
                 foreach (var form in derivedForms)
                 {
                     _context.FrequencyWords.Add(form);
                 }
             }
 
+            currentBatch++;
             importedCount++;
+
+            // Save in batches to avoid memory issues
+            if (currentBatch >= batchSize)
+            {
+                await _context.SaveChangesAsync(cancellationToken);
+                if (supportsChangeTracker)
+                {
+                    _context.ChangeTracker!.Clear(); // Clear tracking to free memory
+                }
+                currentBatch = 0;
+            }
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
+        // Save remaining items
+        if (currentBatch > 0)
+        {
+            await _context.SaveChangesAsync(cancellationToken);
+        }
+        
+        // Re-enable auto detect changes if it was disabled
+        if (supportsChangeTracker)
+        {
+            _context.ChangeTracker!.AutoDetectChangesEnabled = true;
+        }
+
         return importedCount;
     }
 
@@ -80,7 +110,7 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
         return lemma;
     }
 
-    private List<FrequencyWord> CreateDerivedForms(string allFormsText, int baseFormId)
+    private List<FrequencyWord> CreateDerivedFormsWithParent(string allFormsText, FrequencyWord baseForm)
     {
         var forms = allFormsText.Split(",");
         return forms
@@ -89,7 +119,7 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
             { 
                 Headword = x.Trim(),
                 Frequency = null, // Derived forms don't have frequency
-                BaseFormId = baseFormId // Reference to the base form
+                BaseForm = baseForm // Set navigation property, not ID
             })
             .ToList();
     }

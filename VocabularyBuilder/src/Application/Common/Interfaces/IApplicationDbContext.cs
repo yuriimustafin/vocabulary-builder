@@ -1,4 +1,5 @@
-﻿using VocabularyBuilder.Domain.Entities.Frequency;
+﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
+using VocabularyBuilder.Domain.Entities.Frequency;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
@@ -19,6 +20,8 @@ public interface IApplicationDbContext
     DbSet<FrequencyWord> FrequencyWords { get; }
 
     DbSet<ImportedBookWord> ImportedBookWords { get; }
+
+    ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
