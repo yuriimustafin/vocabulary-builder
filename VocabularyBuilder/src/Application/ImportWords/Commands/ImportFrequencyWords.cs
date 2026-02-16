@@ -21,35 +21,77 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
 
     public async Task<int> Handle(ImportFrequencyWordsCommand request, CancellationToken cancellationToken)
     {
-        // TODO: Finish and test the method
-        var multilineFromFile = new List<string>();
-        foreach(var line in multilineFromFile)
+        if (!File.Exists(request.FilePath))
         {
-            var lemmaAndForms = line.Split(" -> ");
+            throw new FileNotFoundException($"Frequency words file not found: {request.FilePath}");
         }
-        var word = await _context.Words.FirstOrDefaultAsync();
-        return 0;
+
+        var lines = await File.ReadAllLinesAsync(request.FilePath, cancellationToken);
+        var importedCount = 0;
+
+        foreach (var line in lines)
+        {
+            if (string.IsNullOrWhiteSpace(line))
+                continue;
+
+            var parts = line.Split(" -> ");
+            if (parts.Length == 0)
+                continue;
+
+            // Parse and create the lemma (main word with frequency)
+            var lemma = CreateLemma(parts[0]);
+            _context.FrequencyWords.Add(lemma);
+            
+            // Save to get the ID for the lemma
+            await _context.SaveChangesAsync(cancellationToken);
+            
+            // Parse and create derived forms if they exist
+            if (parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]))
+            {
+                var derivedForms = CreateDerivedForms(parts[1], lemma.Id);
+                foreach (var form in derivedForms)
+                {
+                    _context.FrequencyWords.Add(form);
+                }
+            }
+
+            importedCount++;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return importedCount;
     }
 
-    private FrequencyWord SaveLemma(string lemma)
+    private FrequencyWord CreateLemma(string lemmaText)
     {
-        var lemmaAndFrequency = lemma.Split('/');
-        var word = new FrequencyWord() { Headword = lemmaAndFrequency[0] };
-        if (lemmaAndFrequency.Length > 1 && int.TryParse(lemmaAndFrequency[1], out var frequency))
+        var parts = lemmaText.Split('/');
+        var lemma = new FrequencyWord 
+        { 
+            Headword = parts[0].Trim(),
+            Frequency = null,
+            BaseFormId = null // Base forms have no parent
+        };
+
+        if (parts.Length > 1 && int.TryParse(parts[1], out var frequency))
         {
-            word.Frequency = frequency;
+            lemma.Frequency = frequency;
         }
-        return word;
-    }
 
-
-    private FrequencyWord SaveDerivedForms(FrequencyWord lemma, string allForms)
-    {
-        var forms = allForms.Split(",");
-        lemma.DerivedForms = forms
-            .Select(x => new FrequencyWord() { Headword = x })
-            .ToList();
         return lemma;
+    }
+
+    private List<FrequencyWord> CreateDerivedForms(string allFormsText, int baseFormId)
+    {
+        var forms = allFormsText.Split(",");
+        return forms
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => new FrequencyWord 
+            { 
+                Headword = x.Trim(),
+                Frequency = null, // Derived forms don't have frequency
+                BaseFormId = baseFormId // Reference to the base form
+            })
+            .ToList();
     }
 
 }

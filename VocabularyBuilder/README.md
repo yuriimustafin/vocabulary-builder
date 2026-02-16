@@ -46,6 +46,14 @@ dotnet build -tl
 
 ### 5. Run the Application
 
+Set the environment to Development (uses Test database):
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+```
+
+Then run the application:
+
 ```bash
 cd src/Web
 dotnet watch run
@@ -56,6 +64,10 @@ The application will start at:
 - **HTTP**: http://localhost:5000
 
 The React frontend will be automatically compiled and served. The application will automatically reload if you change any source files.
+
+**Note:** The application uses different databases based on the environment:
+- **Development**: `VocabularyBuilder.Test.db`
+- **Production**: `VocabularyBuilder.Prod.db`
 
 ## Features
 

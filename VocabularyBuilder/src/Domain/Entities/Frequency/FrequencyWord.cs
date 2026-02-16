@@ -8,8 +8,8 @@ namespace VocabularyBuilder.Domain.Entities.Frequency;
 public class FrequencyWord : BaseAuditableEntity
 {
     public required string Headword { get; set; }
-    public int Frequency { get; set; }
-    public int LemmaId { get; set; }
-    public FrequencyWord? Lemma { get; set; }
+    public int? Frequency { get; set; }
+    public int? BaseFormId { get; set; }
+    public FrequencyWord? BaseForm { get; set; }
     public IList<FrequencyWord>? DerivedForms { get; set; }
 }

@@ -80,6 +80,23 @@ public class NewWordsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("import-frequency")]
+    public async Task<ActionResult<int>> ImportFrequency([FromQuery] string filePath)
+    {
+        if (string.IsNullOrWhiteSpace(filePath))
+        {
+            return BadRequest("File path is required");
+        }
+
+        if (!System.IO.File.Exists(filePath))
+        {
+            return BadRequest($"File not found: {filePath}");
+        }
+
+        var result = await _sender.Send(new ImportFrequencyWordsCommand(filePath));
+        return Ok(result);
+    }
+
 
     [HttpPost("audio-text")]
     public async Task<string> GenerateText([FromBody] CreateTextForAudioCommand command)

@@ -677,6 +677,37 @@
         }
       }
     },
+    "/api/NewWords/import-frequency": {
+      "post": {
+        "tags": [
+          "NewWords"
+        ],
+        "operationId": "NewWords_ImportFrequency",
+        "parameters": [
+          {
+            "name": "filePath",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "format": "int32"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/NewWords/audio-text": {
       "post": {
         "tags": [

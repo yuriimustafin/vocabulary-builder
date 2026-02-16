@@ -60,8 +60,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
         builder.Entity<FrequencyWord>()
             .HasMany(fw => fw.DerivedForms)
-            .WithOne(fw => fw.Lemma)
-            .HasForeignKey(fw => fw.LemmaId)
+            .WithOne(fw => fw.BaseForm)
+            .HasForeignKey(fw => fw.BaseFormId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
