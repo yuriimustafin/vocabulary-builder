@@ -134,7 +134,8 @@ public class OxfordParser : IWordReferenceParser
                 var def = senseElement.QuerySelector(".def")?.TextContent;
                 var examples = senseElement
                     .QuerySelectorAll("ul.examples li")
-                    .Select(x => x.TextContent);
+                    .Select(x => x.TextContent)
+                    .ToList();
                 if (def is not null)
                 {
                     senses.Add(

@@ -105,6 +105,7 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
             PartOfSpeech = lookupResult.Word.PartOfSpeech,
             Frequency = lookupResult.Word.Frequency,
             Examples = lookupResult.Word.Examples?.ToList(),
+            Senses = lookupResult.Word.Senses?.ToList(),
             Source = WordEncounterSource.KindleHighlights,
             SourceIdentifier = BuildSourceIdentifier(importedWord, lookupResult.Word.Headword),
             Context = importedWord.Book?.Title,

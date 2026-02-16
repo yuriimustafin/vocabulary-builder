@@ -10,5 +10,5 @@ public class Sense : BaseAuditableEntity
 {
     public required string Definition { get; set; }
     public PartsOfSpeech PartOfSpeech { get; set; }
-    public required IEnumerable<string> Examples { get; set; }
+    public required IList<string> Examples { get; set; }
 }

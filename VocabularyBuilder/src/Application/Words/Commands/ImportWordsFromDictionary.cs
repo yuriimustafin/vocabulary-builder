@@ -55,6 +55,7 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
                 PartOfSpeech = lookupResult.Word.PartOfSpeech,
                 Frequency = lookupResult.Word.Frequency,
                 Examples = lookupResult.Word.Examples?.ToList(),
+                Senses = lookupResult.Word.Senses?.ToList(),
                 Source = WordEncounterSource.OxfordDictionaryList,
                 SourceIdentifier = $"{sourceIdentifierBase}:{lookupResult.Word.Headword}",
                 Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Oxford Dictionary Import",

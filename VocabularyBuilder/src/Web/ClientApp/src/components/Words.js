@@ -13,7 +13,10 @@ export class Words extends Component {
       loading: true,
       modal: false,
       deleteModal: false,
+      detailsModal: false,
       currentWord: null,
+      wordDetails: null,
+      loadingDetails: false,
       formData: {
         id: 0,
         headword: '',
@@ -61,6 +64,29 @@ export class Words extends Component {
       deleteModal: !prevState.deleteModal,
       currentWord: word
     }));
+  }
+
+  toggleDetailsModal = async (word = null) => {
+    if (word && !this.state.detailsModal) {
+      // Opening modal - fetch details
+      this.setState({ detailsModal: true, loadingDetails: true });
+      try {
+        const response = await fetch(`/api/Words/${word.id}/details`);
+        if (response.ok) {
+          const details = await response.json();
+          this.setState({ wordDetails: details, loadingDetails: false });
+        } else {
+          console.error('Failed to load word details');
+          this.setState({ loadingDetails: false });
+        }
+      } catch (error) {
+        console.error('Error loading word details:', error);
+        this.setState({ loadingDetails: false });
+      }
+    } else {
+      // Closing modal
+      this.setState({ detailsModal: false, wordDetails: null });
+    }
   }
 
   handleInputChange = (e) => {
@@ -134,7 +160,7 @@ export class Words extends Component {
   }
 
   render() {
-    const { words, loading, modal, deleteModal, formData, isEditing, currentWord } = this.state;
+    const { words, loading, modal, deleteModal, detailsModal, formData, isEditing, currentWord, wordDetails, loadingDetails } = this.state;
 
     if (loading) {
       return <p><em>Loading...</em></p>;
@@ -183,6 +209,14 @@ export class Words extends Component {
                     : '-'}
                 </td>
                 <td>
+                  <Button 
+                    color="primary" 
+                    size="sm" 
+                    className="me-2"
+                    onClick={() => this.toggleDetailsModal(word)}
+                  >
+                    View
+                  </Button>
                   <Button 
                     color="info" 
                     size="sm" 
@@ -296,6 +330,121 @@ export class Words extends Component {
             </Button>
             <Button color="secondary" onClick={() => this.toggleDeleteModal()}>
               Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
+
+        {/* Word Details Modal */}
+        <Modal isOpen={detailsModal} toggle={() => this.toggleDetailsModal()} size="xl">
+          <ModalHeader toggle={() => this.toggleDetailsModal()}>
+            Word Details
+          </ModalHeader>
+          <ModalBody>
+            {loadingDetails && (
+              <div className="text-center">
+                <p>Loading...</p>
+              </div>
+            )}
+            {!loadingDetails && wordDetails && (
+              <div>
+                <h3>{wordDetails.headword}</h3>
+                {wordDetails.transcription && (
+                  <p className="text-muted">{wordDetails.transcription}</p>
+                )}
+                
+                <hr />
+                
+                <div className="row">
+                  <div className="col-md-6">
+                    <strong>Part of Speech:</strong> {wordDetails.partOfSpeech || 'N/A'}
+                  </div>
+                  <div className="col-md-6">
+                    <strong>Frequency:</strong> {wordDetails.frequency || 'N/A'}
+                  </div>
+                </div>
+
+                {wordDetails.senses && wordDetails.senses.length > 0 && (
+                  <>
+                    <h5 className="mt-4">Definitions</h5>
+                    {wordDetails.senses.map((sense, index) => (
+                      <div key={index} className="mb-3 p-3 border rounded">
+                        <strong>{index + 1}. {sense.partOfSpeech}</strong>
+                        <p className="mb-2">{sense.definition}</p>
+                        {sense.examples && sense.examples.length > 0 && (
+                          <div className="ms-3">
+                            <small className="text-muted">Examples:</small>
+                            <ul className="mb-0">
+                              {sense.examples.map((ex, i) => (
+                                <li key={i}><small>{ex}</small></li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </>
+                )}
+
+                {wordDetails.examples && wordDetails.examples.length > 0 && (
+                  <>
+                    <h5 className="mt-4">Examples</h5>
+                    <ul>
+                      {wordDetails.examples.map((ex, index) => (
+                        <li key={index}>{ex}</li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
+                {wordDetails.encounters && wordDetails.encounters.length > 0 && (
+                  <>
+                    <h5 className="mt-4">Encounters ({wordDetails.encounters.length})</h5>
+                    <div className="table-responsive">
+                      <table className="table table-sm">
+                        <thead>
+                          <tr>
+                            <th>Source</th>
+                            <th>Context</th>
+                            <th>Notes</th>
+                            <th>Date</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {wordDetails.encounters.map((enc, index) => (
+                            <tr key={index}>
+                              <td><span className="badge bg-secondary">{enc.source}</span></td>
+                              <td>{enc.context || '-'}</td>
+                              <td>{enc.notes || '-'}</td>
+                              <td><small>{new Date(enc.encounteredAt).toLocaleDateString()}</small></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </>
+                )}
+
+                {wordDetails.dictionarySources && wordDetails.dictionarySources.length > 0 && (
+                  <>
+                    <h5 className="mt-4">Dictionary Sources</h5>
+                    <ul>
+                      {wordDetails.dictionarySources.map((source, index) => (
+                        <li key={index}>
+                          {source.sourceType}
+                          {source.sourceUrl && (
+                            <> - <a href={source.sourceUrl} target="_blank" rel="noopener noreferrer">View</a></>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            <Button color="secondary" onClick={() => this.toggleDetailsModal()}>
+              Close
             </Button>
           </ModalFooter>
         </Modal>

@@ -10,6 +10,7 @@ public class Words : EndpointGroupBase
         app.MapGroup(this)
             .MapGet(GetWords)
             .MapGet(GetWord, "{id}")
+            .MapGet(GetWordDetails, "{id}/details")
             .MapPost(CreateWord)
             .MapPut(UpdateWord, "{id}")
             .MapDelete(DeleteWord, "{id}");
@@ -23,6 +24,12 @@ public class Words : EndpointGroupBase
     public async Task<IResult> GetWord(ISender sender, int id)
     {
         var word = await sender.Send(new GetWordQuery(id));
+        return word != null ? Results.Ok(word) : Results.NotFound();
+    }
+
+    public async Task<IResult> GetWordDetails(ISender sender, int id)
+    {
+        var word = await sender.Send(new GetWordDetailsQuery(id));
         return word != null ? Results.Ok(word) : Results.NotFound();
     }
 

@@ -11,6 +11,7 @@ public record UpsertWordCommand : IRequest<int>
     public string? PartOfSpeech { get; init; }
     public int? Frequency { get; init; }
     public List<string>? Examples { get; init; }
+    public List<Sense>? Senses { get; init; }
     
     // Properties for creating WordEncounter
     public WordEncounterSource Source { get; init; } = WordEncounterSource.Manual;
@@ -35,6 +36,7 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
     {
         var existingWord = await _context.Words
             .Include(w => w.WordEncounters)
+            .Include(w => w.Senses)
             .FirstOrDefaultAsync(w => w.Headword == request.Headword, cancellationToken);
 
         if (existingWord == null)
@@ -46,7 +48,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 Transcription = request.Transcription,
                 PartOfSpeech = request.PartOfSpeech,
                 Frequency = request.Frequency,
-                Examples = request.Examples
+                Examples = request.Examples,
+                Senses = request.Senses
             };
 
             _context.Words.Add(newWord);
@@ -76,6 +79,24 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             existingWord.PartOfSpeech = request.PartOfSpeech ?? existingWord.PartOfSpeech;
             existingWord.Frequency = request.Frequency ?? existingWord.Frequency;
             existingWord.Examples = request.Examples ?? existingWord.Examples;
+            
+            // Merge senses: add only new senses that don't already exist
+            if (request.Senses != null && request.Senses.Any())
+            {
+                existingWord.Senses ??= new List<Sense>();
+                
+                foreach (var newSense in request.Senses)
+                {
+                    // Check if a sense with the same definition already exists
+                    var isDuplicate = existingWord.Senses.Any(s => 
+                        s.Definition.Equals(newSense.Definition, StringComparison.OrdinalIgnoreCase));
+                    
+                    if (!isDuplicate)
+                    {
+                        existingWord.Senses.Add(newSense);
+                    }
+                }
+            }
 
             _context.Words.Update(existingWord);
             
