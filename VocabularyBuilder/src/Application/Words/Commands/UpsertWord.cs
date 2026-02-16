@@ -1,4 +1,5 @@
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
@@ -26,10 +27,12 @@ public record UpsertWordCommand : IRequest<int>
 public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ISender _sender;
 
-    public UpsertWordCommandHandler(IApplicationDbContext context)
+    public UpsertWordCommandHandler(IApplicationDbContext context, ISender sender)
     {
         _context = context;
+        _sender = sender;
     }
 
     public async Task<int> Handle(UpsertWordCommand request, CancellationToken cancellationToken)
@@ -41,13 +44,20 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
 
         if (existingWord == null)
         {
+            // Look up frequency if not provided
+            var frequency = request.Frequency;
+            if (!frequency.HasValue)
+            {
+                frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword), cancellationToken);
+            }
+
             // Create new word
             var newWord = new Word
             {
                 Headword = request.Headword,
                 Transcription = request.Transcription,
                 PartOfSpeech = request.PartOfSpeech,
-                Frequency = request.Frequency,
+                Frequency = frequency,
                 Examples = request.Examples,
                 Senses = request.Senses
             };
@@ -77,7 +87,17 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             // Update existing word (only if new information is provided)
             existingWord.Transcription = request.Transcription ?? existingWord.Transcription;
             existingWord.PartOfSpeech = request.PartOfSpeech ?? existingWord.PartOfSpeech;
-            existingWord.Frequency = request.Frequency ?? existingWord.Frequency;
+            
+            // Set frequency: use provided value, or look up if not provided and not already set
+            if (request.Frequency.HasValue)
+            {
+                existingWord.Frequency = request.Frequency;
+            }
+            else if (!existingWord.Frequency.HasValue)
+            {
+                existingWord.Frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword), cancellationToken);
+            }
+            
             existingWord.Examples = request.Examples ?? existingWord.Examples;
             
             // Merge senses: add only new senses that don't already exist

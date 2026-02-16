@@ -23,20 +23,29 @@ public record CreateWordCommand : IRequest<int>
 public class CreateWordCommandHandler : IRequestHandler<CreateWordCommand, int>
 {
     private readonly IApplicationDbContext _context;
+    private readonly ISender _sender;
 
-    public CreateWordCommandHandler(IApplicationDbContext context)
+    public CreateWordCommandHandler(IApplicationDbContext context, ISender sender)
     {
         _context = context;
+        _sender = sender;
     }
 
     public async Task<int> Handle(CreateWordCommand request, CancellationToken cancellationToken)
     {
+        // Look up frequency if not provided
+        var frequency = request.Frequency;
+        if (!frequency.HasValue)
+        {
+            frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword), cancellationToken);
+        }
+
         var entity = new Word
         {
             Headword = request.Headword,
             Transcription = request.Transcription,
             PartOfSpeech = request.PartOfSpeech,
-            Frequency = request.Frequency,
+            Frequency = frequency,
             Examples = request.Examples
         };
 

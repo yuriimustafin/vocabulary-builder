@@ -13,7 +13,8 @@ public class Words : EndpointGroupBase
             .MapGet(GetWordDetails, "{id}/details")
             .MapPost(CreateWord)
             .MapPut(UpdateWord, "{id}")
-            .MapDelete(DeleteWord, "{id}");
+            .MapDelete(DeleteWord, "{id}")
+            .MapPost(UpdateWordFrequencies, "update-frequencies");
     }
 
     public async Task<List<WordDto>> GetWords(ISender sender)
@@ -49,5 +50,10 @@ public class Words : EndpointGroupBase
     {
         await sender.Send(new DeleteWordCommand(id));
         return Results.NoContent();
+    }
+
+    public async Task<UpdateWordFrequenciesResult> UpdateWordFrequencies(ISender sender)
+    {
+        return await sender.Send(new UpdateWordFrequenciesCommand());
     }
 }

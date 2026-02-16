@@ -482,6 +482,26 @@
         }
       }
     },
+    "/api/Words/update-frequencies": {
+      "post": {
+        "tags": [
+          "Words"
+        ],
+        "operationId": "UpdateWordFrequencies",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateWordFrequenciesResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/NewWords/import": {
       "post": {
         "tags": [
@@ -1121,6 +1141,24 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      },
+      "UpdateWordFrequenciesResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "totalWords": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedWords": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "notFoundWords": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
