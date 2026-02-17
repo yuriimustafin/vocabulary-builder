@@ -742,6 +742,74 @@ export class WordsClient {
         }
         return Promise.resolve<UpdateWordFrequenciesResult>(null as any);
     }
+
+    getWordsForExport(statuses: number[] | null | undefined): Promise<void> {
+        let url_ = this.baseUrl + "/api/Words/for-export?";
+        if (statuses !== undefined && statuses !== null)
+            statuses && statuses.forEach(item => { url_ += "statuses=" + encodeURIComponent("" + item) + "&"; });
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetWordsForExport(_response);
+        });
+    }
+
+    protected processGetWordsForExport(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    exportWords(command: ExportWordsCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/Words/export";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processExportWords(_response);
+        });
+    }
+
+    protected processExportWords(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
 }
 
 export class NewWordsClient {
@@ -1940,6 +2008,50 @@ export interface IUpdateWordFrequenciesResult {
     totalWords?: number;
     updatedWords?: number;
     notFoundWords?: number;
+}
+
+export class ExportWordsCommand implements IExportWordsCommand {
+    wordIds?: number[];
+
+    constructor(data?: IExportWordsCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["wordIds"])) {
+                this.wordIds = [] as any;
+                for (let item of _data["wordIds"])
+                    this.wordIds!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): ExportWordsCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new ExportWordsCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.wordIds)) {
+            data["wordIds"] = [];
+            for (let item of this.wordIds)
+                data["wordIds"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IExportWordsCommand {
+    wordIds?: number[];
 }
 
 export class ImportWordsFromDictionaryResult implements IImportWordsFromDictionaryResult {

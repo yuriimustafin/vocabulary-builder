@@ -17,7 +17,9 @@ public class Words : EndpointGroupBase
             .MapPut(UpdateWord, "{id}")
             .MapPut(UpdateWordStatus, "{id}/status")
             .MapDelete(DeleteWord, "{id}")
-            .MapPost(UpdateWordFrequencies, "update-frequencies");
+            .MapPost(UpdateWordFrequencies, "update-frequencies")
+            .MapGet(GetWordsForExport, "for-export")
+            .MapPost(ExportWords, "export");
     }
 
     public async Task<PaginatedList<WordDto>> GetWords(
@@ -73,5 +75,39 @@ public class Words : EndpointGroupBase
     public async Task<UpdateWordFrequenciesResult> UpdateWordFrequencies(ISender sender)
     {
         return await sender.Send(new UpdateWordFrequenciesCommand());
+    }
+
+    public async Task<IResult> GetWordsForExport(ISender sender, int[]? statuses = null)
+    {
+        var statusEnums = statuses?.Select(s => (WordStatus)s).ToList();
+        var words = await sender.Send(new GetWordsForExportQuery(statusEnums));
+        
+        // Return simplified word info for preview
+        var wordsPreview = words.Select(w => new
+        {
+            w.Id,
+            w.Headword,
+            w.PartOfSpeech,
+            w.Status,
+            SenseCount = w.Senses?.Count() ?? 0
+        }).ToList();
+        
+        return Results.Ok(wordsPreview);
+    }
+
+    public async Task<IResult> ExportWords(ISender sender, ExportWordsCommand command)
+    {
+        var result = await sender.Send(command);
+        
+        if (result.ExportedCount == 0)
+        {
+            return Results.BadRequest("No words to export");
+        }
+
+        // Return CSV content with appropriate headers for download
+        var csvBytes = System.Text.Encoding.UTF8.GetBytes(result.CsvContent);
+        var fileName = $"anki-export-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
+        
+        return Results.File(csvBytes, "text/csv", fileName);
     }
 }

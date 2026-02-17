@@ -432,6 +432,9 @@ export class Words extends Component {
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h1>Words</h1>
           <div className="d-flex gap-2">
+            <Button color="warning" tag={Link} to="/export-words">
+              Export to Anki
+            </Button>
             <Button color="success" tag={Link} to="/bulk-import">
               Bulk Import
             </Button>

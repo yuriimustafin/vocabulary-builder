@@ -602,6 +602,61 @@
         }
       }
     },
+    "/api/Words/for-export": {
+      "get": {
+        "tags": [
+          "Words"
+        ],
+        "operationId": "GetWordsForExport",
+        "parameters": [
+          {
+            "name": "statuses",
+            "in": "query",
+            "style": "form",
+            "explode": true,
+            "schema": {
+              "type": "array",
+              "nullable": true,
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/Words/export": {
+      "post": {
+        "tags": [
+          "Words"
+        ],
+        "operationId": "ExportWords",
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExportWordsCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 1
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/NewWords/import": {
       "post": {
         "tags": [
@@ -1323,6 +1378,19 @@
           "notFoundWords": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "ExportWordsCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "wordIds": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
           }
         }
       },

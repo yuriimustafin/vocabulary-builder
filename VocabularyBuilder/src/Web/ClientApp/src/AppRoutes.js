@@ -4,6 +4,7 @@ import { Home } from "./components/Home";
 import { Words } from "./components/Words";
 import { BulkImport } from "./components/BulkImport";
 import { KindleImport } from "./components/KindleImport";
+import { ExportWords } from "./components/ExportWords";
 
 const AppRoutes = [
   {
@@ -29,6 +30,10 @@ const AppRoutes = [
   {
     path: '/kindle-import',
     element: <KindleImport />
+  },
+  {
+    path: '/export-words',
+    element: <ExportWords />
   }
 ];
 
