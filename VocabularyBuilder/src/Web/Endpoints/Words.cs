@@ -1,5 +1,6 @@
 using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Application.Words.Queries;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Web.Endpoints;
 
@@ -18,9 +19,15 @@ public class Words : EndpointGroupBase
             .MapPost(UpdateWordFrequencies, "update-frequencies");
     }
 
-    public async Task<List<WordDto>> GetWords(ISender sender, string? sortBy = null)
+    public async Task<List<WordDto>> GetWords(
+        ISender sender, 
+        string? sortBy = null,
+        int[]? statuses = null,
+        int? minEncounterCount = null,
+        int? maxEncounterCount = null)
     {
-        return await sender.Send(new GetWordsQuery(sortBy));
+        var statusEnums = statuses?.Select(s => (WordStatus)s).ToList();
+        return await sender.Send(new GetWordsQuery(sortBy, statusEnums, minEncounterCount, maxEncounterCount));
     }
 
     public async Task<IResult> GetWord(ISender sender, int id)

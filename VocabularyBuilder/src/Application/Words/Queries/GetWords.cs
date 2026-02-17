@@ -4,7 +4,11 @@ using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Words.Queries;
 
-public record GetWordsQuery(string? SortBy = null) : IRequest<List<WordDto>>;
+public record GetWordsQuery(
+    string? SortBy = null,
+    List<WordStatus>? Statuses = null,
+    int? MinEncounterCount = null,
+    int? MaxEncounterCount = null) : IRequest<List<WordDto>>;
 
 public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>>
 {
@@ -21,6 +25,12 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
             .Include(w => w.WordEncounters)
             .AsNoTracking();
 
+        // Apply status filter
+        if (request.Statuses != null && request.Statuses.Any())
+        {
+            query = query.Where(w => request.Statuses.Contains(w.Status));
+        }
+
         // Apply simple sorting that can be translated to SQL
         // Note: SQLite doesn't support DateTimeOffset in ORDER BY, so those sorts are done in-memory
         query = request.SortBy?.ToLower() switch
@@ -30,6 +40,16 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
         };
 
         var words = await query.ToListAsync(cancellationToken);
+
+        // Apply encounter count filter in-memory
+        if (request.MinEncounterCount.HasValue)
+        {
+            words = words.Where(w => (w.WordEncounters?.Count ?? 0) >= request.MinEncounterCount.Value).ToList();
+        }
+        if (request.MaxEncounterCount.HasValue)
+        {
+            words = words.Where(w => (w.WordEncounters?.Count ?? 0) <= request.MaxEncounterCount.Value).ToList();
+        }
 
         // For date-based sorting, we need to do it in memory after loading (SQLite limitation)
         if (request.SortBy?.ToLower() == "lastencounter")

@@ -19,6 +19,9 @@ export class Words extends Component {
       loadingDetails: false,
       sortBy: null,
       dropdownOpen: false,
+      selectedStatuses: [0, 1], // Default: New and NextExport
+      minEncounterCount: '',
+      maxEncounterCount: '',
       formData: {
         id: 0,
         headword: '',
@@ -38,7 +41,13 @@ export class Words extends Component {
   async loadWords(sortBy = null) {
     try {
       const client = new WordsClient();
-      const data = await client.getWords(sortBy);
+      const { selectedStatuses, minEncounterCount, maxEncounterCount } = this.state;
+      const data = await client.getWords(
+        sortBy, 
+        selectedStatuses.length > 0 ? selectedStatuses : null,
+        minEncounterCount ? parseInt(minEncounterCount) : null,
+        maxEncounterCount ? parseInt(maxEncounterCount) : null
+      );
       this.setState({ words: data, loading: false, sortBy });
     } catch (error) {
       console.error('Error loading words:', error);
@@ -49,6 +58,31 @@ export class Words extends Component {
   handleSortChange = (sortBy) => {
     this.setState({ loading: true });
     this.loadWords(sortBy);
+    this.toggleDropdown();
+  }
+
+  handleStatusFilterChange = (status) => {
+    this.setState(prevState => {
+      const selectedStatuses = prevState.selectedStatuses.includes(status)
+        ? prevState.selectedStatuses.filter(s => s !== status)
+        : [...prevState.selectedStatuses, status];
+      return { selectedStatuses, loading: true };
+    }, () => this.loadWords(this.state.sortBy));
+  }
+
+  handleEncounterCountChange = (field, value) => {
+    this.setState({ [field]: value, loading: true }, () => {
+      this.loadWords(this.state.sortBy);
+    });
+  }
+
+  clearFilters = () => {
+    this.setState({
+      selectedStatuses: [0, 1],
+      minEncounterCount: '',
+      maxEncounterCount: '',
+      loading: true
+    }, () => this.loadWords(this.state.sortBy));
   }
 
   toggleDropdown = () => {
@@ -241,14 +275,75 @@ export class Words extends Component {
   }
 
   render() {
-    const { words, loading, modal, deleteModal, detailsModal, formData, isEditing, currentWord, wordDetails, loadingDetails } = this.state;
+    const { words, loading, modal, deleteModal, detailsModal, formData, isEditing, currentWord, wordDetails, loadingDetails, selectedStatuses, minEncounterCount, maxEncounterCount } = this.state;
 
     if (loading) {
       return <p><em>Loading...</em></p>;
     }
 
     return (
-      <div>
+      <div className="d-flex">
+        {/* Left Sidebar - Filters */}
+        <div style={{ width: '250px', padding: '20px', borderRight: '1px solid #ddd', minHeight: '100vh' }}>
+          <h5>Filters</h5>
+          
+          {/* Status Filter */}
+          <div className="mb-4">
+            <h6>Status</h6>
+            {[
+              { value: 0, label: 'New' },
+              { value: 1, label: 'Next Export' },
+              { value: 2, label: 'Exported' },
+              { value: 3, label: 'Learned' },
+              { value: 4, label: 'Known' }
+            ].map(status => (
+              <FormGroup check key={status.value}>
+                <Label check>
+                  <Input 
+                    type="checkbox" 
+                    checked={selectedStatuses.includes(status.value)}
+                    onChange={() => this.handleStatusFilterChange(status.value)}
+                  />
+                  {status.label}
+                </Label>
+              </FormGroup>
+            ))}
+          </div>
+
+          {/* Encounter Count Filter */}
+          <div className="mb-4">
+            <h6>Encounter Count</h6>
+            <FormGroup>
+              <Label for="minEncounterCount">Min</Label>
+              <Input
+                type="number"
+                id="minEncounterCount"
+                value={minEncounterCount}
+                onChange={(e) => this.handleEncounterCountChange('minEncounterCount', e.target.value)}
+                placeholder="0"
+                min="0"
+              />
+            </FormGroup>
+            <FormGroup>
+              <Label for="maxEncounterCount">Max</Label>
+              <Input
+                type="number"
+                id="maxEncounterCount"
+                value={maxEncounterCount}
+                onChange={(e) => this.handleEncounterCountChange('maxEncounterCount', e.target.value)}
+                placeholder="∞"
+                min="0"
+              />
+            </FormGroup>
+          </div>
+
+          <Button color="secondary" size="sm" onClick={this.clearFilters} block>
+            Clear Filters
+          </Button>
+        </div>
+
+        {/* Main Content */}
+        <div style={{ flex: 1, padding: '20px' }}>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h1>Words</h1>
           <div className="d-flex gap-2">
@@ -314,17 +409,17 @@ export class Words extends Component {
                       size="sm"
                       onClick={() => this.handleMarkAsKnown(word)}
                     >
-                      Mark as Known
+                      M.a.Known
                     </Button>
                   ) : (
                     <span className="text-success">✓</span>
                   )}
                 </td>
-                <td>
+                <td style={{ whiteSpace: 'nowrap' }}>
                   <Button 
                     color="primary" 
                     size="sm" 
-                    className="me-2"
+                    className="me-1"
                     onClick={() => this.toggleDetailsModal(word)}
                   >
                     View
@@ -332,7 +427,7 @@ export class Words extends Component {
                   <Button 
                     color="info" 
                     size="sm" 
-                    className="me-2"
+                    className="me-1"
                     onClick={() => this.handleEdit(word)}
                   >
                     Edit
@@ -575,6 +670,7 @@ export class Words extends Component {
             </Button>
           </ModalFooter>
         </Modal>
+        </div>
       </div>
     );
   }
