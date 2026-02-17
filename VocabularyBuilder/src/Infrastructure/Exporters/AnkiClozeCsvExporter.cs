@@ -54,6 +54,8 @@ internal class AnkiClozeCsvExporter : IWordsExporter
             {
                 result.Append(word.Headword[0] + ";");
             }
+            // Add SyncId as the last column for syncing with external systems
+            result.Append(word.SyncId?.ToString() ?? "");
             result.Append("\r\n");
         }
         return result.ToString();

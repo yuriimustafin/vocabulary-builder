@@ -21,6 +21,12 @@ public class Word : BaseAuditableEntity
     public WordStatus Status { get; set; } = WordStatus.New;
     
     /// <summary>
+    /// Unique identifier for syncing with external systems (Anki, etc.)
+    /// Generated when the word is first exported
+    /// </summary>
+    public Guid? SyncId { get; set; }
+    
+    /// <summary>
     /// Collection of all encounters/additions of this word from various sources
     /// </summary>
     public ICollection<WordEncounter> WordEncounters { get; set; } = new List<WordEncounter>();

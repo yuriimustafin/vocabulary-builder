@@ -36,15 +36,21 @@ public class ExportWordsCommandHandler : IRequestHandler<ExportWordsCommand, Exp
             return new ExportWordsResult(string.Empty, 0);
         }
 
-        // Generate CSV content
-        var csvContent = _wordsExporter.ExportWords(words);
-
-        // Update status of exported words
+        // Update status and generate SyncId before exporting (so it's included in CSV)
         foreach (var word in words)
         {
             word.Status = WordStatus.Exported;
+            // Generate SyncId only if it doesn't exist yet
+            if (!word.SyncId.HasValue)
+            {
+                word.SyncId = Guid.NewGuid();
+            }
         }
 
+        // Generate CSV content (includes SyncId)
+        var csvContent = _wordsExporter.ExportWords(words);
+
+        // Save changes to database
         await _context.SaveChangesAsync(cancellationToken);
 
         return new ExportWordsResult(csvContent, words.Count);
