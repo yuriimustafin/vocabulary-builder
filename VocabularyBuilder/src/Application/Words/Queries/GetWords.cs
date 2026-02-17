@@ -1,4 +1,5 @@
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Enums;
 
@@ -8,9 +9,11 @@ public record GetWordsQuery(
     string? SortBy = null,
     List<WordStatus>? Statuses = null,
     int? MinEncounterCount = null,
-    int? MaxEncounterCount = null) : IRequest<List<WordDto>>;
+    int? MaxEncounterCount = null,
+    int PageNumber = 1,
+    int PageSize = 10) : IRequest<PaginatedList<WordDto>>;
 
-public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>>
+public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, PaginatedList<WordDto>>
 {
     private readonly IApplicationDbContext _context;
 
@@ -19,7 +22,7 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
         _context = context;
     }
 
-    public async Task<List<WordDto>> Handle(GetWordsQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedList<WordDto>> Handle(GetWordsQuery request, CancellationToken cancellationToken)
     {
         var query = _context.Words
             .Include(w => w.WordEncounters)
@@ -39,6 +42,8 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
             _ => query.OrderBy(w => w.Headword) // Default: alphabetical
         };
 
+        // Get total count before in-memory filtering
+        var totalCount = await query.CountAsync(cancellationToken);
         var words = await query.ToListAsync(cancellationToken);
 
         // Apply encounter count filter in-memory
@@ -69,7 +74,16 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
                 .ToList();
         }
 
-        return words.Select(w => new WordDto
+        // Update total count after in-memory filtering
+        totalCount = words.Count;
+
+        // Apply pagination
+        var pagedWords = words
+            .Skip((request.PageNumber - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .ToList();
+
+        var wordDtos = pagedWords.Select(w => new WordDto
         {
             Id = w.Id,
             Headword = w.Headword,
@@ -80,6 +94,8 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
             Examples = w.Examples?.ToList() ?? new List<string>(),
             Status = w.Status
         }).ToList();
+
+        return new PaginatedList<WordDto>(wordDtos, totalCount, request.PageNumber, request.PageSize);
     }
 }
 

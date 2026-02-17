@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
+import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Table } from 'reactstrap';
 import { Link } from 'react-router-dom';
 import { WordsClient } from '../web-api-client.ts';
 
@@ -17,11 +17,14 @@ export class Words extends Component {
       currentWord: null,
       wordDetails: null,
       loadingDetails: false,
-      sortBy: null,
-      dropdownOpen: false,
+      sortBy: 'frequency',
       selectedStatuses: [0, 1], // Default: New and NextExport
       minEncounterCount: '',
       maxEncounterCount: '',
+      pageNumber: 1,
+      pageSize: 10,
+      totalPages: 0,
+      totalCount: 0,
       formData: {
         id: 0,
         headword: '',
@@ -35,20 +38,30 @@ export class Words extends Component {
   }
 
   componentDidMount() {
-    this.loadWords();
+    this.loadWords('frequency');
   }
 
-  async loadWords(sortBy = null) {
+  async loadWords(sortBy = null, pageNumber = null) {
     try {
       const client = new WordsClient();
-      const { selectedStatuses, minEncounterCount, maxEncounterCount } = this.state;
+      const { selectedStatuses, minEncounterCount, maxEncounterCount, pageSize } = this.state;
+      const currentPage = pageNumber !== null ? pageNumber : this.state.pageNumber;
       const data = await client.getWords(
         sortBy, 
         selectedStatuses.length > 0 ? selectedStatuses : null,
         minEncounterCount ? parseInt(minEncounterCount) : null,
-        maxEncounterCount ? parseInt(maxEncounterCount) : null
+        maxEncounterCount ? parseInt(maxEncounterCount) : null,
+        currentPage,
+        pageSize
       );
-      this.setState({ words: data, loading: false, sortBy });
+      this.setState({ 
+        words: data.items || [], 
+        loading: false, 
+        sortBy,
+        pageNumber: data.pageNumber || 1,
+        totalPages: data.totalPages || 0,
+        totalCount: data.totalCount || 0
+      });
     } catch (error) {
       console.error('Error loading words:', error);
       this.setState({ loading: false });
@@ -56,9 +69,8 @@ export class Words extends Component {
   }
 
   handleSortChange = (sortBy) => {
-    this.setState({ loading: true });
-    this.loadWords(sortBy);
-    this.toggleDropdown();
+    this.setState({ loading: true, sortBy, pageNumber: 1 });
+    this.loadWords(sortBy, 1);
   }
 
   handleStatusFilterChange = (status) => {
@@ -66,13 +78,13 @@ export class Words extends Component {
       const selectedStatuses = prevState.selectedStatuses.includes(status)
         ? prevState.selectedStatuses.filter(s => s !== status)
         : [...prevState.selectedStatuses, status];
-      return { selectedStatuses, loading: true };
-    }, () => this.loadWords(this.state.sortBy));
+      return { selectedStatuses, loading: true, pageNumber: 1 };
+    }, () => this.loadWords(this.state.sortBy, 1));
   }
 
   handleEncounterCountChange = (field, value) => {
-    this.setState({ [field]: value, loading: true }, () => {
-      this.loadWords(this.state.sortBy);
+    this.setState({ [field]: value, loading: true, pageNumber: 1 }, () => {
+      this.loadWords(this.state.sortBy, 1);
     });
   }
 
@@ -81,28 +93,23 @@ export class Words extends Component {
       selectedStatuses: [0, 1],
       minEncounterCount: '',
       maxEncounterCount: '',
+      sortBy: 'frequency',
+      pageNumber: 1,
       loading: true
-    }, () => this.loadWords(this.state.sortBy));
+    }, () => this.loadWords('frequency', 1));
   }
 
-  toggleDropdown = () => {
-    this.setState(prevState => ({
-      dropdownOpen: !prevState.dropdownOpen
-    }));
+  handlePageChange = (newPage) => {
+    this.setState({ loading: true }, () => {
+      this.loadWords(this.state.sortBy, newPage);
+    });
   }
 
-  getSortLabel = () => {
-    const { sortBy } = this.state;
-    switch (sortBy) {
-      case 'frequency':
-        return 'Frequency';
-      case 'lastencounter':
-        return 'Last Encounter';
-      case 'created':
-        return 'Created Date';
-      default:
-        return 'Alphabetical';
-    }
+  handlePageSizeChange = (e) => {
+    const newPageSize = parseInt(e.target.value);
+    this.setState({ pageSize: newPageSize, pageNumber: 1, loading: true }, () => {
+      this.loadWords(this.state.sortBy, 1);
+    });
   }
 
   getStatusLabel = (status) => {
@@ -275,10 +282,24 @@ export class Words extends Component {
   }
 
   render() {
-    const { words, loading, modal, deleteModal, detailsModal, formData, isEditing, currentWord, wordDetails, loadingDetails, selectedStatuses, minEncounterCount, maxEncounterCount } = this.state;
+    const { words, loading, modal, deleteModal, detailsModal, formData, isEditing, currentWord, wordDetails, loadingDetails, selectedStatuses, minEncounterCount, maxEncounterCount, pageNumber, pageSize, totalPages, totalCount } = this.state;
 
     if (loading) {
       return <p><em>Loading...</em></p>;
+    }
+
+    // Generate page numbers for pagination
+    const pageNumbers = [];
+    const maxPagesToShow = 5;
+    let startPage = Math.max(1, pageNumber - Math.floor(maxPagesToShow / 2));
+    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
+    
+    if (endPage - startPage < maxPagesToShow - 1) {
+      startPage = Math.max(1, endPage - maxPagesToShow + 1);
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+      pageNumbers.push(i);
     }
 
     return (
@@ -337,6 +358,21 @@ export class Words extends Component {
             </FormGroup>
           </div>
 
+          {/* Sort By */}
+          <div className="mb-4">
+            <h6>Sort By</h6>
+            <Input
+              type="select"
+              value={this.state.sortBy || ''}
+              onChange={(e) => this.handleSortChange(e.target.value || null)}
+            >
+              <option value="frequency">Frequency</option>
+              <option value="">Alphabetical</option>
+              <option value="lastencounter">Last Encounter Date</option>
+              <option value="created">Created Date</option>
+            </Input>
+          </div>
+
           <Button color="secondary" size="sm" onClick={this.clearFilters} block>
             Clear Filters
           </Button>
@@ -347,25 +383,6 @@ export class Words extends Component {
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h1>Words</h1>
           <div className="d-flex gap-2">
-            <Dropdown isOpen={this.state.dropdownOpen} toggle={this.toggleDropdown}>
-              <DropdownToggle caret color="secondary">
-                Sort by: {this.getSortLabel()}
-              </DropdownToggle>
-              <DropdownMenu>
-                <DropdownItem onClick={() => this.handleSortChange(null)}>
-                  Alphabetical
-                </DropdownItem>
-                <DropdownItem onClick={() => this.handleSortChange('frequency')}>
-                  Frequency
-                </DropdownItem>
-                <DropdownItem onClick={() => this.handleSortChange('lastencounter')}>
-                  Last Encounter Date
-                </DropdownItem>
-                <DropdownItem onClick={() => this.handleSortChange('created')}>
-                  Created Date
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
             <Button color="success" tag={Link} to="/bulk-import">
               Bulk Import
             </Button>
@@ -447,6 +464,81 @@ export class Words extends Component {
 
         {words.length === 0 && (
           <p className="text-center">No words found. Add your first word!</p>
+        )}
+
+        {/* Pagination Controls */}
+        {totalPages > 0 && (
+          <div className="d-flex justify-content-between align-items-center mt-3">
+            <div className="d-flex align-items-center">
+              <span className="me-2">Items per page:</span>
+              <Input
+                type="select"
+                value={pageSize}
+                onChange={this.handlePageSizeChange}
+                style={{ width: 'auto' }}
+              >
+                <option value="5">5</option>
+                <option value="10">10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </Input>
+              <span className="ms-3 text-muted">
+                Showing {Math.min((pageNumber - 1) * pageSize + 1, totalCount)} to {Math.min(pageNumber * pageSize, totalCount)} of {totalCount} items
+              </span>
+            </div>
+            
+            <div className="d-flex align-items-center">
+              <Button
+                color="secondary"
+                size="sm"
+                className="me-1"
+                disabled={pageNumber === 1}
+                onClick={() => this.handlePageChange(1)}
+              >
+                First
+              </Button>
+              <Button
+                color="secondary"
+                size="sm"
+                className="me-1"
+                disabled={pageNumber === 1}
+                onClick={() => this.handlePageChange(pageNumber - 1)}
+              >
+                Previous
+              </Button>
+              
+              {pageNumbers.map(num => (
+                <Button
+                  key={num}
+                  color={pageNumber === num ? "primary" : "secondary"}
+                  size="sm"
+                  className="me-1"
+                  onClick={() => this.handlePageChange(num)}
+                >
+                  {num}
+                </Button>
+              ))}
+              
+              <Button
+                color="secondary"
+                size="sm"
+                className="me-1"
+                disabled={pageNumber === totalPages}
+                onClick={() => this.handlePageChange(pageNumber + 1)}
+              >
+                Next
+              </Button>
+              <Button
+                color="secondary"
+                size="sm"
+                disabled={pageNumber === totalPages}
+                onClick={() => this.handlePageChange(totalPages)}
+              >
+                Last
+              </Button>
+            </div>
+          </div>
         )}
 
         {/* Add/Edit Modal */}

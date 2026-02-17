@@ -439,7 +439,7 @@ export class WordsClient {
         this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
     }
 
-    getWords(sortBy: string | null | undefined, statuses: number[] | null | undefined, minEncounterCount: number | null | undefined, maxEncounterCount: number | null | undefined): Promise<WordDto[]> {
+    getWords(sortBy: string | null | undefined, statuses: number[] | null | undefined, minEncounterCount: number | null | undefined, maxEncounterCount: number | null | undefined, pageNumber: number | undefined, pageSize: number | undefined): Promise<PaginatedListOfWordDto> {
         let url_ = this.baseUrl + "/api/Words?";
         if (sortBy !== undefined && sortBy !== null)
             url_ += "sortBy=" + encodeURIComponent("" + sortBy) + "&";
@@ -449,6 +449,14 @@ export class WordsClient {
             url_ += "minEncounterCount=" + encodeURIComponent("" + minEncounterCount) + "&";
         if (maxEncounterCount !== undefined && maxEncounterCount !== null)
             url_ += "maxEncounterCount=" + encodeURIComponent("" + maxEncounterCount) + "&";
+        if (pageNumber === null)
+            throw new Error("The parameter 'pageNumber' cannot be null.");
+        else if (pageNumber !== undefined)
+            url_ += "pageNumber=" + encodeURIComponent("" + pageNumber) + "&";
+        if (pageSize === null)
+            throw new Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -463,7 +471,7 @@ export class WordsClient {
         });
     }
 
-    protected processGetWords(response: Response): Promise<WordDto[]> {
+    protected processGetWords(response: Response): Promise<PaginatedListOfWordDto> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -471,14 +479,7 @@ export class WordsClient {
             return response.text().then((_responseText) => {
             let result200: any = null;
             let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
-            if (Array.isArray(resultData200)) {
-                result200 = [] as any;
-                for (let item of resultData200)
-                    result200!.push(WordDto.fromJS(item));
-            }
-            else {
-                result200 = <any>null;
-            }
+            result200 = PaginatedListOfWordDto.fromJS(resultData200);
             return result200;
             });
         } else if (status !== 200 && status !== 204) {
@@ -486,7 +487,7 @@ export class WordsClient {
             return throwException("An unexpected server error occurred.", status, _responseText, _headers);
             });
         }
-        return Promise.resolve<WordDto[]>(null as any);
+        return Promise.resolve<PaginatedListOfWordDto>(null as any);
     }
 
     createWord(command: CreateWordCommand): Promise<number> {
@@ -1563,6 +1564,70 @@ export interface IWeatherForecast {
     temperatureC?: number;
     temperatureF?: number;
     summary?: string | undefined;
+}
+
+export class PaginatedListOfWordDto implements IPaginatedListOfWordDto {
+    items?: WordDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+
+    constructor(data?: IPaginatedListOfWordDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(WordDto.fromJS(item));
+            }
+            this.pageNumber = _data["pageNumber"];
+            this.totalPages = _data["totalPages"];
+            this.totalCount = _data["totalCount"];
+            this.hasPreviousPage = _data["hasPreviousPage"];
+            this.hasNextPage = _data["hasNextPage"];
+        }
+    }
+
+    static fromJS(data: any): PaginatedListOfWordDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new PaginatedListOfWordDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["pageNumber"] = this.pageNumber;
+        data["totalPages"] = this.totalPages;
+        data["totalCount"] = this.totalCount;
+        data["hasPreviousPage"] = this.hasPreviousPage;
+        data["hasNextPage"] = this.hasNextPage;
+        return data;
+    }
+}
+
+export interface IPaginatedListOfWordDto {
+    items?: WordDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
 }
 
 export class WordDto implements IWordDto {
