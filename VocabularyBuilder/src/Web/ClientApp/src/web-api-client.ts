@@ -439,8 +439,10 @@ export class WordsClient {
         this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
     }
 
-    getWords(): Promise<WordDto[]> {
-        let url_ = this.baseUrl + "/api/Words";
+    getWords(sortBy: string | null | undefined): Promise<WordDto[]> {
+        let url_ = this.baseUrl + "/api/Words?";
+        if (sortBy !== undefined && sortBy !== null)
+            url_ += "sortBy=" + encodeURIComponent("" + sortBy) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {

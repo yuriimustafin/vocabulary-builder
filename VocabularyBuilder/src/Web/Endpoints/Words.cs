@@ -17,9 +17,9 @@ public class Words : EndpointGroupBase
             .MapPost(UpdateWordFrequencies, "update-frequencies");
     }
 
-    public async Task<List<WordDto>> GetWords(ISender sender)
+    public async Task<List<WordDto>> GetWords(ISender sender, string? sortBy = null)
     {
-        return await sender.Send(new GetWordsQuery());
+        return await sender.Send(new GetWordsQuery(sortBy));
     }
 
     public async Task<IResult> GetWord(ISender sender, int id)

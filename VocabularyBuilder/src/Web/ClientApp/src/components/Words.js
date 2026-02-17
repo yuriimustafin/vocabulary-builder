@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Table } from 'reactstrap';
+import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Table, Dropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
 import { Link } from 'react-router-dom';
 import { WordsClient } from '../web-api-client.ts';
 
@@ -17,6 +17,8 @@ export class Words extends Component {
       currentWord: null,
       wordDetails: null,
       loadingDetails: false,
+      sortBy: null,
+      dropdownOpen: false,
       formData: {
         id: 0,
         headword: '',
@@ -33,14 +35,39 @@ export class Words extends Component {
     this.loadWords();
   }
 
-  async loadWords() {
+  async loadWords(sortBy = null) {
     try {
       const client = new WordsClient();
-      const data = await client.getWords();
-      this.setState({ words: data, loading: false });
+      const data = await client.getWords(sortBy);
+      this.setState({ words: data, loading: false, sortBy });
     } catch (error) {
       console.error('Error loading words:', error);
       this.setState({ loading: false });
+    }
+  }
+
+  handleSortChange = (sortBy) => {
+    this.setState({ loading: true });
+    this.loadWords(sortBy);
+  }
+
+  toggleDropdown = () => {
+    this.setState(prevState => ({
+      dropdownOpen: !prevState.dropdownOpen
+    }));
+  }
+
+  getSortLabel = () => {
+    const { sortBy } = this.state;
+    switch (sortBy) {
+      case 'frequency':
+        return 'Frequency';
+      case 'lastencounter':
+        return 'Last Encounter';
+      case 'created':
+        return 'Created Date';
+      default:
+        return 'Alphabetical';
     }
   }
 
@@ -171,6 +198,25 @@ export class Words extends Component {
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h1>Words</h1>
           <div className="d-flex gap-2">
+            <Dropdown isOpen={this.state.dropdownOpen} toggle={this.toggleDropdown}>
+              <DropdownToggle caret color="secondary">
+                Sort by: {this.getSortLabel()}
+              </DropdownToggle>
+              <DropdownMenu>
+                <DropdownItem onClick={() => this.handleSortChange(null)}>
+                  Alphabetical
+                </DropdownItem>
+                <DropdownItem onClick={() => this.handleSortChange('frequency')}>
+                  Frequency
+                </DropdownItem>
+                <DropdownItem onClick={() => this.handleSortChange('lastencounter')}>
+                  Last Encounter Date
+                </DropdownItem>
+                <DropdownItem onClick={() => this.handleSortChange('created')}>
+                  Created Date
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
             <Button color="success" tag={Link} to="/bulk-import">
               Bulk Import
             </Button>

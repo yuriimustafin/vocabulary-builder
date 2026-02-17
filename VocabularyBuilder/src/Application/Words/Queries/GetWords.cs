@@ -3,7 +3,7 @@ using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Application.Words.Queries;
 
-public record GetWordsQuery : IRequest<List<WordDto>>;
+public record GetWordsQuery(string? SortBy = null) : IRequest<List<WordDto>>;
 
 public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>>
 {
@@ -16,11 +16,37 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
 
     public async Task<List<WordDto>> Handle(GetWordsQuery request, CancellationToken cancellationToken)
     {
-        var words = await _context.Words
+        var query = _context.Words
             .Include(w => w.WordEncounters)
-            .OrderBy(w => w.Headword)
-            .AsNoTracking()
-            .ToListAsync(cancellationToken);
+            .AsNoTracking();
+
+        // Apply simple sorting that can be translated to SQL
+        // Note: SQLite doesn't support DateTimeOffset in ORDER BY, so those sorts are done in-memory
+        query = request.SortBy?.ToLower() switch
+        {
+            "frequency" => query.OrderByDescending(w => w.Frequency).ThenBy(w => w.Headword),
+            _ => query.OrderBy(w => w.Headword) // Default: alphabetical
+        };
+
+        var words = await query.ToListAsync(cancellationToken);
+
+        // For date-based sorting, we need to do it in memory after loading (SQLite limitation)
+        if (request.SortBy?.ToLower() == "lastencounter")
+        {
+            words = words
+                .OrderByDescending(w => w.WordEncounters != null && w.WordEncounters.Any() 
+                    ? w.WordEncounters.Max(e => e.Created) 
+                    : DateTimeOffset.MinValue)
+                .ThenBy(w => w.Headword)
+                .ToList();
+        }
+        else if (request.SortBy?.ToLower() == "created")
+        {
+            words = words
+                .OrderByDescending(w => w.Created)
+                .ThenBy(w => w.Headword)
+                .ToList();
+        }
 
         return words.Select(w => new WordDto
         {
