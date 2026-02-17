@@ -25,6 +25,9 @@ export class Words extends Component {
       pageSize: 10,
       totalPages: 0,
       totalCount: 0,
+      selectedWordIds: [],
+      statusModal: false,
+      bulkStatus: 0,
       formData: {
         id: 0,
         headword: '',
@@ -281,8 +284,54 @@ export class Words extends Component {
     }
   }
 
+  toggleSelectAll = () => {
+    const { selectedWordIds, words } = this.state;
+    if (selectedWordIds.length === words.length) {
+      this.setState({ selectedWordIds: [] });
+    } else {
+      this.setState({ selectedWordIds: words.map(w => w.id) });
+    }
+  }
+
+  toggleSelectWord = (wordId) => {
+    this.setState(prevState => {
+      const selectedWordIds = prevState.selectedWordIds.includes(wordId)
+        ? prevState.selectedWordIds.filter(id => id !== wordId)
+        : [...prevState.selectedWordIds, wordId];
+      return { selectedWordIds };
+    });
+  }
+
+  toggleStatusModal = () => {
+    this.setState(prevState => ({
+      statusModal: !prevState.statusModal,
+      bulkStatus: 0
+    }));
+  }
+
+  handleBulkStatusChange = async () => {
+    const { selectedWordIds, bulkStatus } = this.state;
+    const client = new WordsClient();
+    
+    try {
+      // Update all selected words
+      await Promise.all(
+        selectedWordIds.map(id => 
+          client.updateWordStatus(id, { id, status: parseInt(bulkStatus) })
+        )
+      );
+      
+      this.setState({ selectedWordIds: [] });
+      this.toggleStatusModal();
+      this.loadWords(this.state.sortBy);
+    } catch (error) {
+      console.error('Error updating word statuses:', error);
+      alert('Error updating word statuses. Please try again.');
+    }
+  }
+
   render() {
-    const { words, loading, modal, deleteModal, detailsModal, formData, isEditing, currentWord, wordDetails, loadingDetails, selectedStatuses, minEncounterCount, maxEncounterCount, pageNumber, pageSize, totalPages, totalCount } = this.state;
+    const { words, loading, modal, deleteModal, detailsModal, formData, isEditing, currentWord, wordDetails, loadingDetails, selectedStatuses, minEncounterCount, maxEncounterCount, pageNumber, pageSize, totalPages, totalCount, selectedWordIds } = this.state;
 
     if (loading) {
       return <p><em>Loading...</em></p>;
@@ -395,9 +444,41 @@ export class Words extends Component {
           </div>
         </div>
 
+        {selectedWordIds.length > 0 && (
+          <div className="alert alert-info d-flex justify-content-between align-items-center mb-3">
+            <span>
+              <strong>{selectedWordIds.length}</strong> word{selectedWordIds.length !== 1 ? 's' : ''} selected
+            </span>
+            <div>
+              <Button 
+                color="primary" 
+                size="sm" 
+                className="me-2"
+                onClick={this.toggleStatusModal}
+              >
+                Assign Status
+              </Button>
+              <Button 
+                color="secondary" 
+                size="sm"
+                onClick={() => this.setState({ selectedWordIds: [] })}
+              >
+                Clear Selection
+              </Button>
+            </div>
+          </div>
+        )}
+
         <Table striped hover>
           <thead>
             <tr>
+              <th style={{ width: '50px' }}>
+                <Input 
+                  type="checkbox" 
+                  checked={selectedWordIds.length === words.length && words.length > 0}
+                  onChange={this.toggleSelectAll}
+                />
+              </th>
               <th>Headword</th>
               <th>Part of Speech</th>
               <th>Frequency</th>
@@ -410,6 +491,13 @@ export class Words extends Component {
           <tbody>
             {words.map(word => (
               <tr key={word.id}>
+                <td>
+                  <Input 
+                    type="checkbox" 
+                    checked={selectedWordIds.includes(word.id)}
+                    onChange={() => this.toggleSelectWord(word.id)}
+                  />
+                </td>
                 <td>{word.headword}</td>
                 <td>{word.partOfSpeech || '-'}</td>
                 <td>{word.frequency || '-'}</td>
@@ -610,6 +698,39 @@ export class Words extends Component {
               {isEditing ? 'Update' : 'Create'}
             </Button>
             <Button color="secondary" onClick={this.toggleModal}>
+              Cancel
+            </Button>
+          </ModalFooter>
+        </Modal>
+
+        {/* Bulk Status Assignment Modal */}
+        <Modal isOpen={this.state.statusModal} toggle={this.toggleStatusModal}>
+          <ModalHeader toggle={this.toggleStatusModal}>
+            Assign Status to Selected Words
+          </ModalHeader>
+          <ModalBody>
+            <p>Assign status to {selectedWordIds.length} selected word{selectedWordIds.length !== 1 ? 's' : ''}:</p>
+            <FormGroup>
+              <Label for="bulkStatus">New Status</Label>
+              <Input
+                type="select"
+                id="bulkStatus"
+                value={this.state.bulkStatus}
+                onChange={(e) => this.setState({ bulkStatus: e.target.value })}
+              >
+                <option value="0">New</option>
+                <option value="1">Next Export</option>
+                <option value="2">Exported</option>
+                <option value="3">Learned</option>
+                <option value="4">Known</option>
+              </Input>
+            </FormGroup>
+          </ModalBody>
+          <ModalFooter>
+            <Button color="primary" onClick={this.handleBulkStatusChange}>
+              Assign
+            </Button>
+            <Button color="secondary" onClick={this.toggleStatusModal}>
               Cancel
             </Button>
           </ModalFooter>
