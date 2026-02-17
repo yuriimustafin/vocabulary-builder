@@ -13,6 +13,7 @@ public class Words : EndpointGroupBase
             .MapGet(GetWordDetails, "{id}/details")
             .MapPost(CreateWord)
             .MapPut(UpdateWord, "{id}")
+            .MapPut(UpdateWordStatus, "{id}/status")
             .MapDelete(DeleteWord, "{id}")
             .MapPost(UpdateWordFrequencies, "update-frequencies");
     }
@@ -40,6 +41,13 @@ public class Words : EndpointGroupBase
     }
 
     public async Task<IResult> UpdateWord(ISender sender, int id, UpdateWordCommand command)
+    {
+        if (id != command.Id) return Results.BadRequest();
+        await sender.Send(command);
+        return Results.NoContent();
+    }
+
+    public async Task<IResult> UpdateWordStatus(ISender sender, int id, UpdateWordStatusCommand command)
     {
         if (id != command.Id) return Results.BadRequest();
         await sender.Send(command);

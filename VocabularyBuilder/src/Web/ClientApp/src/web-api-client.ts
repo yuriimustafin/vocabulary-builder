@@ -663,6 +663,44 @@ export class WordsClient {
         return Promise.resolve<void>(null as any);
     }
 
+    updateWordStatus(id: number, command: UpdateWordStatusCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/Words/{id}/status";
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processUpdateWordStatus(_response);
+        });
+    }
+
+    protected processUpdateWordStatus(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
     updateWordFrequencies(): Promise<UpdateWordFrequenciesResult> {
         let url_ = this.baseUrl + "/api/Words/update-frequencies";
         url_ = url_.replace(/[?&]$/, "");
@@ -1529,6 +1567,7 @@ export class WordDto implements IWordDto {
     frequency?: number | undefined;
     encounterCount?: number;
     examples?: string[];
+    status?: WordStatus;
 
     constructor(data?: IWordDto) {
         if (data) {
@@ -1552,6 +1591,7 @@ export class WordDto implements IWordDto {
                 for (let item of _data["examples"])
                     this.examples!.push(item);
             }
+            this.status = _data["status"];
         }
     }
 
@@ -1575,6 +1615,7 @@ export class WordDto implements IWordDto {
             for (let item of this.examples)
                 data["examples"].push(item);
         }
+        data["status"] = this.status;
         return data;
     }
 }
@@ -1587,6 +1628,15 @@ export interface IWordDto {
     frequency?: number | undefined;
     encounterCount?: number;
     examples?: string[];
+    status?: WordStatus;
+}
+
+export enum WordStatus {
+    New = 0,
+    NextExport = 1,
+    Exported = 2,
+    Learned = 3,
+    Known = 4,
 }
 
 export class CreateWordCommand implements ICreateWordCommand {
@@ -1735,6 +1785,46 @@ export interface IUpdateWordCommand {
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;
     examples?: string[] | undefined;
+}
+
+export class UpdateWordStatusCommand implements IUpdateWordStatusCommand {
+    id?: number;
+    status?: WordStatus;
+
+    constructor(data?: IUpdateWordStatusCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.status = _data["status"];
+        }
+    }
+
+    static fromJS(data: any): UpdateWordStatusCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateWordStatusCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["status"] = this.status;
+        return data;
+    }
+}
+
+export interface IUpdateWordStatusCommand {
+    id?: number;
+    status?: WordStatus;
 }
 
 export class UpdateWordFrequenciesResult implements IUpdateWordFrequenciesResult {

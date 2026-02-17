@@ -1,5 +1,6 @@
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Samples.Entities;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Words.Queries;
 
@@ -56,7 +57,8 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, List<WordDto>
             PartOfSpeech = w.PartOfSpeech,
             Frequency = w.Frequency,
             EncounterCount = w.WordEncounters?.Count ?? 0,
-            Examples = w.Examples?.ToList() ?? new List<string>()
+            Examples = w.Examples?.ToList() ?? new List<string>(),
+            Status = w.Status
         }).ToList();
     }
 }
@@ -70,4 +72,5 @@ public class WordDto
     public int? Frequency { get; set; }
     public int EncounterCount { get; set; }
     public List<string> Examples { get; set; } = new();
+    public WordStatus Status { get; set; }
 }

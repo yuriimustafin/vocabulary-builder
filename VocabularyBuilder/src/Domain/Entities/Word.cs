@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Domain.Samples.Entities;
 public class Word : BaseAuditableEntity
@@ -17,6 +18,7 @@ public class Word : BaseAuditableEntity
     public IList<Sense>? Senses { get; set; }
     public IList<string>? Examples { get; set; }
     public int? Frequency { get; set; }
+    public WordStatus Status { get; set; } = WordStatus.New;
     
     /// <summary>
     /// Collection of all encounters/additions of this word from various sources
@@ -35,7 +37,9 @@ public class Word : BaseAuditableEntity
 
     public string GetHeadword()
     {
-        var prefix = (PartOfSpeech is not null && PartOfSpeech.ToLower().Contains("verb")) 
+        var prefix = (PartOfSpeech is not null 
+                && PartOfSpeech.ToLower().Contains("verb")
+                && !PartOfSpeech.ToLower().Contains("adverb")) 
             ? "to " 
             : "";
         return prefix + Headword;

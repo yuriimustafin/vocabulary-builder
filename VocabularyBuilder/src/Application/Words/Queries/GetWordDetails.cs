@@ -34,6 +34,7 @@ public class GetWordDetailsQueryHandler : IRequestHandler<GetWordDetailsQuery, W
             Transcription = word.Transcription,
             PartOfSpeech = word.PartOfSpeech,
             Frequency = word.Frequency,
+            Status = word.Status,
             Examples = word.Examples?.ToList() ?? new List<string>(),
             Senses = word.Senses?.Select(s => new SenseDto
             {
@@ -65,6 +66,7 @@ public class WordDetailsDto
     public string? Transcription { get; set; }
     public string? PartOfSpeech { get; set; }
     public int? Frequency { get; set; }
+    public WordStatus Status { get; set; }
     public List<string> Examples { get; set; } = new();
     public List<SenseDto> Senses { get; set; } = new();
     public List<EncounterDto> Encounters { get; set; } = new();

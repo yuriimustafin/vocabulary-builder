@@ -71,6 +71,60 @@ export class Words extends Component {
     }
   }
 
+  getStatusLabel = (status) => {
+    switch (status) {
+      case 0: return 'New';
+      case 1: return 'Next Export';
+      case 2: return 'Exported';
+      case 3: return 'Learned';
+      case 4: return 'Known';
+      default: return 'Unknown';
+    }
+  }
+
+  getStatusColor = (status) => {
+    switch (status) {
+      case 0: return 'secondary'; // New
+      case 1: return 'primary';   // Next Export
+      case 2: return 'info';      // Exported
+      case 3: return 'warning';   // Learned
+      case 4: return 'success';   // Known
+      default: return 'dark';
+    }
+  }
+
+  handleMarkAsKnown = async (word) => {
+    try {
+      const client = new WordsClient();
+      await client.updateWordStatus(word.id, { id: word.id, status: 4 }); // 4 = Known
+      this.loadWords(this.state.sortBy);
+    } catch (error) {
+      console.error('Error updating word status:', error);
+      alert('Error updating word status. Please try again.');
+    }
+  }
+
+  handleStatusChange = async (wordId, newStatus) => {
+    try {
+      const client = new WordsClient();
+      await client.updateWordStatus(wordId, { id: wordId, status: parseInt(newStatus) });
+      // Reload both word list and details
+      this.loadWords(this.state.sortBy);
+      
+      // If details modal is open, reload details
+      if (this.state.detailsModal && this.state.wordDetails) {
+        const response = await fetch(`/api/Words/${wordId}/details`);
+        if (response.ok) {
+          const details = await response.json();
+          this.setState({ wordDetails: details });
+        }
+      }
+    } catch (error) {
+      console.error('Error updating word status:', error);
+      alert('Error updating word status. Please try again.');
+    }
+  }
+
   toggleModal = () => {
     this.setState(prevState => ({
       modal: !prevState.modal,
@@ -233,11 +287,11 @@ export class Words extends Component {
           <thead>
             <tr>
               <th>Headword</th>
-              <th>Transcription</th>
               <th>Part of Speech</th>
               <th>Frequency</th>
+              <th>Status</th>
               <th>Encounter Count</th>
-              <th>Examples</th>
+              <th>Known</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -245,14 +299,26 @@ export class Words extends Component {
             {words.map(word => (
               <tr key={word.id}>
                 <td>{word.headword}</td>
-                <td>{word.transcription || '-'}</td>
                 <td>{word.partOfSpeech || '-'}</td>
                 <td>{word.frequency || '-'}</td>
+                <td>
+                  <span className={`badge bg-${this.getStatusColor(word.status)}`}>
+                    {this.getStatusLabel(word.status)}
+                  </span>
+                </td>
                 <td>{word.encounterCount}</td>
                 <td>
-                  {word.examples && word.examples.length > 0 
-                    ? word.examples.slice(0, 2).join('; ') + (word.examples.length > 2 ? '...' : '')
-                    : '-'}
+                  {word.status !== 4 ? (
+                    <Button 
+                      color="success" 
+                      size="sm"
+                      onClick={() => this.handleMarkAsKnown(word)}
+                    >
+                      Mark as Known
+                    </Button>
+                  ) : (
+                    <span className="text-success">✓</span>
+                  )}
                 </td>
                 <td>
                   <Button 
@@ -401,11 +467,26 @@ export class Words extends Component {
                 <hr />
                 
                 <div className="row">
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <strong>Part of Speech:</strong> {wordDetails.partOfSpeech || 'N/A'}
                   </div>
-                  <div className="col-md-6">
+                  <div className="col-md-4">
                     <strong>Frequency:</strong> {wordDetails.frequency || 'N/A'}
+                  </div>
+                  <div className="col-md-4">
+                    <strong>Status:</strong>
+                    <Input
+                      type="select"
+                      value={wordDetails.status}
+                      onChange={(e) => this.handleStatusChange(wordDetails.id, e.target.value)}
+                      className="d-inline-block ms-2"
+                      style={{ width: 'auto' }}
+                    >
+                      <option value="0">New</option>
+                      <option value="1">Exported</option>
+                      <option value="2">Learned</option>
+                      <option value="3">Known</option>
+                    </Input>
                   </div>
                 </div>
 
