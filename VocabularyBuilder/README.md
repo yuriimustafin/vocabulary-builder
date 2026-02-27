@@ -38,6 +38,12 @@ dotnet ef database update --project src/Infrastructure --startup-project src/Web
 
 **Note:** If you need to start fresh, simply delete the `app.db` file in `src/Web/` and run the command again.
 
+To apply migrations to the Production database:
+
+```bash
+dotnet ef database update --project src/Infrastructure --startup-project src/Web --connection "Data Source=VocabularyBuilder.Prod.db"
+```
+
 ### 4. Build the Solution
 
 ```bash
@@ -45,6 +51,8 @@ dotnet build -tl
 ```
 
 ### 5. Run the Application
+
+#### Development Mode
 
 Set the environment to Development (uses Test database):
 
@@ -57,6 +65,14 @@ Then run the application:
 ```bash
 cd src/Web
 dotnet watch run
+```
+
+#### Production Mode
+
+To run with the Production database, use the Production launch profile:
+
+```bash
+dotnet run --project src/Web/Web.csproj --launch-profile Production
 ```
 
 The application will start at:

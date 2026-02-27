@@ -73,6 +73,14 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, PaginatedList
                 .ThenBy(w => w.Headword)
                 .ToList();
         }
+        else if (request.SortBy?.ToLower() == "encounterfrequency")
+        {
+            words = words
+                .OrderByDescending(w => w.WordEncounters?.Count ?? 0)
+                .ThenByDescending(w => w.Frequency ?? 0)
+                .ThenBy(w => w.Headword)
+                .ToList();
+        }
 
         // Update total count after in-memory filtering
         totalCount = words.Count;

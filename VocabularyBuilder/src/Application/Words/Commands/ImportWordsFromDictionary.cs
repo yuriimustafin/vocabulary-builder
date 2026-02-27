@@ -10,6 +10,12 @@ public record ImportWordsFromDictionaryCommand : IRequest<ImportWordsFromDiction
     public required List<string> Words { get; init; }
     public string? ListName { get; init; }
     public DictionarySourceType SourceType { get; init; } = DictionarySourceType.Oxford;
+    
+    /// <summary>
+    /// If true, parse words from dictionary immediately (for URLs).
+    /// If false, defer parsing until export (for text lists).
+    /// </summary>
+    public bool ParseImmediately { get; init; } = false;
 }
 
 public class ImportWordsFromDictionaryResult
@@ -30,13 +36,6 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
 
     public async Task<ImportWordsFromDictionaryResult> Handle(ImportWordsFromDictionaryCommand request, CancellationToken cancellationToken)
     {
-        // Lookup words from dictionary (with caching)
-        var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
-        {
-            Words = request.Words,
-            SourceType = request.SourceType
-        }, cancellationToken);
-
         // Generate source identifier: use listName if provided, otherwise hash of the word list
         var wordListContent = string.Join("\n", request.Words);
         var sourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName) 
@@ -45,28 +44,61 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
 
         var result = new ImportWordsFromDictionaryResult();
         
-        // Save words to the database
-        foreach (var lookupResult in lookupResults)
+        if (request.ParseImmediately)
         {
-            var wordId = await _sender.Send(new UpsertWordCommand
+            // Parse from dictionary immediately (for URLs)
+            var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
             {
-                Headword = lookupResult.Word.Headword,
-                Transcription = lookupResult.Word.Transcription,
-                PartOfSpeech = lookupResult.Word.PartOfSpeech,
-                Frequency = lookupResult.Word.Frequency,
-                Examples = lookupResult.Word.Examples?.ToList(),
-                Senses = lookupResult.Word.Senses?.ToList(),
-                Source = WordEncounterSource.OxfordDictionaryList,
-                SourceIdentifier = $"{sourceIdentifierBase}:{lookupResult.Word.Headword}",
-                Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Oxford Dictionary Import",
-                DictionarySources = lookupResult.DictionarySources.Any() ? lookupResult.DictionarySources : null
+                Words = request.Words,
+                SourceType = request.SourceType
             }, cancellationToken);
             
-            result.ImportedWords.Add(lookupResult.Word.Headword);
+            // Save words to the database with full definitions
+            foreach (var lookupResult in lookupResults)
+            {
+                var wordId = await _sender.Send(new UpsertWordCommand
+                {
+                    Headword = lookupResult.Word.Headword,
+                    Transcription = lookupResult.Word.Transcription,
+                    PartOfSpeech = lookupResult.Word.PartOfSpeech,
+                    Frequency = lookupResult.Word.Frequency,
+                    Examples = lookupResult.Word.Examples?.ToList(),
+                    Senses = lookupResult.Word.Senses?.ToList(),
+                    Source = WordEncounterSource.OxfordDictionaryList,
+                    SourceIdentifier = $"{sourceIdentifierBase}:{lookupResult.Word.Headword}",
+                    Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Oxford Dictionary Import",
+                    DictionarySources = lookupResult.DictionarySources.Any() ? lookupResult.DictionarySources : null
+                }, cancellationToken);
+                
+                result.ImportedWords.Add(lookupResult.Word.Headword);
+            }
+            
+            result.WordsImported = lookupResults.Count;
+            result.EncountersCreated = lookupResults.Count;
         }
-
-        result.WordsImported = lookupResults.Count;
-        result.EncountersCreated = lookupResults.Count; // Note: Actual count may be less due to idempotency
+        else
+        {
+            // Defer parsing - just store headwords (for text lists)
+            foreach (var word in request.Words)
+            {
+                var cleanWord = word.Trim().ToLower();
+                if (string.IsNullOrEmpty(cleanWord)) continue;
+                
+                var wordId = await _sender.Send(new UpsertWordCommand
+                {
+                    Headword = cleanWord,
+                    // No dictionary data yet - will be parsed on export
+                    Source = WordEncounterSource.OxfordDictionaryList,
+                    SourceIdentifier = $"{sourceIdentifierBase}:{cleanWord}",
+                    Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Text Word Import"
+                }, cancellationToken);
+                
+                result.ImportedWords.Add(cleanWord);
+            }
+            
+            result.WordsImported = request.Words.Count;
+            result.EncountersCreated = request.Words.Count;
+        }
 
         return result;
     }

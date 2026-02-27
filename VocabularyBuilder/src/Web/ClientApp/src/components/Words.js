@@ -417,6 +417,7 @@ export class Words extends Component {
             >
               <option value="frequency">Frequency</option>
               <option value="">Alphabetical</option>
+              <option value="encounterfrequency">Encounter, Frequency</option>
               <option value="lastencounter">Last Encounter Date</option>
               <option value="created">Created Date</option>
             </Input>

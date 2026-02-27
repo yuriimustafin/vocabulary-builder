@@ -45,12 +45,16 @@ public class NewWordsController : ControllerBase
             .Where(w => !string.IsNullOrEmpty(w))
             .ToList();
 
+        // Detect if these are URLs - if any word starts with https://, treat as URLs
+        bool areUrls = wordsForParsing.Any(w => w.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
         // Import words using Application layer command
         var result = await _sender.Send(new ImportWordsFromDictionaryCommand
         {
             Words = wordsForParsing,
             ListName = listName,
-            SourceType = DictionarySourceType.Oxford
+            SourceType = DictionarySourceType.Oxford,
+            ParseImmediately = areUrls  // Parse immediately for URLs, defer for text words
         });
 
         return Ok(result);

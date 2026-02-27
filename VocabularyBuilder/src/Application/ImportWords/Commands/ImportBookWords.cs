@@ -29,25 +29,9 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
         if (importedWords == null || !importedWords.Any())
             return 0;
 
-        var uniqueHeadwords = importedWords
-            .Select(w => w.TrimmedHeadword())
-            .Distinct()
-            .ToList();
-
-        var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
-        {
-            Words = uniqueHeadwords,
-            SourceType = DictionarySourceType.Oxford
-        }, cancellationToken);
-        
-        // Map from the original searched term to the lookup result
-        // Each result now explicitly tracks what was searched, handling "does" -> "do" redirects
-        var lookupMap = lookupResults.ToDictionary(
-            lr => lr.SearchedTerm,
-            lr => lr
-        );
-
-        return await ImportWords(importedWords, lookupMap, cancellationToken);
+        // Don't parse from dictionary - just store the headwords
+        // They will be parsed later during export
+        return await ImportWords(importedWords, cancellationToken);
     }
 
     private async Task<IList<ImportedBookWord>?> ParseKindleHtml(string htmlContent)
@@ -65,14 +49,13 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
 
     private async Task<int> ImportWords(
         IList<ImportedBookWord> importedWords,
-        Dictionary<string, WordLookupResult> lookupMap,
         CancellationToken cancellationToken)
     {
         var importedCount = 0;
 
         foreach (var importedWord in importedWords)
         {
-            var upsertCommand = BuildUpsertCommand(importedWord, lookupMap);
+            var upsertCommand = BuildUpsertCommand(importedWord);
             await _sender.Send(upsertCommand, cancellationToken);
             importedCount++;
         }
@@ -80,51 +63,14 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
         return importedCount;
     }
 
-    private UpsertWordCommand BuildUpsertCommand(
-        ImportedBookWord importedWord,
-        Dictionary<string, WordLookupResult> lookupMap)
+    private UpsertWordCommand BuildUpsertCommand(ImportedBookWord importedWord)
     {
         var trimmedHeadword = importedWord.TrimmedHeadword();
-        
-        if (lookupMap.TryGetValue(trimmedHeadword, out var lookupResult))
-        {
-            return CreateUpsertCommandFromLookup(importedWord, lookupResult);
-        }
-        
-        return CreateUpsertCommandFromImportedWord(importedWord, trimmedHeadword);
-    }
-
-    private UpsertWordCommand CreateUpsertCommandFromLookup(
-        ImportedBookWord importedWord,
-        WordLookupResult lookupResult)
-    {
-        return new UpsertWordCommand
-        {
-            Headword = lookupResult.Word.Headword,
-            Transcription = lookupResult.Word.Transcription,
-            PartOfSpeech = lookupResult.Word.PartOfSpeech,
-            Frequency = lookupResult.Word.Frequency,
-            Examples = lookupResult.Word.Examples?.ToList(),
-            Senses = lookupResult.Word.Senses?.ToList(),
-            Source = WordEncounterSource.KindleHighlights,
-            SourceIdentifier = BuildSourceIdentifier(importedWord, lookupResult.Word.Headword),
-            Context = importedWord.Book?.Title,
-            Notes = importedWord.Note,
-            DictionarySources = lookupResult.DictionarySources.Any() 
-                ? lookupResult.DictionarySources 
-                : null
-        };
-    }
-
-    private UpsertWordCommand CreateUpsertCommandFromImportedWord(
-        ImportedBookWord importedWord,
-        string trimmedHeadword)
-    {
-        Console.WriteLine($"No dictionary result for '{importedWord.Headword}', using trimmed form: {trimmedHeadword}");
         
         return new UpsertWordCommand
         {
             Headword = trimmedHeadword,
+            // No dictionary data yet - will be parsed on export
             Source = WordEncounterSource.KindleHighlights,
             SourceIdentifier = BuildSourceIdentifier(importedWord, trimmedHeadword),
             Context = importedWord.Book?.Title,
