@@ -32,7 +32,9 @@ public class GetWordQueryHandler : IRequestHandler<GetWordQuery, WordDto?>
             PartOfSpeech = word.PartOfSpeech,
             Frequency = word.Frequency,
             EncounterCount = word.WordEncounters?.Count ?? 0,
-            Examples = word.Examples?.ToList() ?? new List<string>()
+            Examples = word.Examples?.ToList() ?? new List<string>(),
+            Status = word.Status,
+            Language = word.Language
         };
     }
 }

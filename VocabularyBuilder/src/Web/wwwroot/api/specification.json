@@ -320,13 +320,22 @@
         }
       }
     },
-    "/api/Words": {
+    "/api/{lang}/words": {
       "get": {
         "tags": [
           "Words"
         ],
-        "operationId": "GetWords",
+        "operationId": "GetApiWords",
         "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
           {
             "name": "sortBy",
             "in": "query",
@@ -334,7 +343,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 1
+            "x-position": 2
           },
           {
             "name": "statuses",
@@ -349,7 +358,7 @@
                 "format": "int32"
               }
             },
-            "x-position": 2
+            "x-position": 3
           },
           {
             "name": "minEncounterCount",
@@ -359,7 +368,7 @@
               "format": "int32",
               "nullable": true
             },
-            "x-position": 3
+            "x-position": 4
           },
           {
             "name": "maxEncounterCount",
@@ -369,7 +378,7 @@
               "format": "int32",
               "nullable": true
             },
-            "x-position": 4
+            "x-position": 5
           },
           {
             "name": "pageNumber",
@@ -379,7 +388,7 @@
               "format": "int32",
               "default": 1
             },
-            "x-position": 5
+            "x-position": 6
           },
           {
             "name": "pageSize",
@@ -389,7 +398,7 @@
               "format": "int32",
               "default": 10
             },
-            "x-position": 6
+            "x-position": 7
           }
         ],
         "responses": {
@@ -409,7 +418,18 @@
         "tags": [
           "Words"
         ],
-        "operationId": "CreateWord",
+        "operationId": "PostApiWords",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
         "requestBody": {
           "x-name": "command",
           "content": {
@@ -420,7 +440,7 @@
             }
           },
           "required": true,
-          "x-position": 1
+          "x-position": 2
         },
         "responses": {
           "200": {
@@ -437,13 +457,22 @@
         }
       }
     },
-    "/api/Words/{id}": {
+    "/api/{lang}/words/{id}": {
       "get": {
         "tags": [
           "Words"
         ],
-        "operationId": "GetWord",
+        "operationId": "GetApiWords2",
         "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
           {
             "name": "id",
             "in": "path",
@@ -452,7 +481,7 @@
               "type": "integer",
               "format": "int32"
             },
-            "x-position": 1
+            "x-position": 2
           }
         ],
         "responses": {
@@ -465,8 +494,17 @@
         "tags": [
           "Words"
         ],
-        "operationId": "UpdateWord",
+        "operationId": "PutApiWords",
         "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
           {
             "name": "id",
             "in": "path",
@@ -475,7 +513,7 @@
               "type": "integer",
               "format": "int32"
             },
-            "x-position": 1
+            "x-position": 2
           }
         ],
         "requestBody": {
@@ -488,7 +526,7 @@
             }
           },
           "required": true,
-          "x-position": 2
+          "x-position": 3
         },
         "responses": {
           "200": {
@@ -500,8 +538,17 @@
         "tags": [
           "Words"
         ],
-        "operationId": "DeleteWord",
+        "operationId": "DeleteApiWords",
         "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
           {
             "name": "id",
             "in": "path",
@@ -510,7 +557,7 @@
               "type": "integer",
               "format": "int32"
             },
-            "x-position": 1
+            "x-position": 2
           }
         ],
         "responses": {
@@ -520,13 +567,22 @@
         }
       }
     },
-    "/api/Words/{id}/details": {
+    "/api/{lang}/words/{id}/details": {
       "get": {
         "tags": [
           "Words"
         ],
-        "operationId": "GetWordDetails",
+        "operationId": "GetApiWordsDetails",
         "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
           {
             "name": "id",
             "in": "path",
@@ -535,7 +591,7 @@
               "type": "integer",
               "format": "int32"
             },
-            "x-position": 1
+            "x-position": 2
           }
         ],
         "responses": {
@@ -545,13 +601,22 @@
         }
       }
     },
-    "/api/Words/{id}/status": {
+    "/api/{lang}/words/{id}/status": {
       "put": {
         "tags": [
           "Words"
         ],
-        "operationId": "UpdateWordStatus",
+        "operationId": "PutApiWordsStatus",
         "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
           {
             "name": "id",
             "in": "path",
@@ -560,7 +625,7 @@
               "type": "integer",
               "format": "int32"
             },
-            "x-position": 1
+            "x-position": 2
           }
         ],
         "requestBody": {
@@ -573,7 +638,7 @@
             }
           },
           "required": true,
-          "x-position": 2
+          "x-position": 3
         },
         "responses": {
           "200": {
@@ -582,12 +647,23 @@
         }
       }
     },
-    "/api/Words/update-frequencies": {
+    "/api/{lang}/words/update-frequencies": {
       "post": {
         "tags": [
           "Words"
         ],
-        "operationId": "UpdateWordFrequencies",
+        "operationId": "PostApiWordsUpdateFrequencies",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
         "responses": {
           "200": {
             "description": "",
@@ -602,13 +678,22 @@
         }
       }
     },
-    "/api/Words/for-export": {
+    "/api/{lang}/words/for-export": {
       "get": {
         "tags": [
           "Words"
         ],
-        "operationId": "GetWordsForExport",
+        "operationId": "GetApiWordsForExport",
         "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
           {
             "name": "statuses",
             "in": "query",
@@ -622,7 +707,7 @@
                 "format": "int32"
               }
             },
-            "x-position": 1
+            "x-position": 2
           }
         ],
         "responses": {
@@ -632,12 +717,12 @@
         }
       }
     },
-    "/api/Words/export": {
+    "/api/words/export": {
       "post": {
         "tags": [
           "Words"
         ],
-        "operationId": "ExportWords",
+        "operationId": "PostApiWordsExport",
         "requestBody": {
           "x-name": "command",
           "content": {
@@ -704,13 +789,21 @@
             "x-position": 1
           },
           {
+            "name": "Language",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Language"
+            },
+            "x-position": 2
+          },
+          {
             "name": "Transcription",
             "in": "query",
             "schema": {
               "type": "string",
               "nullable": true
             },
-            "x-position": 2
+            "x-position": 3
           },
           {
             "name": "PartOfSpeech",
@@ -719,7 +812,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 3
+            "x-position": 4
           },
           {
             "name": "Frequency",
@@ -729,7 +822,7 @@
               "format": "int32",
               "nullable": true
             },
-            "x-position": 4
+            "x-position": 5
           },
           {
             "name": "Examples",
@@ -743,7 +836,7 @@
                 "type": "string"
               }
             },
-            "x-position": 5
+            "x-position": 6
           },
           {
             "name": "Source",
@@ -751,7 +844,7 @@
             "schema": {
               "$ref": "#/components/schemas/WordEncounterSource"
             },
-            "x-position": 6
+            "x-position": 7
           },
           {
             "name": "SourceIdentifier",
@@ -760,7 +853,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 7
+            "x-position": 8
           },
           {
             "name": "Context",
@@ -769,7 +862,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 8
+            "x-position": 9
           },
           {
             "name": "Notes",
@@ -778,7 +871,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 9
+            "x-position": 10
           }
         ],
         "responses": {
@@ -802,6 +895,17 @@
           "NewWords"
         ],
         "operationId": "NewWords_ImportKindle",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "en"
+            },
+            "x-position": 1
+          }
+        ],
         "requestBody": {
           "content": {
             "multipart/form-data": {
@@ -866,6 +970,15 @@
               "type": "string"
             },
             "x-position": 1
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "en"
+            },
+            "x-position": 2
           }
         ],
         "responses": {
@@ -1232,10 +1345,25 @@
               "type": "string"
             }
           },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
           "status": {
             "$ref": "#/components/schemas/WordStatus"
           }
         }
+      },
+      "Language": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "English",
+          "French"
+        ],
+        "enum": [
+          0,
+          1
+        ]
       },
       "WordStatus": {
         "type": "integer",
@@ -1261,6 +1389,9 @@
         "properties": {
           "headword": {
             "type": "string"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
           },
           "transcription": {
             "type": "string",

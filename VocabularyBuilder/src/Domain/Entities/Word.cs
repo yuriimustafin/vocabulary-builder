@@ -12,6 +12,11 @@ public class Word : BaseAuditableEntity
     // TODO: Consider renaming/using instead Lemma
     public required string Headword { get; set; }
     public string? Transcription { get; set; }
+    
+    /// <summary>
+    /// Language of the word (English, French, etc.)
+    /// </summary>
+    public Language Language { get; set; } = Language.English;
 
     // TODO: Change it to enum
     public string? PartOfSpeech{ get; set; }

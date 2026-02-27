@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Entities.Frequency;
 using VocabularyBuilder.Domain.Samples.Entities;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
-public record ImportFrequencyWordsCommand(string FilePath) : IRequest<int>;
+public record ImportFrequencyWordsCommand(string FilePath, Language Language = Language.English) : IRequest<int>;
 public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand, int>
 {
     private readonly IApplicationDbContext _context;
@@ -49,13 +50,13 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
                 continue;
 
             // Parse and create the lemma (main word with frequency)
-            var lemma = CreateLemma(parts[0]);
+            var lemma = CreateLemma(parts[0], request.Language);
             _context.FrequencyWords.Add(lemma);
             
             // Parse and create derived forms if they exist
             if (parts.Length > 1 && !string.IsNullOrWhiteSpace(parts[1]))
             {
-                var derivedForms = CreateDerivedFormsWithParent(parts[1], lemma);
+                var derivedForms = CreateDerivedFormsWithParent(parts[1], lemma, request.Language);
                 foreach (var form in derivedForms)
                 {
                     _context.FrequencyWords.Add(form);
@@ -92,12 +93,13 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
         return importedCount;
     }
 
-    private FrequencyWord CreateLemma(string lemmaText)
+    private FrequencyWord CreateLemma(string lemmaText, Language language)
     {
         var parts = lemmaText.Split('/');
         var lemma = new FrequencyWord 
         { 
             Headword = parts[0].Trim(),
+            Language = language,
             Frequency = null,
             BaseFormId = null // Base forms have no parent
         };
@@ -110,7 +112,7 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
         return lemma;
     }
 
-    private List<FrequencyWord> CreateDerivedFormsWithParent(string allFormsText, FrequencyWord baseForm)
+    private List<FrequencyWord> CreateDerivedFormsWithParent(string allFormsText, FrequencyWord baseForm, Language language)
     {
         var forms = allFormsText.Split(",");
         return forms
@@ -118,6 +120,7 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
             .Select(x => new FrequencyWord 
             { 
                 Headword = x.Trim(),
+                Language = language,
                 Frequency = null, // Derived forms don't have frequency
                 BaseForm = baseForm // Set navigation property, not ID
             })

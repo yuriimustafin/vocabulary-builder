@@ -4,11 +4,17 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VocabularyBuilder.Domain.Helpers;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 public class ImportedBookWord : BaseAuditableEntity
 {
     public required string Headword { get; set; }
+    
+    /// <summary>
+    /// Language of the word (English, French, etc.)
+    /// </summary>
+    public Language Language { get; set; } = Language.English;
 
     public string? Heading { get; set; }
 

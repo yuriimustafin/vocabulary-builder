@@ -49,7 +49,12 @@ export class Words extends Component {
       const client = new WordsClient();
       const { selectedStatuses, minEncounterCount, maxEncounterCount, pageSize } = this.state;
       const currentPage = pageNumber !== null ? pageNumber : this.state.pageNumber;
-      const data = await client.getWords(
+      
+      // Get current language from localStorage
+      const lang = localStorage.getItem('language') || 'en';
+      
+      const data = await client.getApiWords(
+        lang,
         sortBy, 
         selectedStatuses.length > 0 ? selectedStatuses : null,
         minEncounterCount ? parseInt(minEncounterCount) : null,
@@ -140,7 +145,8 @@ export class Words extends Component {
   handleMarkAsKnown = async (word) => {
     try {
       const client = new WordsClient();
-      await client.updateWordStatus(word.id, { id: word.id, status: 4 }); // 4 = Known
+      const lang = localStorage.getItem('language') || 'en';
+      await client.putApiWordsStatus(lang, word.id, { id: word.id, status: 4 }); // 4 = Known
       this.loadWords(this.state.sortBy);
     } catch (error) {
       console.error('Error updating word status:', error);
@@ -151,13 +157,15 @@ export class Words extends Component {
   handleStatusChange = async (wordId, newStatus) => {
     try {
       const client = new WordsClient();
-      await client.updateWordStatus(wordId, { id: wordId, status: parseInt(newStatus) });
+      const lang = localStorage.getItem('language') || 'en';
+      await client.putApiWordsStatus(lang, wordId, { id: wordId, status: parseInt(newStatus) });
       // Reload both word list and details
       this.loadWords(this.state.sortBy);
       
       // If details modal is open, reload details
       if (this.state.detailsModal && this.state.wordDetails) {
-        const response = await fetch(`/api/Words/${wordId}/details`);
+        const lang = localStorage.getItem('language') || 'en';
+        const response = await fetch(`/api/${lang}/words/${wordId}/details`);
         if (response.ok) {
           const details = await response.json();
           this.setState({ wordDetails: details });
@@ -196,7 +204,8 @@ export class Words extends Component {
       // Opening modal - fetch details
       this.setState({ detailsModal: true, loadingDetails: true });
       try {
-        const response = await fetch(`/api/Words/${word.id}/details`);
+        const lang = localStorage.getItem('language') || 'en';
+        const response = await fetch(`/api/${lang}/words/${word.id}/details`);
         if (response.ok) {
           const details = await response.json();
           this.setState({ wordDetails: details, loadingDetails: false });
@@ -245,6 +254,7 @@ export class Words extends Component {
     
     try {
       const { formData, isEditing } = this.state;
+      const lang = localStorage.getItem('language') || 'en';
       const examplesArray = formData.examples 
         ? formData.examples.split('\n').filter(e => e.trim() !== '')
         : [];
@@ -258,9 +268,9 @@ export class Words extends Component {
       };
 
       if (isEditing) {
-        await client.updateWord(formData.id, { ...command, id: formData.id });
+        await client.putApiWords(lang, formData.id, { ...command, id: formData.id });
       } else {
-        await client.createWord(command);
+        await client.postApiWords(lang, command);
       }
 
       this.toggleModal();
@@ -273,9 +283,10 @@ export class Words extends Component {
 
   handleDelete = async () => {
     const client = new WordsClient();
+    const lang = localStorage.getItem('language') || 'en';
     
     try {
-      await client.deleteWord(this.state.currentWord.id);
+      await client.deleteApiWords(lang, this.state.currentWord.id);
       this.toggleDeleteModal();
       this.loadWords();
     } catch (error) {
@@ -312,12 +323,13 @@ export class Words extends Component {
   handleBulkStatusChange = async () => {
     const { selectedWordIds, bulkStatus } = this.state;
     const client = new WordsClient();
+    const lang = localStorage.getItem('language') || 'en';
     
     try {
       // Update all selected words
       await Promise.all(
         selectedWordIds.map(id => 
-          client.updateWordStatus(id, { id, status: parseInt(bulkStatus) })
+          client.putApiWordsStatus(lang, id, { id, status: parseInt(bulkStatus) })
         )
       );
       

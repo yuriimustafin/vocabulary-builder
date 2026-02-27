@@ -23,11 +23,12 @@ export class ExportWords extends Component {
   async loadWordsForExport() {
     try {
       const { selectedStatuses } = this.state;
+      const lang = localStorage.getItem('language') || 'en';
       const statusesParam = selectedStatuses.length > 0 
         ? selectedStatuses.map(s => `statuses=${s}`).join('&')
         : '';
       
-      const response = await fetch(`/api/Words/for-export?${statusesParam}`);
+      const response = await fetch(`/api/${lang}/words/for-export?${statusesParam}`);
       
       if (response.ok) {
         const data = await response.json();
@@ -62,8 +63,9 @@ export class ExportWords extends Component {
 
     try {
       const wordIds = words.map(w => w.id);
+      const lang = localStorage.getItem('language') || 'en';
       
-      const response = await fetch('/api/Words/export', {
+      const response = await fetch(`/api/${lang}/words/export`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

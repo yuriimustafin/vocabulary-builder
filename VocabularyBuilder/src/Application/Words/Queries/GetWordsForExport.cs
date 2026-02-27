@@ -5,6 +5,7 @@ using VocabularyBuilder.Domain.Samples.Entities;
 namespace VocabularyBuilder.Application.Words.Queries;
 
 public record GetWordsForExportQuery(
+    Language Language = Language.English,
     List<WordStatus>? Statuses = null) : IRequest<List<Word>>;
 
 public class GetWordsForExportQueryHandler : IRequestHandler<GetWordsForExportQuery, List<Word>>
@@ -20,7 +21,8 @@ public class GetWordsForExportQueryHandler : IRequestHandler<GetWordsForExportQu
     {
         var query = _context.Words
             .Include(w => w.Senses!)
-            .AsNoTracking();
+            .AsNoTracking()
+            .Where(w => w.Language == request.Language);
 
         // Apply status filter - default to NextExport status
         if (request.Statuses != null && request.Statuses.Any())

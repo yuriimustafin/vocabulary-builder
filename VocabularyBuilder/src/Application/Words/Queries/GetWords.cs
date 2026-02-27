@@ -6,6 +6,7 @@ using VocabularyBuilder.Domain.Enums;
 namespace VocabularyBuilder.Application.Words.Queries;
 
 public record GetWordsQuery(
+    Language Language = Language.English,
     string? SortBy = null,
     List<WordStatus>? Statuses = null,
     int? MinEncounterCount = null,
@@ -26,7 +27,8 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, PaginatedList
     {
         var query = _context.Words
             .Include(w => w.WordEncounters)
-            .AsNoTracking();
+            .AsNoTracking()
+            .Where(w => w.Language == request.Language);
 
         // Apply status filter
         if (request.Statuses != null && request.Statuses.Any())
@@ -100,7 +102,8 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, PaginatedList
             Frequency = w.Frequency,
             EncounterCount = w.WordEncounters?.Count ?? 0,
             Examples = w.Examples?.ToList() ?? new List<string>(),
-            Status = w.Status
+            Status = w.Status,
+            Language = w.Language
         }).ToList();
 
         return new PaginatedList<WordDto>(wordDtos, totalCount, request.PageNumber, request.PageSize);
@@ -116,5 +119,6 @@ public class WordDto
     public int? Frequency { get; set; }
     public int EncounterCount { get; set; }
     public List<string> Examples { get; set; } = new();
+    public Language Language { get; set; }
     public WordStatus Status { get; set; }
 }

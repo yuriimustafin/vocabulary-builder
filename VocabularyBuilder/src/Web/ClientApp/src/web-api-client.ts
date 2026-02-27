@@ -439,8 +439,11 @@ export class WordsClient {
         this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
     }
 
-    getWords(sortBy: string | null | undefined, statuses: number[] | null | undefined, minEncounterCount: number | null | undefined, maxEncounterCount: number | null | undefined, pageNumber: number | undefined, pageSize: number | undefined): Promise<PaginatedListOfWordDto> {
-        let url_ = this.baseUrl + "/api/Words?";
+    getApiWords(lang: string, sortBy: string | null | undefined, statuses: number[] | null | undefined, minEncounterCount: number | null | undefined, maxEncounterCount: number | null | undefined, pageNumber: number | undefined, pageSize: number | undefined): Promise<PaginatedListOfWordDto> {
+        let url_ = this.baseUrl + "/api/{lang}/words?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (sortBy !== undefined && sortBy !== null)
             url_ += "sortBy=" + encodeURIComponent("" + sortBy) + "&";
         if (statuses !== undefined && statuses !== null)
@@ -467,11 +470,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetWords(_response);
+            return this.processGetApiWords(_response);
         });
     }
 
-    protected processGetWords(response: Response): Promise<PaginatedListOfWordDto> {
+    protected processGetApiWords(response: Response): Promise<PaginatedListOfWordDto> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -490,8 +493,11 @@ export class WordsClient {
         return Promise.resolve<PaginatedListOfWordDto>(null as any);
     }
 
-    createWord(command: CreateWordCommand): Promise<number> {
-        let url_ = this.baseUrl + "/api/Words";
+    postApiWords(lang: string, command: CreateWordCommand): Promise<number> {
+        let url_ = this.baseUrl + "/api/{lang}/words";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -506,11 +512,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processCreateWord(_response);
+            return this.processPostApiWords(_response);
         });
     }
 
-    protected processCreateWord(response: Response): Promise<number> {
+    protected processPostApiWords(response: Response): Promise<number> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -530,8 +536,11 @@ export class WordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    getWord(id: number): Promise<void> {
-        let url_ = this.baseUrl + "/api/Words/{id}";
+    getApiWords2(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/words/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (id === undefined || id === null)
             throw new Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
@@ -544,11 +553,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetWord(_response);
+            return this.processGetApiWords2(_response);
         });
     }
 
-    protected processGetWord(response: Response): Promise<void> {
+    protected processGetApiWords2(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -564,8 +573,11 @@ export class WordsClient {
         return Promise.resolve<void>(null as any);
     }
 
-    updateWord(id: number, command: UpdateWordCommand): Promise<void> {
-        let url_ = this.baseUrl + "/api/Words/{id}";
+    putApiWords(lang: string, id: number, command: UpdateWordCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/words/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (id === undefined || id === null)
             throw new Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
@@ -582,11 +594,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdateWord(_response);
+            return this.processPutApiWords(_response);
         });
     }
 
-    protected processUpdateWord(response: Response): Promise<void> {
+    protected processPutApiWords(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -602,8 +614,11 @@ export class WordsClient {
         return Promise.resolve<void>(null as any);
     }
 
-    deleteWord(id: number): Promise<void> {
-        let url_ = this.baseUrl + "/api/Words/{id}";
+    deleteApiWords(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/words/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (id === undefined || id === null)
             throw new Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
@@ -616,11 +631,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processDeleteWord(_response);
+            return this.processDeleteApiWords(_response);
         });
     }
 
-    protected processDeleteWord(response: Response): Promise<void> {
+    protected processDeleteApiWords(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -636,8 +651,11 @@ export class WordsClient {
         return Promise.resolve<void>(null as any);
     }
 
-    getWordDetails(id: number): Promise<void> {
-        let url_ = this.baseUrl + "/api/Words/{id}/details";
+    getApiWordsDetails(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/words/{id}/details";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (id === undefined || id === null)
             throw new Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
@@ -650,11 +668,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetWordDetails(_response);
+            return this.processGetApiWordsDetails(_response);
         });
     }
 
-    protected processGetWordDetails(response: Response): Promise<void> {
+    protected processGetApiWordsDetails(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -670,8 +688,11 @@ export class WordsClient {
         return Promise.resolve<void>(null as any);
     }
 
-    updateWordStatus(id: number, command: UpdateWordStatusCommand): Promise<void> {
-        let url_ = this.baseUrl + "/api/Words/{id}/status";
+    putApiWordsStatus(lang: string, id: number, command: UpdateWordStatusCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/words/{id}/status";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (id === undefined || id === null)
             throw new Error("The parameter 'id' must be defined.");
         url_ = url_.replace("{id}", encodeURIComponent("" + id));
@@ -688,11 +709,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdateWordStatus(_response);
+            return this.processPutApiWordsStatus(_response);
         });
     }
 
-    protected processUpdateWordStatus(response: Response): Promise<void> {
+    protected processPutApiWordsStatus(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -708,8 +729,11 @@ export class WordsClient {
         return Promise.resolve<void>(null as any);
     }
 
-    updateWordFrequencies(): Promise<UpdateWordFrequenciesResult> {
-        let url_ = this.baseUrl + "/api/Words/update-frequencies";
+    postApiWordsUpdateFrequencies(lang: string): Promise<UpdateWordFrequenciesResult> {
+        let url_ = this.baseUrl + "/api/{lang}/words/update-frequencies";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -720,11 +744,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processUpdateWordFrequencies(_response);
+            return this.processPostApiWordsUpdateFrequencies(_response);
         });
     }
 
-    protected processUpdateWordFrequencies(response: Response): Promise<UpdateWordFrequenciesResult> {
+    protected processPostApiWordsUpdateFrequencies(response: Response): Promise<UpdateWordFrequenciesResult> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -743,8 +767,11 @@ export class WordsClient {
         return Promise.resolve<UpdateWordFrequenciesResult>(null as any);
     }
 
-    getWordsForExport(statuses: number[] | null | undefined): Promise<void> {
-        let url_ = this.baseUrl + "/api/Words/for-export?";
+    getApiWordsForExport(lang: string, statuses: number[] | null | undefined): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/words/for-export?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (statuses !== undefined && statuses !== null)
             statuses && statuses.forEach(item => { url_ += "statuses=" + encodeURIComponent("" + item) + "&"; });
         url_ = url_.replace(/[?&]$/, "");
@@ -756,11 +783,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processGetWordsForExport(_response);
+            return this.processGetApiWordsForExport(_response);
         });
     }
 
-    protected processGetWordsForExport(response: Response): Promise<void> {
+    protected processGetApiWordsForExport(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -776,8 +803,8 @@ export class WordsClient {
         return Promise.resolve<void>(null as any);
     }
 
-    exportWords(command: ExportWordsCommand): Promise<void> {
-        let url_ = this.baseUrl + "/api/Words/export";
+    postApiWordsExport(command: ExportWordsCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/words/export";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -791,11 +818,11 @@ export class WordsClient {
         };
 
         return this.http.fetch(url_, options_).then((_response: Response) => {
-            return this.processExportWords(_response);
+            return this.processPostApiWordsExport(_response);
         });
     }
 
-    protected processExportWords(response: Response): Promise<void> {
+    protected processPostApiWordsExport(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -859,12 +886,16 @@ export class NewWordsClient {
         return Promise.resolve<ImportWordsFromDictionaryResult>(null as any);
     }
 
-    newWords_SaveWord(headword: string | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, frequency: number | null | undefined, examples: string[] | null | undefined, source: WordEncounterSource | undefined, sourceIdentifier: string | null | undefined, context: string | null | undefined, notes: string | null | undefined): Promise<number> {
+    newWords_SaveWord(headword: string | undefined, language: Language | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, frequency: number | null | undefined, examples: string[] | null | undefined, source: WordEncounterSource | undefined, sourceIdentifier: string | null | undefined, context: string | null | undefined, notes: string | null | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords?";
         if (headword === null)
             throw new Error("The parameter 'headword' cannot be null.");
         else if (headword !== undefined)
             url_ += "Headword=" + encodeURIComponent("" + headword) + "&";
+        if (language === null)
+            throw new Error("The parameter 'language' cannot be null.");
+        else if (language !== undefined)
+            url_ += "Language=" + encodeURIComponent("" + language) + "&";
         if (transcription !== undefined && transcription !== null)
             url_ += "Transcription=" + encodeURIComponent("" + transcription) + "&";
         if (partOfSpeech !== undefined && partOfSpeech !== null)
@@ -917,8 +948,12 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    newWords_ImportKindle(contentType: string | null | undefined, contentDisposition: string | null | undefined, headers: any[] | null | undefined, length: number | undefined, name: string | null | undefined, fileName: string | null | undefined): Promise<number> {
-        let url_ = this.baseUrl + "/api/NewWords/import-kindle";
+    newWords_ImportKindle(lang: string | undefined, contentType: string | null | undefined, contentDisposition: string | null | undefined, headers: any[] | null | undefined, length: number | undefined, name: string | null | undefined, fileName: string | null | undefined): Promise<number> {
+        let url_ = this.baseUrl + "/api/NewWords/import-kindle?";
+        if (lang === null)
+            throw new Error("The parameter 'lang' cannot be null.");
+        else if (lang !== undefined)
+            url_ += "lang=" + encodeURIComponent("" + lang) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = new FormData();
@@ -970,12 +1005,16 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    newWords_ImportFrequency(filePath: string | undefined): Promise<number> {
+    newWords_ImportFrequency(filePath: string | undefined, lang: string | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords/import-frequency?";
         if (filePath === null)
             throw new Error("The parameter 'filePath' cannot be null.");
         else if (filePath !== undefined)
             url_ += "filePath=" + encodeURIComponent("" + filePath) + "&";
+        if (lang === null)
+            throw new Error("The parameter 'lang' cannot be null.");
+        else if (lang !== undefined)
+            url_ += "lang=" + encodeURIComponent("" + lang) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -1706,6 +1745,7 @@ export class WordDto implements IWordDto {
     frequency?: number | undefined;
     encounterCount?: number;
     examples?: string[];
+    language?: Language;
     status?: WordStatus;
 
     constructor(data?: IWordDto) {
@@ -1730,6 +1770,7 @@ export class WordDto implements IWordDto {
                 for (let item of _data["examples"])
                     this.examples!.push(item);
             }
+            this.language = _data["language"];
             this.status = _data["status"];
         }
     }
@@ -1754,6 +1795,7 @@ export class WordDto implements IWordDto {
             for (let item of this.examples)
                 data["examples"].push(item);
         }
+        data["language"] = this.language;
         data["status"] = this.status;
         return data;
     }
@@ -1767,7 +1809,13 @@ export interface IWordDto {
     frequency?: number | undefined;
     encounterCount?: number;
     examples?: string[];
+    language?: Language;
     status?: WordStatus;
+}
+
+export enum Language {
+    English = 0,
+    French = 1,
 }
 
 export enum WordStatus {
@@ -1780,6 +1828,7 @@ export enum WordStatus {
 
 export class CreateWordCommand implements ICreateWordCommand {
     headword?: string;
+    language?: Language;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;
@@ -1801,6 +1850,7 @@ export class CreateWordCommand implements ICreateWordCommand {
     init(_data?: any) {
         if (_data) {
             this.headword = _data["headword"];
+            this.language = _data["language"];
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
             this.frequency = _data["frequency"];
@@ -1826,6 +1876,7 @@ export class CreateWordCommand implements ICreateWordCommand {
     toJSON(data?: any) {
         data = typeof data === 'object' ? data : {};
         data["headword"] = this.headword;
+        data["language"] = this.language;
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
         data["frequency"] = this.frequency;
@@ -1844,6 +1895,7 @@ export class CreateWordCommand implements ICreateWordCommand {
 
 export interface ICreateWordCommand {
     headword?: string;
+    language?: Language;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     frequency?: number | undefined;

@@ -10,7 +10,7 @@ using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
-public record ImportBookWordsCommand(string FileContent) : IRequest<int>;
+public record ImportBookWordsCommand(string FileContent, Language Language = Language.English) : IRequest<int>;
 
 public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsCommand, int>
 {
@@ -70,6 +70,7 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
         return new UpsertWordCommand
         {
             Headword = trimmedHeadword,
+            Language = importedWord.Language,
             // No dictionary data yet - will be parsed on export
             Source = WordEncounterSource.KindleHighlights,
             SourceIdentifier = BuildSourceIdentifier(importedWord, trimmedHeadword),

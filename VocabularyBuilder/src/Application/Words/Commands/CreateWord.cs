@@ -7,8 +7,7 @@ namespace VocabularyBuilder.Application.Words.Commands;
 
 public record CreateWordCommand : IRequest<int>
 {
-    public string Headword { get; init; } = string.Empty;
-    public string? Transcription { get; init; }
+    public string Headword { get; init; } = string.Empty;    public Language Language { get; init; } = Language.English;    public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
     public int? Frequency { get; init; }
     public List<string>? Examples { get; init; }
@@ -37,12 +36,13 @@ public class CreateWordCommandHandler : IRequestHandler<CreateWordCommand, int>
         var frequency = request.Frequency;
         if (!frequency.HasValue)
         {
-            frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword), cancellationToken);
+            frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword, request.Language), cancellationToken);
         }
 
         var entity = new Word
         {
             Headword = request.Headword,
+            Language = request.Language,
             Transcription = request.Transcription,
             PartOfSpeech = request.PartOfSpeech,
             Frequency = frequency,

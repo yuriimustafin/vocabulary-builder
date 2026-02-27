@@ -30,6 +30,11 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        // Create unique index for Word: Headword + Language must be unique
+        builder.Entity<Word>()
+            .HasIndex(w => new { w.Headword, w.Language })
+            .IsUnique();
+        
         builder.Entity<WordEncounter>()
             .HasOne(we => we.Word)
             .WithMany(w => w.WordEncounters)
@@ -63,6 +68,15 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .WithOne(fw => fw.BaseForm)
             .HasForeignKey(fw => fw.BaseFormId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        // Create unique index for FrequencyWord: Headword + Language must be unique
+        builder.Entity<FrequencyWord>()
+            .HasIndex(fw => new { fw.Headword, fw.Language })
+            .IsUnique();
+        
+        // Create index for ImportedBookWord: Headword + Language for efficient lookups
+        builder.Entity<ImportedBookWord>()
+            .HasIndex(ibw => new { ibw.Headword, ibw.Language });
 
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 

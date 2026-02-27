@@ -9,21 +9,28 @@ public class Words : EndpointGroupBase
 {
     public override void Map(WebApplication app)
     {
-        app.MapGroup(this)
-            .MapGet(GetWords)
-            .MapGet(GetWord, "{id}")
-            .MapGet(GetWordDetails, "{id}/details")
-            .MapPost(CreateWord)
-            .MapPut(UpdateWord, "{id}")
-            .MapPut(UpdateWordStatus, "{id}/status")
-            .MapDelete(DeleteWord, "{id}")
-            .MapPost(UpdateWordFrequencies, "update-frequencies")
-            .MapGet(GetWordsForExport, "for-export")
-            .MapPost(ExportWords, "export");
+        // Map with language parameter in route: /api/{lang}/words
+        var group = app
+            .MapGroup("/api/{lang}/words")
+            .WithGroupName("Words")
+            .WithTags("Words")
+            .WithOpenApi();
+            
+        group.MapGet("/", GetWords);
+        group.MapGet("/{id}", GetWord);
+        group.MapGet("/{id}/details", GetWordDetails);
+        group.MapPost("/", CreateWord);
+        group.MapPut("/{id}", UpdateWord);
+        group.MapPut("/{id}/status", UpdateWordStatus);
+        group.MapDelete("/{id}", DeleteWord);
+        group.MapPost("/update-frequencies", UpdateWordFrequencies);
+        group.MapGet("/for-export", GetWordsForExport);
+        group.MapPost("/export", ExportWords);
     }
 
     public async Task<PaginatedList<WordDto>> GetWords(
-        ISender sender, 
+        ISender sender,
+        string lang,
         string? sortBy = null,
         int[]? statuses = null,
         int? minEncounterCount = null,
@@ -31,56 +38,61 @@ public class Words : EndpointGroupBase
         int pageNumber = 1,
         int pageSize = 10)
     {
+        var language = ParseLanguage(lang);
         var statusEnums = statuses?.Select(s => (WordStatus)s).ToList();
-        return await sender.Send(new GetWordsQuery(sortBy, statusEnums, minEncounterCount, maxEncounterCount, pageNumber, pageSize));
+        return await sender.Send(new GetWordsQuery(language, sortBy, statusEnums, minEncounterCount, maxEncounterCount, pageNumber, pageSize));
     }
 
-    public async Task<IResult> GetWord(ISender sender, int id)
+    public async Task<IResult> GetWord(ISender sender, string lang, int id)
     {
         var word = await sender.Send(new GetWordQuery(id));
         return word != null ? Results.Ok(word) : Results.NotFound();
     }
 
-    public async Task<IResult> GetWordDetails(ISender sender, int id)
+    public async Task<IResult> GetWordDetails(ISender sender, string lang, int id)
     {
         var word = await sender.Send(new GetWordDetailsQuery(id));
         return word != null ? Results.Ok(word) : Results.NotFound();
     }
 
-    public async Task<int> CreateWord(ISender sender, CreateWordCommand command)
+    public async Task<int> CreateWord(ISender sender, string lang, CreateWordCommand command)
     {
-        return await sender.Send(command);
+        var language = ParseLanguage(lang);
+        // Override the language from the route
+        var commandWithLanguage = command with { Language = language };
+        return await sender.Send(commandWithLanguage);
     }
 
-    public async Task<IResult> UpdateWord(ISender sender, int id, UpdateWordCommand command)
-    {
-        if (id != command.Id) return Results.BadRequest();
-        await sender.Send(command);
-        return Results.NoContent();
-    }
-
-    public async Task<IResult> UpdateWordStatus(ISender sender, int id, UpdateWordStatusCommand command)
+    public async Task<IResult> UpdateWord(ISender sender, string lang, int id, UpdateWordCommand command)
     {
         if (id != command.Id) return Results.BadRequest();
         await sender.Send(command);
         return Results.NoContent();
     }
 
-    public async Task<IResult> DeleteWord(ISender sender, int id)
+    public async Task<IResult> UpdateWordStatus(ISender sender, string lang, int id, UpdateWordStatusCommand command)
+    {
+        if (id != command.Id) return Results.BadRequest();
+        await sender.Send(command);
+        return Results.NoContent();
+    }
+
+    public async Task<IResult> DeleteWord(ISender sender, string lang, int id)
     {
         await sender.Send(new DeleteWordCommand(id));
         return Results.NoContent();
     }
 
-    public async Task<UpdateWordFrequenciesResult> UpdateWordFrequencies(ISender sender)
+    public async Task<UpdateWordFrequenciesResult> UpdateWordFrequencies(ISender sender, string lang)
     {
         return await sender.Send(new UpdateWordFrequenciesCommand());
     }
 
-    public async Task<IResult> GetWordsForExport(ISender sender, int[]? statuses = null)
+    public async Task<IResult> GetWordsForExport(ISender sender, string lang, int[]? statuses = null)
     {
+        var language = ParseLanguage(lang);
         var statusEnums = statuses?.Select(s => (WordStatus)s).ToList();
-        var words = await sender.Send(new GetWordsForExportQuery(statusEnums));
+        var words = await sender.Send(new GetWordsForExportQuery(language, statusEnums));
         
         // Return simplified word info for preview
         var wordsPreview = words.Select(w => new
@@ -109,5 +121,15 @@ public class Words : EndpointGroupBase
         var fileName = $"anki-export-{DateTime.UtcNow:yyyyMMdd-HHmmss}.csv";
         
         return Results.File(csvBytes, "text/csv", fileName);
+    }
+    
+    private static Language ParseLanguage(string lang)
+    {
+        return lang.ToLower() switch
+        {
+            "en" or "english" => Language.English,
+            "fr" or "french" => Language.French,
+            _ => Language.English // Default to English
+        };
     }
 }

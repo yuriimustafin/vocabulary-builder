@@ -7,8 +7,7 @@ namespace VocabularyBuilder.Application.Words.Commands;
 
 public record UpsertWordCommand : IRequest<int>
 {
-    public string Headword { get; init; } = string.Empty;
-    public string? Transcription { get; init; }
+    public string Headword { get; init; } = string.Empty;    public Language Language { get; init; } = Language.English;    public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
     public int? Frequency { get; init; }
     public List<string>? Examples { get; init; }
@@ -40,7 +39,7 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
         var existingWord = await _context.Words
             .Include(w => w.WordEncounters)
             .Include(w => w.Senses)
-            .FirstOrDefaultAsync(w => w.Headword == request.Headword, cancellationToken);
+            .FirstOrDefaultAsync(w => w.Headword == request.Headword && w.Language == request.Language, cancellationToken);
 
         if (existingWord == null)
         {
@@ -48,13 +47,14 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             var frequency = request.Frequency;
             if (!frequency.HasValue)
             {
-                frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword), cancellationToken);
+                frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword, request.Language), cancellationToken);
             }
 
             // Create new word
             var newWord = new Word
             {
                 Headword = request.Headword,
+                Language = request.Language,
                 Transcription = request.Transcription,
                 PartOfSpeech = request.PartOfSpeech,
                 Frequency = frequency,
@@ -95,7 +95,7 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             }
             else if (!existingWord.Frequency.HasValue)
             {
-                existingWord.Frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword), cancellationToken);
+                existingWord.Frequency = await _sender.Send(new GetWordFrequencyQuery(request.Headword, request.Language), cancellationToken);
             }
             
             existingWord.Examples = request.Examples ?? existingWord.Examples;

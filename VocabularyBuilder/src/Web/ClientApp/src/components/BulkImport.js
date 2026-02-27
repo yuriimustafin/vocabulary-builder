@@ -35,9 +35,11 @@ export class BulkImport extends Component {
 
     try {
       const client = new NewWordsClient();
+      const lang = localStorage.getItem('language') || 'en';
       
       // Create a request with body content
-      const response = await fetch('/api/NewWords/import' + (listName ? `?listName=${encodeURIComponent(listName)}` : ''), {
+      const response = await fetch('/api/NewWords/import' + 
+        (listName ? `?listName=${encodeURIComponent(listName)}&lang=${lang}` : `?lang=${lang}`), {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain'

@@ -67,7 +67,7 @@ public class NewWordsController : ControllerBase
     }
 
     [HttpPost("import-kindle")]
-    public async Task<ActionResult<int>> ImportKindle([FromForm] IFormFile file)
+    public async Task<ActionResult<int>> ImportKindle([FromForm] IFormFile file, [FromQuery] string lang = "en")
     {
         if (file == null || file.Length == 0)
         {
@@ -80,12 +80,13 @@ public class NewWordsController : ControllerBase
             fileContent = await reader.ReadToEndAsync();
         }
 
-        var result = await _sender.Send(new ImportBookWordsCommand(fileContent));
+        var language = ParseLanguage(lang);
+        var result = await _sender.Send(new ImportBookWordsCommand(fileContent, language));
         return Ok(result);
     }
 
     [HttpPost("import-frequency")]
-    public async Task<ActionResult<int>> ImportFrequency([FromQuery] string filePath)
+    public async Task<ActionResult<int>> ImportFrequency([FromQuery] string filePath, [FromQuery] string lang = "en")
     {
         if (string.IsNullOrWhiteSpace(filePath))
         {
@@ -97,7 +98,8 @@ public class NewWordsController : ControllerBase
             return BadRequest($"File not found: {filePath}");
         }
 
-        var result = await _sender.Send(new ImportFrequencyWordsCommand(filePath));
+        var language = ParseLanguage(lang);
+        var result = await _sender.Send(new ImportFrequencyWordsCommand(filePath, language));
         return Ok(result);
     }
 
@@ -113,5 +115,15 @@ public class NewWordsController : ControllerBase
         using var sha256 = SHA256.Create();
         var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(content));
         return Convert.ToHexString(hashBytes)[..16]; // Use first 16 chars for readability
+    }
+    
+    private static Language ParseLanguage(string lang)
+    {
+        return lang.ToLower() switch
+        {
+            "en" or "english" => Language.English,
+            "fr" or "french" => Language.French,
+            _ => Language.English // Default to English
+        };
     }
 }

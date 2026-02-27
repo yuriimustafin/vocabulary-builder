@@ -36,7 +36,7 @@ public class UpdateWordFrequenciesCommandHandler : IRequestHandler<UpdateWordFre
 
         foreach (var word in wordsWithoutFrequency)
         {
-            var frequency = await _sender.Send(new GetWordFrequencyQuery(word.Headword), cancellationToken);
+            var frequency = await _sender.Send(new GetWordFrequencyQuery(word.Headword, word.Language), cancellationToken);
             
             if (frequency.HasValue)
             {

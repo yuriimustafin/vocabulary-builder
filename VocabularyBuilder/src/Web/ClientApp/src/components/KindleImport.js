@@ -38,7 +38,8 @@ export class KindleImport extends Component {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
-      const response = await fetch('/api/NewWords/import-kindle', {
+      const lang = localStorage.getItem('language') || 'en';
+      const response = await fetch(`/api/NewWords/import-kindle?lang=${lang}`, {
         method: 'POST',
         body: formData
       });

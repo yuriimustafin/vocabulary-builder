@@ -1,8 +1,9 @@
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Words.Queries;
 
-public record GetWordFrequencyQuery(string Headword) : IRequest<int?>;
+public record GetWordFrequencyQuery(string Headword, Language Language = Language.English) : IRequest<int?>;
 
 public class GetWordFrequencyQueryHandler : IRequestHandler<GetWordFrequencyQuery, int?>
 {
@@ -17,9 +18,9 @@ public class GetWordFrequencyQueryHandler : IRequestHandler<GetWordFrequencyQuer
     {
         var headword = request.Headword.Trim().ToLowerInvariant();
 
-        // Find all words with this headword (can be multiple due to different meanings)
+        // Find all words with this headword and language
         var frequencyWords = await _context.FrequencyWords
-            .Where(fw => fw.Headword.ToLower() == headword)
+            .Where(fw => fw.Headword.ToLower() == headword && fw.Language == request.Language)
             .Include(fw => fw.BaseForm)
             .ToListAsync(cancellationToken);
 
