@@ -10,6 +10,7 @@ export class BulkImport extends Component {
     this.state = {
       wordList: '',
       listName: '',
+      parseImmediately: true, // Default to true for small lists
       loading: false,
       result: null,
       error: null
@@ -17,14 +18,28 @@ export class BulkImport extends Component {
   }
 
   handleInputChange = (e) => {
-    const { name, value } = e.target;
-    this.setState({ [name]: value });
+    const { name, value, type, checked } = e.target;
+    
+    if (name === 'wordList') {
+      // Auto-adjust parseImmediately based on line count
+      const lineCount = value.split('\n').filter(line => line.trim()).length;
+      const autoParseImmediately = lineCount <= 5;
+      
+      this.setState({ 
+        wordList: value,
+        parseImmediately: autoParseImmediately
+      });
+    } else if (type === 'checkbox') {
+      this.setState({ [name]: checked });
+    } else {
+      this.setState({ [name]: value });
+    }
   }
 
   handleSubmit = async (e) => {
     e.preventDefault();
     
-    const { wordList, listName } = this.state;
+    const { wordList, listName, parseImmediately } = this.state;
     
     if (!wordList.trim()) {
       this.setState({ error: 'Please enter at least one word or URL' });
@@ -37,9 +52,14 @@ export class BulkImport extends Component {
       const client = new NewWordsClient();
       const lang = localStorage.getItem('language') || 'en';
       
+      // Build query parameters
+      const params = new URLSearchParams({ lang, parseImmediately: parseImmediately.toString() });
+      if (listName) {
+        params.append('listName', listName);
+      }
+      
       // Create a request with body content
-      const response = await fetch('/api/NewWords/import' + 
-        (listName ? `?listName=${encodeURIComponent(listName)}&lang=${lang}` : `?lang=${lang}`), {
+      const response = await fetch(`/api/NewWords/import?${params.toString()}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain'
@@ -72,13 +92,14 @@ export class BulkImport extends Component {
     this.setState({
       wordList: '',
       listName: '',
+      parseImmediately: true,
       result: null,
       error: null
     });
   }
 
   render() {
-    const { wordList, listName, loading, result, error } = this.state;
+    const { wordList, listName, parseImmediately, loading, result, error } = this.state;
 
     return (
       <div>
@@ -135,6 +156,23 @@ export class BulkImport extends Component {
             <small className="form-text text-muted">
               {wordList.split('\n').filter(line => line.trim()).length} lines entered
             </small>
+          </FormGroup>
+
+          <FormGroup check className="mb-3">
+            <Input
+              type="checkbox"
+              name="parseImmediately"
+              id="parseImmediately"
+              checked={parseImmediately}
+              onChange={this.handleInputChange}
+              disabled={loading}
+            />
+            <Label for="parseImmediately" check>
+              Fetch dictionary definitions immediately{' '}
+              <span className="text-muted">
+                (Recommended for ≤5 words; unchecked = faster import, definitions fetched on export)
+              </span>
+            </Label>
           </FormGroup>
 
           <div className="d-flex gap-2">

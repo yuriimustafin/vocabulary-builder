@@ -30,19 +30,37 @@ Click "Yes" when prompted. This is a one-time setup step.
 
 ### 3. Create the Database
 
-The application uses SQLite with Entity Framework Core migrations. Create the database:
+The application uses SQLite with Entity Framework Core migrations.
+
+#### Apply Migrations to Development/Test Database
+
+Uses the default connection string from `appsettings.Development.json`:
 
 ```bash
 dotnet ef database update --project src/Infrastructure --startup-project src/Web
 ```
 
-**Note:** If you need to start fresh, simply delete the `app.db` file in `src/Web/` and run the command again.
+**Note:** If you need to start fresh, simply delete the `VocabularyBuilder.Test.db` file and run the command again.
 
-To apply migrations to the Production database:
+#### Apply Migrations to Production Database
+
+**Option 1: Using explicit connection string** (Recommended)
 
 ```bash
 dotnet ef database update --project src/Infrastructure --startup-project src/Web --connection "Data Source=VocabularyBuilder.Prod.db"
 ```
+
+**Option 2: Using environment variable**
+
+```powershell
+$env:ASPNETCORE_ENVIRONMENT = "Production"
+dotnet ef database update --project src/Infrastructure --startup-project src/Web
+```
+
+**When to use each approach:**
+- **`--connection` parameter**: Best when you want to target a specific database without changing environment settings. More explicit and safer for production.
+- **Environment variable**: Useful when running multiple EF commands against the same environment, or when your connection string is complex and defined in appsettings.
+- **No parameters**: Always targets the Development environment by default.
 
 ### 4. Build the Solution
 
@@ -52,46 +70,69 @@ dotnet build -tl
 
 ### 5. Run the Application
 
-#### Development Mode
+There are multiple ways to run the application depending on your needs:
 
-Set the environment to Development (uses Test database):
+#### Option 1: Using Launch Profiles (Recommended)
 
-```powershell
-$env:ASPNETCORE_ENVIRONMENT = "Development"
+**Development mode** (uses `VocabularyBuilder.Test.db`):
+```bash
+dotnet run --project src/Web/Web.csproj
 ```
 
-Then run the application:
+**Production mode** (uses `VocabularyBuilder.Prod.db`):
+```bash
+dotnet run --project src/Web/Web.csproj --launch-profile Production
+```
+
+#### Option 2: Using Environment Variables
+
+Set the environment variable explicitly, then run:
+
+```powershell
+# For Development
+$env:ASPNETCORE_ENVIRONMENT = "Development"
+dotnet run --project src/Web/Web.csproj
+
+# For Production
+$env:ASPNETCORE_ENVIRONMENT = "Production"
+dotnet run --project src/Web/Web.csproj
+```
+
+**When to use this approach:**
+- When you need to override the default environment for testing
+- When launch profiles don't work in your environment
+- When you want to set the environment globally for multiple commands
+
+#### Option 3: Watch Mode (Development Only)
+
+For automatic reloading during development:
 
 ```bash
 cd src/Web
 dotnet watch run
 ```
 
-#### Production Mode
+This monitors file changes and automatically restarts the application. Always uses Development environment unless overridden with `$env:ASPNETCORE_ENVIRONMENT`.
 
-To run with the Production database, use the Production launch profile:
-
-```bash
-dotnet run --project src/Web/Web.csproj --launch-profile Production
-```
+---
 
 The application will start at:
 - **HTTPS**: https://localhost:5001
 - **HTTP**: http://localhost:5000
 
-The React frontend will be automatically compiled and served. The application will automatically reload if you change any source files.
-
-**Note:** The application uses different databases based on the environment:
-- **Development**: `VocabularyBuilder.Test.db`
-- **Production**: `VocabularyBuilder.Prod.db`
+**Environment Configuration Summary:**
+- **Development** profile/env: `appsettings.Development.json` → `VocabularyBuilder.Test.db`
+- **Production** profile/env: `appsettings.Production.json` → `VocabularyBuilder.Prod.db`
 
 ## Features
 
 - **Word Management**: Add, edit, and delete vocabulary words
-- **Bulk Import**: Import multiple words from Oxford Learners Dictionary
+- **Multi-Language Support**: English (Oxford Dictionary) and French (GPT-powered AI lookup)
+- **Bulk Import**: Import multiple words from Oxford Learners Dictionary or GPT
 - **Encounter Tracking**: Track each time you encounter a word (with idempotency)
-- **Dictionary Caching**: Stores HTML from dictionary sources to avoid re-fetching
+- **Dictionary Caching**: Stores HTML/JSON from dictionary sources to avoid re-fetching
 - **Multiple Sources**: Support for Kindle highlights, manual entries, and dictionary imports
+- **Smart Lemma Grouping**: Words are combined based on their base form (lemma)
 
 ## Database Migrations
 

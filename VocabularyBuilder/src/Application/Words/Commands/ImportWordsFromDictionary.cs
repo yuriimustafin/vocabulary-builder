@@ -9,6 +9,7 @@ public record ImportWordsFromDictionaryCommand : IRequest<ImportWordsFromDiction
 {
     public required List<string> Words { get; init; }
     public string? ListName { get; init; }
+    public Language Language { get; init; } = Language.English;
     public DictionarySourceType SourceType { get; init; } = DictionarySourceType.Oxford;
     
     /// <summary>
@@ -50,6 +51,7 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
             var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
             {
                 Words = request.Words,
+                Language = request.Language,
                 SourceType = request.SourceType
             }, cancellationToken);
             
@@ -59,6 +61,7 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
                 var wordId = await _sender.Send(new UpsertWordCommand
                 {
                     Headword = lookupResult.Word.Headword,
+                    Language = request.Language,
                     Transcription = lookupResult.Word.Transcription,
                     PartOfSpeech = lookupResult.Word.PartOfSpeech,
                     Frequency = lookupResult.Word.Frequency,
@@ -87,6 +90,7 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
                 var wordId = await _sender.Send(new UpsertWordCommand
                 {
                     Headword = cleanWord,
+                    Language = request.Language,
                     // No dictionary data yet - will be parsed on export
                     Source = WordEncounterSource.OxfordDictionaryList,
                     SourceIdentifier = $"{sourceIdentifierBase}:{cleanWord}",

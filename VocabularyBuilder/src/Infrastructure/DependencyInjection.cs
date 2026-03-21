@@ -50,8 +50,16 @@ public static class DependencyInjection
         services.AddAuthorization(options =>
             options.AddPolicy(Policies.CanPurge, policy => policy.RequireRole(Roles.Administrator)));
 
-        // TODO: Make it configurable
+        // Register individual parsers
+        services.AddScoped<OxfordParser>();
+        services.AddScoped<GptFrenchParser>();
+        
+        // Register parser factory for language-based routing
+        services.AddScoped<IWordParserFactory, WordParserFactory>();
+        
+        // Keep default parser for backward compatibility
         services.AddScoped<IWordReferenceParser, OxfordParser>();
+        
         services.AddScoped<IWordsExporter, AnkiClozeCsvExporter>();
         services.AddScoped<IBookImportParser, BookImportParser>();
 

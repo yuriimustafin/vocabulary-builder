@@ -849,10 +849,18 @@ export class NewWordsClient {
         this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
     }
 
-    newWords_ImportWords(listName: string | null | undefined): Promise<ImportWordsFromDictionaryResult> {
+    newWords_ImportWords(listName: string | null | undefined, lang: string | undefined, sourceType: DictionarySourceType | null | undefined, parseImmediately: boolean | null | undefined): Promise<ImportWordsFromDictionaryResult> {
         let url_ = this.baseUrl + "/api/NewWords/import?";
         if (listName !== undefined && listName !== null)
             url_ += "listName=" + encodeURIComponent("" + listName) + "&";
+        if (lang === null)
+            throw new Error("The parameter 'lang' cannot be null.");
+        else if (lang !== undefined)
+            url_ += "lang=" + encodeURIComponent("" + lang) + "&";
+        if (sourceType !== undefined && sourceType !== null)
+            url_ += "sourceType=" + encodeURIComponent("" + sourceType) + "&";
+        if (parseImmediately !== undefined && parseImmediately !== null)
+            url_ += "parseImmediately=" + encodeURIComponent("" + parseImmediately) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -2156,6 +2164,14 @@ export interface IImportWordsFromDictionaryResult {
     wordsImported?: number;
     encountersCreated?: number;
     importedWords?: string[];
+}
+
+export enum DictionarySourceType {
+    Oxford = 0,
+    MerriamWebster = 1,
+    Cambridge = 2,
+    Gpt = 3,
+    Other = 99,
 }
 
 export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {

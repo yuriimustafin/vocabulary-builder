@@ -31,7 +31,11 @@ public class NewWordsController : ControllerBase
     }
 
     [HttpPost("import")]
-    public async Task<ActionResult<ImportWordsFromDictionaryResult>> ImportWords([FromQuery] string? listName = null)
+    public async Task<ActionResult<ImportWordsFromDictionaryResult>> ImportWords(
+        [FromQuery] string? listName = null,
+        [FromQuery] string lang = "en",
+        [FromQuery] DictionarySourceType? sourceType = null,
+        [FromQuery] bool? parseImmediately = null)
     {
         // Read word list from request body
         string unparsedWordList;
@@ -45,16 +49,26 @@ public class NewWordsController : ControllerBase
             .Where(w => !string.IsNullOrEmpty(w))
             .ToList();
 
+        // Parse language
+        var language = ParseLanguage(lang);
+        
         // Detect if these are URLs - if any word starts with https://, treat as URLs
         bool areUrls = wordsForParsing.Any(w => w.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
+
+        // Determine source type: use explicit if provided, otherwise infer from language
+        var dictSourceType = sourceType ?? (language == Language.French ? DictionarySourceType.Gpt : DictionarySourceType.Oxford);
+
+        // Determine parseImmediately: use explicit if provided, otherwise auto-detect from URLs
+        bool shouldParseImmediately = parseImmediately ?? areUrls;
 
         // Import words using Application layer command
         var result = await _sender.Send(new ImportWordsFromDictionaryCommand
         {
             Words = wordsForParsing,
             ListName = listName,
-            SourceType = DictionarySourceType.Oxford,
-            ParseImmediately = areUrls  // Parse immediately for URLs, defer for text words
+            Language = language,
+            SourceType = dictSourceType,
+            ParseImmediately = shouldParseImmediately
         });
 
         return Ok(result);

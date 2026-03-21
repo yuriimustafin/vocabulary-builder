@@ -21,6 +21,11 @@ public enum DictionarySourceType
     Cambridge = 2,
     
     /// <summary>
+    /// GPT-based AI dictionary (for languages without traditional dictionary support)
+    /// </summary>
+    Gpt = 3,
+    
+    /// <summary>
     /// Other or custom dictionary source
     /// </summary>
     Other = 99

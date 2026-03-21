@@ -757,6 +757,41 @@
               "nullable": true
             },
             "x-position": 1
+          },
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "en"
+            },
+            "x-position": 2
+          },
+          {
+            "name": "sourceType",
+            "in": "query",
+            "schema": {
+              "oneOf": [
+                {
+                  "nullable": true,
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/DictionarySourceType"
+                    }
+                  ]
+                }
+              ]
+            },
+            "x-position": 3
+          },
+          {
+            "name": "parseImmediately",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "nullable": true
+            },
+            "x-position": 4
           }
         ],
         "responses": {
@@ -1544,6 +1579,24 @@
             }
           }
         }
+      },
+      "DictionarySourceType": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Oxford",
+          "MerriamWebster",
+          "Cambridge",
+          "Gpt",
+          "Other"
+        ],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          99
+        ]
       },
       "CreateTextForAudioCommand": {
         "type": "object",

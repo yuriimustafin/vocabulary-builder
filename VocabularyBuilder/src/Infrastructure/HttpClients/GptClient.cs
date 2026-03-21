@@ -41,6 +41,17 @@ public class GptClient: IGptClient
         }
 
         var responseString = await response.Content.ReadAsStringAsync();
-        return responseString;
+        
+        // Parse the OpenAI API response to extract the message content
+        try
+        {
+            dynamic responseJson = JsonConvert.DeserializeObject(responseString)!;
+            return responseJson?.choices?[0]?.message?.content?.ToString();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error parsing GPT response: {ex.Message}");
+            return responseString; // Return raw response as fallback
+        }
     }
 }

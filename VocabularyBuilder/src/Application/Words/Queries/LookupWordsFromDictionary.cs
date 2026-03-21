@@ -18,24 +18,27 @@ public class WordLookupResult
 public record LookupWordsFromDictionaryQuery : IRequest<List<WordLookupResult>>
 {
     public required List<string> Words { get; init; }
+    public Language Language { get; init; } = Language.English;
     public DictionarySourceType SourceType { get; init; } = DictionarySourceType.Oxford;
 }
 
 public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWordsFromDictionaryQuery, List<WordLookupResult>>
 {
     private readonly IApplicationDbContext _context;
-    private readonly IWordReferenceParser _wordReferenceParser;
+    private readonly IWordParserFactory _parserFactory;
 
     public LookupWordsFromDictionaryQueryHandler(
         IApplicationDbContext context,
-        IWordReferenceParser wordReferenceParser)
+        IWordParserFactory parserFactory)
     {
         _context = context;
-        _wordReferenceParser = wordReferenceParser;
+        _parserFactory = parserFactory;
     }
 
     public async Task<List<WordLookupResult>> Handle(LookupWordsFromDictionaryQuery request, CancellationToken cancellationToken)
     {
+        // Get the appropriate parser based on language and source type
+        var parser = _parserFactory.GetParser(request.Language, request.SourceType);
         var results = new List<WordLookupResult>();
 
         // Check for cached HTML before fetching
@@ -45,14 +48,15 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
             var existingSource = await _context.WordDictionarySources
                 .Include(wds => wds.Word)
                 .Where(wds => wds.Word.Headword.ToLower() == normalizedWord 
-                    && wds.SourceType == request.SourceType)
+                    && wds.SourceType == request.SourceType
+                    && wds.Word.Language == request.Language)
                 .FirstOrDefaultAsync(cancellationToken);
             
             if (existingSource != null)
             {
                 // Use cached HTML to parse the word
-                Console.WriteLine($"Using cached HTML for: {existingSource.Word.Headword}");
-                var parsedWord = await _wordReferenceParser.GetWordFromCachedHtml(existingSource.SourceHtml);
+                Console.WriteLine($"Using cached {request.Language} word for: {existingSource.Word.Headword}");
+                var parsedWord = await parser.GetWordFromCachedHtml(existingSource.SourceHtml);
                 if (parsedWord != null)
                 {
                     results.Add(new WordLookupResult
@@ -66,7 +70,7 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
             }
             
             // No cache found
-            Console.WriteLine($"No cache found for: {wordText}");
+            Console.WriteLine($"No cache found for {request.Language} word: {wordText}");
         }
         
         // Fetch new words from dictionary (those not in cache)
@@ -78,8 +82,8 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
         
         if (uncachedWords.Any())
         {
-            Console.WriteLine($"Fetching {uncachedWords.Count} words from dictionary");
-            var fetchedResults = (await _wordReferenceParser.GetWordsWithSource(uncachedWords)).ToList();
+            Console.WriteLine($"Fetching {uncachedWords.Count} {request.Language} words from {request.SourceType} dictionary");
+            var fetchedResults = (await parser.GetWordsWithSource(uncachedWords)).ToList();
             
             for (int i = 0; i < uncachedWords.Count && i < fetchedResults.Count; i++)
             {
