@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"vouloir\"",
+  "Response": "{\n  \"word\": \"vouloir\",\n  \"partOfSpeech\": \"verb\",\n  \"translation\": \"to want, to wish\",\n  \"definition\": \"To desire or wish for something\",\n  \"examples\": [\n    {\n      \"french\": \"Je veux apprendre le français.\",\n      \"english\": \"I want to learn French.\"\n    },\n    {\n      \"french\": \"Voulez-vous du café?\",\n      \"english\": \"Would you like some coffee?\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.548Z"
+}

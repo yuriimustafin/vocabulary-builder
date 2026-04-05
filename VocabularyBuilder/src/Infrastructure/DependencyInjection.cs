@@ -21,19 +21,44 @@ public static class DependencyInjection
     {
         var connectionString = configuration.GetConnectionString("DefaultConnection");
         var aiApiKey = configuration["OpenAI:ApiKey"] ?? "";
+        var useMockMode = configuration.GetValue<bool>("OpenAI:UseMockMode");
+        var useOxfordMock = configuration.GetValue<bool>("Oxford:UseMockMode");
+        var useInMemoryDb = configuration.GetValue<bool>("UseInMemoryDatabase");
 
         Guard.Against.Null(connectionString, message: "Connection string 'DefaultConnection' not found.");
 
         services.AddScoped<ISaveChangesInterceptor, AuditableEntityInterceptor>();
         services.AddScoped<ISaveChangesInterceptor, DispatchDomainEventsInterceptor>();
 
-        services.AddDbContext<ApplicationDbContext>((sp, options) =>
+        // Configure database context based on environment
+        if (useInMemoryDb)
         {
-            options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+            // For E2E tests: Use in-memory SQLite database
+            // Keep a singleton connection open to prevent the database from being destroyed
+            services.AddSingleton<Microsoft.Data.Sqlite.SqliteConnection>(sp =>
+            {
+                var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
+                connection.Open();
+                return connection;
+            });
 
-            options.UseSqlite(connectionString,
-                x => x.MigrationsAssembly("VocabularyBuilder.Infrastructure"));
-        });
+            services.AddDbContext<ApplicationDbContext>((sp, options) =>
+            {
+                var connection = sp.GetRequiredService<Microsoft.Data.Sqlite.SqliteConnection>();
+                options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+                options.UseSqlite(connection);
+            });
+        }
+        else
+        {
+            // For Development/Production: Use file-based SQLite database
+            services.AddDbContext<ApplicationDbContext>((sp, options) =>
+            {
+                options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
+                options.UseSqlite(connectionString,
+                    x => x.MigrationsAssembly("VocabularyBuilder.Infrastructure"));
+            });
+        }
 
         services.AddScoped<IApplicationDbContext>(provider => provider.GetRequiredService<ApplicationDbContext>());
 
@@ -50,21 +75,35 @@ public static class DependencyInjection
         services.AddAuthorization(options =>
             options.AddPolicy(Policies.CanPurge, policy => policy.RequireRole(Roles.Administrator)));
 
-        // Register individual parsers
-        services.AddScoped<OxfordParser>();
+        // Register individual parsers (mock or real based on configuration)
+        if (useOxfordMock)
+        {
+            services.AddScoped<IWordReferenceParser, MockOxfordParser>();
+        }
+        else
+        {
+            services.AddScoped<OxfordParser>();
+            services.AddScoped<IWordReferenceParser, OxfordParser>();
+        }
+        
         services.AddScoped<GptFrenchParser>();
         
         // Register parser factory for language-based routing
         services.AddScoped<IWordParserFactory, WordParserFactory>();
         
-        // Keep default parser for backward compatibility
-        services.AddScoped<IWordReferenceParser, OxfordParser>();
-        
         services.AddScoped<IWordsExporter, AnkiClozeCsvExporter>();
         services.AddScoped<IBookImportParser, BookImportParser>();
 
-        services.AddScoped<IGptClient>(x =>
-            ActivatorUtilities.CreateInstance<GptClient>(x, aiApiKey));
+        // Register GPT client (mock or real based on configuration)
+        if (useMockMode)
+        {
+            services.AddScoped<IGptClient, MockGptClient>();
+        }
+        else
+        {
+            services.AddScoped<IGptClient>(x =>
+                ActivatorUtilities.CreateInstance<GptClient>(x, aiApiKey));
+        }
 
         return services;
     }

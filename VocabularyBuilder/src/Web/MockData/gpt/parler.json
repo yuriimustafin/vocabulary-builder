@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"parler\"",
+  "Response": "{\n  \"word\": \"parler\",\n  \"partOfSpeech\": \"verb\",\n  \"translation\": \"to speak, to talk\",\n  \"definition\": \"To communicate using words\",\n  \"examples\": [\n    {\n      \"french\": \"Je parle français.\",\n      \"english\": \"I speak French.\"\n    },\n    {\n      \"french\": \"Nous parlons de la situation.\",\n      \"english\": \"We are talking about the situation.\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.537Z"
+}

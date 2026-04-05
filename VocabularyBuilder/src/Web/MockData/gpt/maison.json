@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"maison\"",
+  "Response": "{\n  \"word\": \"maison\",\n  \"partOfSpeech\": \"noun\",\n  \"translation\": \"house, home\",\n  \"definition\": \"A building for living in\",\n  \"examples\": [\n    {\n      \"french\": \"Ma maison est grande.\",\n      \"english\": \"My house is big.\"\n    },\n    {\n      \"french\": \"Rentrons à la maison.\",\n      \"english\": \"Let's go home.\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.538Z"
+}

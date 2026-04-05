@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"aujourd'hui\"",
+  "Response": "{\n  \"word\": \"aujourd'hui\",\n  \"partOfSpeech\": \"adverb\",\n  \"translation\": \"today\",\n  \"definition\": \"On or during this present day\",\n  \"examples\": [\n    {\n      \"french\": \"Aujourd'hui, il fait beau.\",\n      \"english\": \"Today, the weather is nice.\"\n    },\n    {\n      \"french\": \"Que faites-vous aujourd'hui?\",\n      \"english\": \"What are you doing today?\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.545Z"
+}

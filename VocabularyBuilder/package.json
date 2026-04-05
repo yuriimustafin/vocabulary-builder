@@ -1,0 +1,25 @@
+{
+  "name": "vocabularybuilder",
+  "version": "1.0.0",
+  "description": "A vocabulary learning application with word tracking, encounter history, and multi-dictionary support. Built with ASP.NET Core and React.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report",
+    "generate:mocks": "node tests/e2e/mocks/generate-mock-data.js",
+    "test": "playwright test"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

@@ -24,16 +24,16 @@ builder.Services.AddCors(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.EnvironmentName == "E2ETest")
 {
-    // TODO: FIX THE ISSUE!!!!
-
-    //if (!Environment.CommandLine.Contains("nswag", StringComparison.OrdinalIgnoreCase)
-    //&& !AppDomain.CurrentDomain.FriendlyName.Contains("NSwag", StringComparison.OrdinalIgnoreCase)
-    //&& !AppDomain.CurrentDomain.FriendlyName.Contains("ef", StringComparison.OrdinalIgnoreCase))
-    //{
-    //    await app.InitialiseDatabaseAsync();
-    //}
+    // E2ETest should behave like Development for SPA proxy purposes
+    app.UseDeveloperExceptionPage();
+    
+    if (app.Environment.EnvironmentName == "E2ETest")
+    {
+        // Initialize in-memory database for E2E tests (without seeding to avoid transaction conflicts)
+        await app.InitialiseDatabaseSchemaOnlyAsync();
+    }
 }
 else
 {

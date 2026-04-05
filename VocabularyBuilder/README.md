@@ -84,6 +84,32 @@ dotnet run --project src/Web/Web.csproj
 dotnet run --project src/Web/Web.csproj --launch-profile Production
 ```
 
+### 6. Run the Tests
+
+#### Unit Tests
+
+```bash
+dotnet test
+```
+
+#### E2E Tests
+
+End-to-end tests use Playwright and run against a test database with mocked external services.
+
+```bash
+# Install dependencies (first time only)
+npm install
+npx playwright install chromium
+
+# Run E2E tests (database is automatically created in-memory)
+npm run test:e2e
+
+# Run tests with UI mode (interactive)
+npm run test:e2e:ui
+```
+
+See [tests/e2e/README.md](tests/e2e/README.md) for detailed E2E testing documentation.
+
 #### Option 2: Using Environment Variables
 
 Set the environment variable explicitly, then run:

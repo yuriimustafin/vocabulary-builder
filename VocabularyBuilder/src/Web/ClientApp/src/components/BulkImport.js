@@ -49,7 +49,6 @@ export class BulkImport extends Component {
     this.setState({ loading: true, error: null, result: null });
 
     try {
-      const client = new NewWordsClient();
       const lang = localStorage.getItem('language') || 'en';
       
       // Build query parameters

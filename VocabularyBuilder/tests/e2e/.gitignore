@@ -1,0 +1,21 @@
+# Playwright test artifacts
+test-results/
+playwright-report/
+playwright/.cache/
+
+# Test fixtures - temporary files generated during tests
+# Keep real mock data, ignore test-generated files
+fixtures/test-*.html
+fixtures/test-*.txt
+fixtures/test-*.csv
+fixtures/*.tmp
+!fixtures/mistborn-kindle.html
+!fixtures/test-kindle-vocab.html
+
+# Screenshots and videos
+screenshots/
+videos/
+
+# Trace files
+traces/
+

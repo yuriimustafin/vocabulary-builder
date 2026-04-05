@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"merci\"",
+  "Response": "{\n  \"word\": \"merci\",\n  \"partOfSpeech\": \"interjection\",\n  \"translation\": \"thank you, thanks\",\n  \"definition\": \"Expression of gratitude\",\n  \"examples\": [\n    {\n      \"french\": \"Merci beaucoup!\",\n      \"english\": \"Thank you very much!\"\n    },\n    {\n      \"french\": \"Merci pour votre aide.\",\n      \"english\": \"Thank you for your help.\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.535Z"
+}

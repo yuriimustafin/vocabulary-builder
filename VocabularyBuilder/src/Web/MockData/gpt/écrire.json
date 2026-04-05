@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"écrire\"",
+  "Response": "{\n  \"word\": \"écrire\",\n  \"partOfSpeech\": \"verb\",\n  \"translation\": \"to write\",\n  \"definition\": \"To mark letters, words, or symbols on a surface\",\n  \"examples\": [\n    {\n      \"french\": \"J'écris une lettre.\",\n      \"english\": \"I am writing a letter.\"\n    },\n    {\n      \"french\": \"Elle écrit un roman.\",\n      \"english\": \"She is writing a novel.\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.542Z"
+}

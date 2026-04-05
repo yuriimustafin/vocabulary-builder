@@ -22,6 +22,17 @@ public static class InitialiserExtensions
 
         await initialiser.SeedAsync();
     }
+    
+    public static async Task InitialiseDatabaseSchemaOnlyAsync(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+
+        var initialiser = scope.ServiceProvider.GetRequiredService<ApplicationDbContextInitialiser>();
+
+        await initialiser.InitialiseAsync();
+        
+        // Skip SeedAsync to avoid transaction issues with singleton SqliteConnection in E2E tests
+    }
 }
 
 public class ApplicationDbContextInitialiser
@@ -43,7 +54,20 @@ public class ApplicationDbContextInitialiser
     {
         try
         {
-            await _context.Database.MigrateAsync();
+            // Check if using in-memory database by examining the connection string
+            var connectionString = _context.Database.GetConnectionString();
+            var isInMemory = connectionString?.Contains(":memory:") == true;
+
+            if (isInMemory)
+            {
+                // For in-memory database, use EnsureCreated instead of migrations
+                await _context.Database.EnsureCreatedAsync();
+            }
+            else
+            {
+                // For file-based database, apply migrations
+                await _context.Database.MigrateAsync();
+            }
         }
         catch (Exception ex)
         {

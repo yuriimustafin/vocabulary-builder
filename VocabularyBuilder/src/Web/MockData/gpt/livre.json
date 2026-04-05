@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"livre\"",
+  "Response": "{\n  \"word\": \"livre\",\n  \"partOfSpeech\": \"noun\",\n  \"translation\": \"book\",\n  \"definition\": \"A written or printed work consisting of pages\",\n  \"examples\": [\n    {\n      \"french\": \"Je lis un livre intéressant.\",\n      \"english\": \"I am reading an interesting book.\"\n    },\n    {\n      \"french\": \"Ce livre est très populaire.\",\n      \"english\": \"This book is very popular.\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.540Z"
+}

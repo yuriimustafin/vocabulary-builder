@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"comprendre\"",
+  "Response": "{\n  \"word\": \"comprendre\",\n  \"partOfSpeech\": \"verb\",\n  \"translation\": \"to understand, to comprehend\",\n  \"definition\": \"To grasp the meaning of something\",\n  \"examples\": [\n    {\n      \"french\": \"Je comprends ce que vous dites.\",\n      \"english\": \"I understand what you are saying.\"\n    },\n    {\n      \"french\": \"C'est difficile à comprendre.\",\n      \"english\": \"It is difficult to understand.\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.544Z"
+}

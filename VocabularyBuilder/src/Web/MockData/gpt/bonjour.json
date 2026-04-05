@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"bonjour\"",
+  "Response": "{\n  \"word\": \"bonjour\",\n  \"partOfSpeech\": \"interjection\",\n  \"translation\": \"hello, good morning, good afternoon\",\n  \"definition\": \"A greeting used during the day\",\n  \"examples\": [\n    {\n      \"french\": \"Bonjour, comment allez-vous?\",\n      \"english\": \"Hello, how are you?\"\n    },\n    {\n      \"french\": \"Bonjour à tous!\",\n      \"english\": \"Hello everyone!\"\n    }\n  ]\n}",
+  "CreatedAt": "2026-03-21T17:10:40.532Z"
+}

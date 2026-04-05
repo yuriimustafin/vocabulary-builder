@@ -481,3 +481,22 @@ $RECYCLE.BIN/
 
 #local settings
 appsettings.Development.json
+
+##
+## Playwright E2E Testing
+##
+
+# Playwright test results and reports
+playwright-report/
+test-results/
+playwright/.cache/
+
+# Playwright browsers (if downloaded locally)
+.playwright/
+
+# Temporary test files and artifacts
+*.test.tmp
+**/test-*.png
+**/test-*.webm
+**/trace-*.zip
+
