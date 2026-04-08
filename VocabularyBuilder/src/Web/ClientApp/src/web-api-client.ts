@@ -597,6 +597,48 @@ export class ListsClient {
         return Promise.resolve<void>(null as any);
     }
 
+    postApiListsGenerate(lang: string, command: GenerateListWithAiCommand): Promise<GeneratedListPreviewDto> {
+        let url_ = this.baseUrl + "/api/{lang}/lists/generate";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiListsGenerate(_response);
+        });
+    }
+
+    protected processPostApiListsGenerate(response: Response): Promise<GeneratedListPreviewDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = GeneratedListPreviewDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<GeneratedListPreviewDto>(null as any);
+    }
+
     postApiListsItems(lang: string, listId: number, command: CreateListItemCommand): Promise<number> {
         let url_ = this.baseUrl + "/api/{lang}/lists/{listId}/items";
         if (lang === undefined || lang === null)
@@ -2176,6 +2218,7 @@ export class CreateListCommand implements ICreateListCommand {
     title?: string;
     language?: Language;
     status?: ListStatus;
+    items?: string[] | undefined;
 
     constructor(data?: ICreateListCommand) {
         if (data) {
@@ -2191,6 +2234,11 @@ export class CreateListCommand implements ICreateListCommand {
             this.title = _data["title"];
             this.language = _data["language"];
             this.status = _data["status"];
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(item);
+            }
         }
     }
 
@@ -2206,6 +2254,11 @@ export class CreateListCommand implements ICreateListCommand {
         data["title"] = this.title;
         data["language"] = this.language;
         data["status"] = this.status;
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item);
+        }
         return data;
     }
 }
@@ -2214,6 +2267,105 @@ export interface ICreateListCommand {
     title?: string;
     language?: Language;
     status?: ListStatus;
+    items?: string[] | undefined;
+}
+
+export class GeneratedListPreviewDto implements IGeneratedListPreviewDto {
+    title?: string;
+    items?: string[];
+
+    constructor(data?: IGeneratedListPreviewDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.title = _data["title"];
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): GeneratedListPreviewDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new GeneratedListPreviewDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["title"] = this.title;
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IGeneratedListPreviewDto {
+    title?: string;
+    items?: string[];
+}
+
+export class GenerateListWithAiCommand implements IGenerateListWithAiCommand {
+    prompt?: string;
+    quantityRange?: QuantityRange;
+    language?: Language;
+
+    constructor(data?: IGenerateListWithAiCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.prompt = _data["prompt"];
+            this.quantityRange = _data["quantityRange"];
+            this.language = _data["language"];
+        }
+    }
+
+    static fromJS(data: any): GenerateListWithAiCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new GenerateListWithAiCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["prompt"] = this.prompt;
+        data["quantityRange"] = this.quantityRange;
+        data["language"] = this.language;
+        return data;
+    }
+}
+
+export interface IGenerateListWithAiCommand {
+    prompt?: string;
+    quantityRange?: QuantityRange;
+    language?: Language;
+}
+
+export enum QuantityRange {
+    Small = 0,
+    Medium = 1,
+    Large = 2,
 }
 
 export class UpdateListCommand implements IUpdateListCommand {

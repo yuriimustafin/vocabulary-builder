@@ -20,6 +20,7 @@ public class Lists : EndpointGroupBase
             .Produces<VocabularyListDetailsDto>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status404NotFound);
         group.MapPost("/", CreateList);
+        group.MapPost("/generate", GenerateListWithAi);
         group.MapPut("/{id}", UpdateList);
         group.MapDelete("/{id}", DeleteList);
         group.MapPost("/{listId}/items", CreateListItem);
@@ -40,6 +41,14 @@ public class Lists : EndpointGroupBase
     }
 
     public async Task<int> CreateList(ISender sender, string lang, CreateListCommand command)
+    {
+        var language = ParseLanguage(lang);
+        // Override the language from the route
+        var commandWithLanguage = command with { Language = language };
+        return await sender.Send(commandWithLanguage);
+    }
+
+    public async Task<GeneratedListPreviewDto> GenerateListWithAi(ISender sender, string lang, GenerateListWithAiCommand command)
     {
         var language = ParseLanguage(lang);
         // Override the language from the route

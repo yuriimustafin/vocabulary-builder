@@ -29,7 +29,15 @@ export class Lists extends Component {
       },
       itemModal: false,
       editingItem: null,
-      language: language
+      language: language,
+      // AI Generation state
+      aiModal: false,
+      aiPrompt: '',
+      aiQuantityRange: 1, // 0: 3-5, 1: 5-7, 2: 7+ (10)
+      aiGenerating: false,
+      aiGeneratedTitle: '',
+      aiGeneratedItems: [],
+      aiPreviewMode: false
     };
   }
 
@@ -117,6 +125,146 @@ export class Lists extends Component {
         isMastered: false
       }
     }));
+  }
+
+  toggleAiModal = () => {
+    this.setState(prevState => ({
+      aiModal: !prevState.aiModal,
+      aiPrompt: '',
+      aiQuantityRange: 1,
+      aiGeneratinTitle: '',
+      aiGeneratedg: false,
+      aiGeneratedItems: [],
+      aiPreviewMode: false
+    }));
+  }
+
+  handleAiPromptChange = (e) => {
+    this.setState({ aiPrompt: e.target.value });
+  }
+
+  handleAiQuantityChange = (e) => {
+    this.setState({ aiQuantityRange: parseInt(e.target.value) });
+  }
+
+  handleGenerateWithAi = async () => {
+    const { aiPrompt, aiQuantityRange, language } = this.state;
+    
+    if (!aiPrompt.trim()) {
+      alert('Please enter a prompt');
+      return;
+    }
+    
+    this.setState({ aiGenerating: true });
+    
+    try {
+      const response = await fetch(`/api/${language}/lists/generate`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: aiPrompt,
+          quantityRange: aiQuantityRange
+        }),
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to generate list: ${response.status} - ${errorText}`);
+      }
+      
+      const generatedPreview = await response.json();
+      
+      // Show preview mode with generated items
+      this.setState({
+        aiGeneratedTitle: generatedPreview.title,
+        aiGeneratedItems: generatedPreview.items.map((text, index) => ({
+          text: text,
+          editing: false,
+          deleted: false,
+          tempId: index
+        })),
+        aiPreviewMode: true,
+        aiGenerating: false
+      });
+    } catch (error) {
+      console.error('Error generating list:', error);
+      alert(`Error generating list: ${error.message}`);
+      this.setState({ aiGenerating: false });
+    }
+  }
+
+  handleAiItemTextChange = (index, newText) => {
+    this.setState(prevState => ({
+      aiGeneratedItems: prevState.aiGeneratedItems.map((item, i) => 
+        i === index ? { ...item, text: newText } : item
+      )
+    }));
+  }
+
+  handleAiItemToggleEdit = (index) => {
+    this.setState(prevState => ({
+      aiGeneratedItems: prevState.aiGeneratedItems.map((item, i) => 
+        i === index ? { ...item, editing: !item.editing } : item
+      )
+    }));
+  }
+
+  handleAiItemDelete = (index) => {
+    this.setState(prevState => ({
+      aiGeneratedItems: prevState.aiGeneratedItems.map((item, i) => 
+        i === index ? { ...item, deleted: true } : item
+      )
+    }));
+  }
+
+  handleSaveAiList = async () => {
+    const { aiGeneratedItems, aiGeneratedTitle, language } = this.state;
+    
+    // Filter out deleted items and get only the text
+    const activeItems = aiGeneratedItems
+      .filter(item => !item.deleted)
+      .map(item => item.text);
+    
+    if (activeItems.length === 0) {
+      alert('Please keep at least one item');
+      return;
+    }
+    
+    try {
+      // Create the list with items
+      const response = await fetch(`/api/${language}/lists`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          title: aiGeneratedTitle,
+          status: 0, // Active
+          items: activeItems
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save list');
+      }
+      
+      // Close modal and reload lists
+      this.toggleAiModal();
+      await this.loadLists();
+    } catch (error) {
+      console.error('Error saving AI list:', error);
+      alert(`Error saving list: ${error.message}`);
+    }
+  }
+
+  handleBackToGenerate = () => {
+    this.setState({
+      aiPreviewMode: false,
+      aiGeneratedTitle: '',
+      aiGeneratedItems: []
+    });
   }
 
   handleEdit = (list) => {
@@ -314,7 +462,7 @@ export class Lists extends Component {
   }
 
   render() {
-    const { lists, loading, modal, deleteModal, detailsModal, formData, isEditing, currentList, listDetails, loadingDetails, itemModal, itemFormData, editingItem } = this.state;
+    const { lists, loading, modal, deleteModal, detailsModal, formData, isEditing, currentList, listDetails, loadingDetails, itemModal, itemFormData, editingItem, aiModal, aiPrompt, aiQuantityRange, aiGenerating, aiGeneratedTitle, aiGeneratedItems, aiPreviewMode } = this.state;
 
     if (loading) {
       return <p><em>Loading...</em></p>;
@@ -335,6 +483,9 @@ export class Lists extends Component {
                 Practice Lists
               </Button>
             )}
+            <Button color="info" className="me-2" onClick={this.toggleAiModal}>
+              Generate with AI
+            </Button>
             <Button color="primary" onClick={this.toggleModal}>
               Add New List
             </Button>
@@ -574,6 +725,176 @@ export class Lists extends Component {
             <Button color="secondary" onClick={() => this.toggleItemModal()}>
               Cancel
             </Button>
+          </ModalFooter>
+        </Modal>
+
+        {/* AI List Generation Modal */}
+        <Modal isOpen={aiModal} toggle={this.toggleAiModal} size="lg">
+          <ModalHeader toggle={this.toggleAiModal}>
+            Generate List with AI
+          </ModalHeader>
+          <ModalBody>
+            {!aiPreviewMode ? (
+              // Generation Form
+              <div>
+                <FormGroup>
+                  <Label for="aiPrompt">What should the list contain? *</Label>
+                  <Input
+                    type="text"
+                    name="aiPrompt"
+                    id="aiPrompt"
+                    placeholder="e.g., synonyms of good, phrases to introduce your opinion"
+                    value={aiPrompt}
+                    onChange={this.handleAiPromptChange}
+                    disabled={aiGenerating}
+                  />
+                  <small className="text-muted">
+                    Be specific about what you want. Examples: "formal ways to agree", "cooking verbs", "business email phrases"
+                  </small>
+                </FormGroup>
+                <FormGroup tag="fieldset">
+                  <Label>How many items?</Label>
+                  <FormGroup check>
+                    <Input
+                      type="radio"
+                      name="aiQuantityRange"
+                      value="0"
+                      checked={aiQuantityRange === 0}
+                      onChange={this.handleAiQuantityChange}
+                      disabled={aiGenerating}
+                    />
+                    <Label check>
+                      3-5 items
+                    </Label>
+                  </FormGroup>
+                  <FormGroup check>
+                    <Input
+                      type="radio"
+                      name="aiQuantityRange"
+                      value="1"
+                      checked={aiQuantityRange === 1}
+                      onChange={this.handleAiQuantityChange}
+                      disabled={aiGenerating}
+                    />
+                    <Label check>
+                      5-7 items
+                    </Label>
+                  </FormGroup>
+                  <FormGroup check>
+                    <Input
+                      type="radio"
+                      name="aiQuantityRange"
+                      value="2"
+                      checked={aiQuantityRange === 2}
+                      onChange={this.handleAiQuantityChange}
+                      disabled={aiGenerating}
+                    />
+                    <Label check>
+                      7+ items (10)
+                    </Label>
+                  </FormGroup>
+                </FormGroup>
+              </div>
+            ) : (
+              // Preview & Edit Mode
+              <div>
+                <div className="alert alert-success">
+                  <strong>List generated successfully!</strong> Review and edit the items below, then click Save.
+                </div>
+                <Table size="sm" striped>
+                  <thead>
+                    <tr>
+                      <th>Item</th>
+                      <th style={{ width: '120px' }}>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {aiGeneratedItems.filter(item => !item.deleted).map((item) => (
+                      <tr key={item.tempId}>
+                        <td>
+                          {item.editing ? (
+                            <Input
+                              type="text"
+                              value={item.text}
+                              onChange={(e) => this.handleAiItemTextChange(
+                                aiGeneratedItems.findIndex(i => i.tempId === item.tempId), 
+                                e.target.value
+                              )}
+                              onBlur={() => this.handleAiItemToggleEdit(
+                                aiGeneratedItems.findIndex(i => i.tempId === item.tempId)
+                              )}
+                              autoFocus
+                            />
+                          ) : (
+                            <span>{item.text}</span>
+                          )}
+                        </td>
+                        <td style={{ whiteSpace: 'nowrap' }}>
+                          <Button
+                            color="info"
+                            size="sm"
+                            className="me-1"
+                            onClick={() => this.handleAiItemToggleEdit(
+                              aiGeneratedItems.findIndex(i => i.tempId === item.tempId)
+                            )}
+                          >
+                            {item.editing ? 'Done' : 'Edit'}
+                          </Button>
+                          <Button
+                            color="danger"
+                            size="sm"
+                            onClick={() => this.handleAiItemDelete(
+                              aiGeneratedItems.findIndex(i => i.tempId === item.tempId)
+                            )}
+                          >
+                            Remove
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+                {aiGeneratedItems.filter(item => !item.deleted).length === 0 && (
+                  <p className="text-danger">All items removed. Please keep at least one item or go back.</p>
+                )}
+              </div>
+            )}
+            {aiGenerating && (
+              <div className="text-center mt-3">
+                <div className="spinner-border text-primary" role="status">
+                  <span className="visually-hidden">Generating...</span>
+                </div>
+                <p className="mt-2">Generating your list with AI...</p>
+              </div>
+            )}
+          </ModalBody>
+          <ModalFooter>
+            {!aiPreviewMode ? (
+              <>
+                <Button 
+                  color="primary" 
+                  onClick={this.handleGenerateWithAi}
+                  disabled={aiGenerating || !aiPrompt.trim()}
+                >
+                  Generate
+                </Button>
+                <Button color="secondary" onClick={this.toggleAiModal} disabled={aiGenerating}>
+                  Cancel
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button color="primary" onClick={this.handleSaveAiList}>
+                  Save List
+                </Button>
+                <Button color="secondary" onClick={this.handleBackToGenerate}>
+                  Back
+                </Button>
+                <Button color="secondary" onClick={this.toggleAiModal}>
+                  Cancel
+                </Button>
+              </>
+            )}
           </ModalFooter>
         </Modal>
       </div>

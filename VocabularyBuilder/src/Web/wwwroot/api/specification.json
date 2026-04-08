@@ -493,6 +493,49 @@
         }
       }
     },
+    "/api/{lang}/lists/generate": {
+      "post": {
+        "tags": [
+          "Lists"
+        ],
+        "operationId": "PostApiListsGenerate",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateListWithAiCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeneratedListPreviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/{lang}/lists/{listId}/items": {
       "post": {
         "tags": [
@@ -1764,8 +1807,59 @@
           },
           "status": {
             "$ref": "#/components/schemas/ListStatus"
+          },
+          "items": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
           }
         }
+      },
+      "GeneratedListPreviewDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "GenerateListWithAiCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "prompt": {
+            "type": "string"
+          },
+          "quantityRange": {
+            "$ref": "#/components/schemas/QuantityRange"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          }
+        }
+      },
+      "QuantityRange": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Small",
+          "Medium",
+          "Large"
+        ],
+        "enum": [
+          0,
+          1,
+          2
+        ]
       },
       "UpdateListCommand": {
         "type": "object",
