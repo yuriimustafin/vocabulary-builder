@@ -21,6 +21,10 @@ public interface IApplicationDbContext
 
     DbSet<ImportedBookWord> ImportedBookWords { get; }
 
+    DbSet<VocabularyList> VocabularyLists { get; }
+
+    DbSet<VocabularyListItem> VocabularyListItems { get; }
+
     ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);

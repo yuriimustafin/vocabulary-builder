@@ -2,6 +2,7 @@ import { Counter } from "./components/Counter";
 import { FetchData } from "./components/FetchData";
 import { Home } from "./components/Home";
 import { Words } from "./components/Words";
+import { Lists } from "./components/Lists";
 import { BulkImport } from "./components/BulkImport";
 import { KindleImport } from "./components/KindleImport";
 import { ExportWords } from "./components/ExportWords";
@@ -22,6 +23,10 @@ const AppRoutes = [
   {
     path: '/words',
     element: <Words />
+  },
+  {
+    path: '/lists',
+    element: <Lists />
   },
   {
     path: '/bulk-import',

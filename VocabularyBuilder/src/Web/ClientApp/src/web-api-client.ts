@@ -376,6 +376,358 @@ export class TodoListsClient {
     }
 }
 
+export class ListsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
+    }
+
+    getApiListsAll(lang: string): Promise<VocabularyListDto[]> {
+        let url_ = this.baseUrl + "/api/{lang}/lists";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiListsAll(_response);
+        });
+    }
+
+    protected processGetApiListsAll(response: Response): Promise<VocabularyListDto[]> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(VocabularyListDto.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VocabularyListDto[]>(null as any);
+    }
+
+    postApiLists(lang: string, command: CreateListCommand): Promise<number> {
+        let url_ = this.baseUrl + "/api/{lang}/lists";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiLists(_response);
+        });
+    }
+
+    protected processPostApiLists(response: Response): Promise<number> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<number>(null as any);
+    }
+
+    getApiLists(lang: string, id: number): Promise<VocabularyListDetailsDto> {
+        let url_ = this.baseUrl + "/api/{lang}/lists/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiLists(_response);
+        });
+    }
+
+    protected processGetApiLists(response: Response): Promise<VocabularyListDetailsDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = VocabularyListDetailsDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status === 404) {
+            return response.text().then((_responseText) => {
+            return throwException("A server side error occurred.", status, _responseText, _headers);
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VocabularyListDetailsDto>(null as any);
+    }
+
+    putApiLists(lang: string, id: number, command: UpdateListCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/lists/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPutApiLists(_response);
+        });
+    }
+
+    protected processPutApiLists(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    deleteApiLists(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/lists/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDeleteApiLists(_response);
+        });
+    }
+
+    protected processDeleteApiLists(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    postApiListsItems(lang: string, listId: number, command: CreateListItemCommand): Promise<number> {
+        let url_ = this.baseUrl + "/api/{lang}/lists/{listId}/items";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (listId === undefined || listId === null)
+            throw new Error("The parameter 'listId' must be defined.");
+        url_ = url_.replace("{listId}", encodeURIComponent("" + listId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiListsItems(_response);
+        });
+    }
+
+    protected processPostApiListsItems(response: Response): Promise<number> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+                result200 = resultData200 !== undefined ? resultData200 : <any>null;
+    
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<number>(null as any);
+    }
+
+    putApiListsItems(lang: string, listId: number, id: number, command: UpdateListItemCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/lists/{listId}/items/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (listId === undefined || listId === null)
+            throw new Error("The parameter 'listId' must be defined.");
+        url_ = url_.replace("{listId}", encodeURIComponent("" + listId));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPutApiListsItems(_response);
+        });
+    }
+
+    protected processPutApiListsItems(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    deleteApiListsItems(lang: string, listId: number, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/lists/{listId}/items/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (listId === undefined || listId === null)
+            throw new Error("The parameter 'listId' must be defined.");
+        url_ = url_.replace("{listId}", encodeURIComponent("" + listId));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "DELETE",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processDeleteApiListsItems(_response);
+        });
+    }
+
+    protected processDeleteApiListsItems(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class WeatherForecastsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1633,6 +1985,369 @@ export interface IUpdateTodoListCommand {
     title?: string | undefined;
 }
 
+export class VocabularyListDto implements IVocabularyListDto {
+    id?: number;
+    title?: string;
+    language?: Language;
+    status?: ListStatus;
+    itemCount?: number;
+    masteredCount?: number;
+    created?: Date;
+
+    constructor(data?: IVocabularyListDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.title = _data["title"];
+            this.language = _data["language"];
+            this.status = _data["status"];
+            this.itemCount = _data["itemCount"];
+            this.masteredCount = _data["masteredCount"];
+            this.created = _data["created"] ? new Date(_data["created"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): VocabularyListDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new VocabularyListDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["title"] = this.title;
+        data["language"] = this.language;
+        data["status"] = this.status;
+        data["itemCount"] = this.itemCount;
+        data["masteredCount"] = this.masteredCount;
+        data["created"] = this.created ? this.created.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IVocabularyListDto {
+    id?: number;
+    title?: string;
+    language?: Language;
+    status?: ListStatus;
+    itemCount?: number;
+    masteredCount?: number;
+    created?: Date;
+}
+
+export enum Language {
+    English = 0,
+    French = 1,
+}
+
+export enum ListStatus {
+    Active = 0,
+    Completed = 1,
+    Archived = 2,
+}
+
+export class VocabularyListDetailsDto implements IVocabularyListDetailsDto {
+    id?: number;
+    title?: string;
+    language?: Language;
+    status?: ListStatus;
+    created?: Date;
+    lastModified?: Date;
+    items?: VocabularyListItemDto[];
+
+    constructor(data?: IVocabularyListDetailsDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.title = _data["title"];
+            this.language = _data["language"];
+            this.status = _data["status"];
+            this.created = _data["created"] ? new Date(_data["created"].toString()) : <any>undefined;
+            this.lastModified = _data["lastModified"] ? new Date(_data["lastModified"].toString()) : <any>undefined;
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(VocabularyListItemDto.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): VocabularyListDetailsDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new VocabularyListDetailsDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["title"] = this.title;
+        data["language"] = this.language;
+        data["status"] = this.status;
+        data["created"] = this.created ? this.created.toISOString() : <any>undefined;
+        data["lastModified"] = this.lastModified ? this.lastModified.toISOString() : <any>undefined;
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IVocabularyListDetailsDto {
+    id?: number;
+    title?: string;
+    language?: Language;
+    status?: ListStatus;
+    created?: Date;
+    lastModified?: Date;
+    items?: VocabularyListItemDto[];
+}
+
+export class VocabularyListItemDto implements IVocabularyListItemDto {
+    id?: number;
+    text?: string;
+    isMastered?: boolean;
+    created?: Date;
+
+    constructor(data?: IVocabularyListItemDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.text = _data["text"];
+            this.isMastered = _data["isMastered"];
+            this.created = _data["created"] ? new Date(_data["created"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): VocabularyListItemDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new VocabularyListItemDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["text"] = this.text;
+        data["isMastered"] = this.isMastered;
+        data["created"] = this.created ? this.created.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IVocabularyListItemDto {
+    id?: number;
+    text?: string;
+    isMastered?: boolean;
+    created?: Date;
+}
+
+export class CreateListCommand implements ICreateListCommand {
+    title?: string;
+    language?: Language;
+    status?: ListStatus;
+
+    constructor(data?: ICreateListCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.title = _data["title"];
+            this.language = _data["language"];
+            this.status = _data["status"];
+        }
+    }
+
+    static fromJS(data: any): CreateListCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateListCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["title"] = this.title;
+        data["language"] = this.language;
+        data["status"] = this.status;
+        return data;
+    }
+}
+
+export interface ICreateListCommand {
+    title?: string;
+    language?: Language;
+    status?: ListStatus;
+}
+
+export class UpdateListCommand implements IUpdateListCommand {
+    id?: number;
+    title?: string;
+    status?: ListStatus;
+
+    constructor(data?: IUpdateListCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.title = _data["title"];
+            this.status = _data["status"];
+        }
+    }
+
+    static fromJS(data: any): UpdateListCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateListCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["title"] = this.title;
+        data["status"] = this.status;
+        return data;
+    }
+}
+
+export interface IUpdateListCommand {
+    id?: number;
+    title?: string;
+    status?: ListStatus;
+}
+
+export class CreateListItemCommand implements ICreateListItemCommand {
+    listId?: number;
+    text?: string;
+    isMastered?: boolean;
+
+    constructor(data?: ICreateListItemCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.listId = _data["listId"];
+            this.text = _data["text"];
+            this.isMastered = _data["isMastered"];
+        }
+    }
+
+    static fromJS(data: any): CreateListItemCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new CreateListItemCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["listId"] = this.listId;
+        data["text"] = this.text;
+        data["isMastered"] = this.isMastered;
+        return data;
+    }
+}
+
+export interface ICreateListItemCommand {
+    listId?: number;
+    text?: string;
+    isMastered?: boolean;
+}
+
+export class UpdateListItemCommand implements IUpdateListItemCommand {
+    id?: number;
+    text?: string;
+    isMastered?: boolean;
+
+    constructor(data?: IUpdateListItemCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.text = _data["text"];
+            this.isMastered = _data["isMastered"];
+        }
+    }
+
+    static fromJS(data: any): UpdateListItemCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new UpdateListItemCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["text"] = this.text;
+        data["isMastered"] = this.isMastered;
+        return data;
+    }
+}
+
+export interface IUpdateListItemCommand {
+    id?: number;
+    text?: string;
+    isMastered?: boolean;
+}
+
 export class WeatherForecast implements IWeatherForecast {
     date?: Date;
     temperatureC?: number;
@@ -1819,11 +2534,6 @@ export interface IWordDto {
     examples?: string[];
     language?: Language;
     status?: WordStatus;
-}
-
-export enum Language {
-    English = 0,
-    French = 1,
 }
 
 export enum WordStatus {

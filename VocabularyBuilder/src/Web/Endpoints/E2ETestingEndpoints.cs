@@ -67,6 +67,8 @@ public class E2ETestingEndpoints : EndpointGroupBase
                     DELETE FROM WordDictionarySources;
                     DELETE FROM WordEncounters;
                     DELETE FROM Words;
+                    DELETE FROM VocabularyListItems;
+                    DELETE FROM VocabularyLists;
                     DELETE FROM TodoItems;
                     DELETE FROM TodoLists;
                     

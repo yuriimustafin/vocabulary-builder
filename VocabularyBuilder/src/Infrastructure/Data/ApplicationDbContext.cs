@@ -28,6 +28,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<ImportedBookWord> ImportedBookWords => Set<ImportedBookWord>();
 
+    public DbSet<VocabularyList> VocabularyLists => Set<VocabularyList>();
+
+    public DbSet<VocabularyListItem> VocabularyListItems => Set<VocabularyListItem>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         // Create unique index for Word: Headword + Language must be unique
@@ -77,6 +81,13 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         // Create index for ImportedBookWord: Headword + Language for efficient lookups
         builder.Entity<ImportedBookWord>()
             .HasIndex(ibw => new { ibw.Headword, ibw.Language });
+
+        // Configure VocabularyList relationship with cascade delete
+        builder.Entity<VocabularyListItem>()
+            .HasOne(vli => vli.List)
+            .WithMany(vl => vl.Items)
+            .HasForeignKey(vli => vli.ListId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
