@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Table } from 'reactstrap';
+import { Link } from 'react-router-dom';
 
 export class Lists extends Component {
   static displayName = Lists.name;
@@ -323,9 +324,21 @@ export class Lists extends Component {
       <div>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h1>Vocabulary Lists</h1>
-          <Button color="primary" onClick={this.toggleModal}>
-            Add New List
-          </Button>
+          <div>
+            {lists.filter(list => list.itemCount > 0).length >= 2 && (
+              <Button 
+                color="success" 
+                className="me-2"
+                tag={Link}
+                to="/lists/practice"
+              >
+                Practice Lists
+              </Button>
+            )}
+            <Button color="primary" onClick={this.toggleModal}>
+              Add New List
+            </Button>
+          </div>
         </div>
 
         <Table striped hover>

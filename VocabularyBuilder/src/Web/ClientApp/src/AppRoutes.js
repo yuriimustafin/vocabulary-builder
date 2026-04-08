@@ -3,6 +3,7 @@ import { FetchData } from "./components/FetchData";
 import { Home } from "./components/Home";
 import { Words } from "./components/Words";
 import { Lists } from "./components/Lists";
+import { ListPractice } from "./components/ListPractice";
 import { BulkImport } from "./components/BulkImport";
 import { KindleImport } from "./components/KindleImport";
 import { ExportWords } from "./components/ExportWords";
@@ -27,6 +28,10 @@ const AppRoutes = [
   {
     path: '/lists',
     element: <Lists />
+  },
+  {
+    path: '/lists/practice',
+    element: <ListPractice />
   },
   {
     path: '/bulk-import',
