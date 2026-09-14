@@ -22,6 +22,12 @@ public class StudyQueueDto
     public int NewToday { get; init; }
 
     public int NewCardsPerDay { get; init; }
+
+    /// <summary>
+    /// When the next card falls due, if nothing is servable now. Lets the session say how
+    /// long the wait is rather than claiming there is nothing left.
+    /// </summary>
+    public DateTime? NextDueAtUtc { get; init; }
 }
 
 public class StudyCardDto
@@ -37,6 +43,13 @@ public class StudyCardDto
     public CardState State { get; init; }
     public CardDifficulty Difficulty { get; init; }
     public bool IsNew { get; init; }
+
+    /// <summary>
+    /// The very first showing of this word. There is nothing to grade yet - the learner is
+    /// reading it, not recalling it - so the session asks for an acknowledgement instead.
+    /// </summary>
+    public bool IsIntroduction { get; init; }
+
     public ExercisePayload Exercise { get; init; } = null!;
 }
 
@@ -98,8 +111,25 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         var introducedToday = await _context.ReviewCards
             .CountAsync(c => c.IntroducedAtUtc >= dayStart, cancellationToken);
 
-        var room = Math.Min(Math.Max(0, _options.NewCardsPerDay - introducedToday), limit - due.Count);
+        var room = new[]
+        {
+            Math.Max(0, _options.NewCardsPerDay - introducedToday),
+            Math.Max(0, limit - due.Count),
+            // A few at a time, so the tests for these fall due while the next handful is
+            // still being introduced and the two end up mixed together.
+            _options.NewCardsPerBatch
+        }.Min();
+
         var newWords = await NewWordSelector.SelectAsync(_context, request.Language, room, cancellationToken);
+
+        // Only when there is genuinely nothing else: pulling a step forward shortens it, so
+        // it is a last resort rather than the normal path.
+        if (due.Count == 0 && newWords.Count == 0)
+        {
+            due = await DueCardsAsync(
+                request.Language, now.AddMinutes(_options.LearnAheadMinutes), limit, cancellationToken,
+                learningOnly: true);
+        }
 
         var wordIds = due.Select(c => c.WordId).Concat(newWords.Select(w => w.Id)).ToList();
         var content = await _context.WordStudyContents
@@ -158,11 +188,14 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
 
         return new StudyQueueDto
         {
-            Cards = rendered.Select(ToDto).ToList(),
+            Cards = Interleave(rendered).Select(ToDto).ToList(),
             PendingEnrichmentCount = waiting,
             DueCount = due.Count,
             NewToday = introducedToday + introduced,
-            NewCardsPerDay = _options.NewCardsPerDay
+            NewCardsPerDay = _options.NewCardsPerDay,
+            NextDueAtUtc = rendered.Count == 0
+                ? await NextDueAtAsync(request.Language, cancellationToken)
+                : null
         };
     }
 
@@ -176,20 +209,77 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         State = rendered.Card.State,
         Difficulty = _difficulty.Calculate(rendered.Card),
         IsNew = rendered.Card.State == CardState.New,
+        IsIntroduction = rendered.Card.State == CardState.New,
         Exercise = rendered.Exercise
     };
 
-    private async Task<List<ReviewCard>> DueCardsAsync(
-        Language language, DateTime now, int limit, CancellationToken cancellationToken)
+    /// <summary>
+    /// Spreads the new words evenly through the cards that are due, so a session reads as
+    /// one stream rather than a block of introductions followed by a block of tests.
+    /// </summary>
+    private static List<RenderedCard> Interleave(List<RenderedCard> rendered)
     {
-        return await _context.ReviewCards
+        var introductions = rendered.Where(r => r.Introduced).ToList();
+        var reviews = rendered.Where(r => !r.Introduced).ToList();
+
+        if (introductions.Count == 0 || reviews.Count == 0)
+        {
+            return rendered;
+        }
+
+        var mixed = new List<RenderedCard>(rendered.Count);
+        var spacing = (double)reviews.Count / (introductions.Count + 1);
+        var placed = 0;
+
+        for (var index = 0; index < reviews.Count; index++)
+        {
+            mixed.Add(reviews[index]);
+
+            while (placed < introductions.Count && index + 1 >= Math.Round(spacing * (placed + 1)))
+            {
+                mixed.Add(introductions[placed++]);
+            }
+        }
+
+        mixed.AddRange(introductions.Skip(placed));
+        return mixed;
+    }
+
+    private async Task<List<ReviewCard>> DueCardsAsync(
+        Language language, DateTime cutoff, int limit, CancellationToken cancellationToken,
+        bool learningOnly = false)
+    {
+        var query = _context.ReviewCards
             .Include(c => c.Word).ThenInclude(w => w.Senses)
             .Where(c => c.Word.Language == language)
             .Where(c => c.State != CardState.Suspended)
-            .Where(c => c.DueAtUtc != null && c.DueAtUtc <= now)
+            .Where(c => c.DueAtUtc != null && c.DueAtUtc <= cutoff);
+
+        if (learningOnly)
+        {
+            // Only minute-scale steps are worth pulling forward. Bringing a review card
+            // days early would be a real distortion rather than a convenience.
+            query = query.Where(c =>
+                c.State == CardState.New
+                || c.State == CardState.Learning
+                || c.State == CardState.Relearning);
+        }
+
+        return await query
             .OrderBy(c => c.DueAtUtc)
             .Take(limit)
             .ToListAsync(cancellationToken);
+    }
+
+    private async Task<DateTime?> NextDueAtAsync(Language language, CancellationToken cancellationToken)
+    {
+        return await _context.ReviewCards
+            .Where(c => c.Word.Language == language)
+            .Where(c => c.State != CardState.Suspended)
+            .Where(c => c.DueAtUtc != null)
+            .OrderBy(c => c.DueAtUtc)
+            .Select(c => c.DueAtUtc)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     /// <summary>

@@ -41,11 +41,49 @@ public class ReviewResultDto
 
     /// <summary>True when this submit matched one already recorded and changed nothing.</summary>
     public bool WasDuplicate { get; init; }
+
+    /// <summary>Set for automatically graded exercises; null when the learner graded themselves.</summary>
+    public ReviewFeedbackDto? Feedback { get; init; }
 }
 
 public class FollowUpDto
 {
     public ExercisePayload Exercise { get; init; } = null!;
+}
+
+/// <summary>
+/// What to show once an automatically graded answer has been marked.
+///
+/// The word is shown in full whether or not it was right, because seeing it again is worth
+/// as much after a correct answer as after a wrong one. Self-graded exercises need none of
+/// this: the learner has already revealed the answer themselves.
+/// </summary>
+public class ReviewFeedbackDto
+{
+    public bool Correct { get; init; }
+
+    public string Headword { get; init; } = string.Empty;
+    public string? Meaning { get; init; }
+    public string? Transcription { get; init; }
+    public string? PartOfSpeech { get; init; }
+    public string? ContextSentence { get; init; }
+
+    /// <summary>What was picked instead, when the answer was wrong.</summary>
+    public ChosenAnswerDto? Chosen { get; init; }
+}
+
+/// <summary>
+/// The option that was chosen by mistake, named.
+///
+/// A wrong option is another real word from the collection, so it can be identified rather
+/// than just marked wrong - the meaning that was picked belongs to some word, and the word
+/// that was picked has a meaning of its own.
+/// </summary>
+public class ChosenAnswerDto
+{
+    public string Text { get; init; } = string.Empty;
+    public string? Headword { get; init; }
+    public string? Meaning { get; init; }
 }
 
 /// <summary>
@@ -66,6 +104,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     private readonly IDistractorSource _distractorSource;
     private readonly ICardDifficultyCalculator _difficulty;
     private readonly IScaffoldSequencer _scaffolds;
+    private readonly IStudyWordLookup _wordLookup;
     private readonly StudyOptions _options;
     private readonly TimeProvider _timeProvider;
 
@@ -79,6 +118,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         IDistractorSource distractorSource,
         ICardDifficultyCalculator difficulty,
         IScaffoldSequencer scaffolds,
+        IStudyWordLookup wordLookup,
         StudyOptions options,
         TimeProvider timeProvider)
     {
@@ -91,6 +131,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         _distractorSource = distractorSource;
         _difficulty = difficulty;
         _scaffolds = scaffolds;
+        _wordLookup = wordLookup;
         _options = options;
         _timeProvider = timeProvider;
     }
@@ -168,7 +209,10 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             Difficulty = difficulty,
             NextDueAtUtc = card.DueAtUtc,
             FollowUps = await BuildFollowUps(
-                card, material, before.Rung, grade, difficulty, cancellationToken)
+                card, material, before.Rung, grade, difficulty, cancellationToken),
+            Feedback = definition.GradingMode == GradingMode.Automatic
+                ? await BuildFeedback(card, material, request, grade, cancellationToken)
+                : null
         };
     }
 
@@ -197,6 +241,62 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         {
             card.LapsesSinceRecovery = 0;
         }
+    }
+
+    /// <summary>
+    /// Describes what was marked, so the learner sees the word again either way and can tell
+    /// what they picked instead when they missed it.
+    /// </summary>
+    private async Task<ReviewFeedbackDto> BuildFeedback(
+        ReviewCard card,
+        StudyMaterial material,
+        SubmitReviewCommand request,
+        ReviewGrade grade,
+        CancellationToken cancellationToken)
+    {
+        var correct = grade > ReviewGrade.Again;
+
+        return new ReviewFeedbackDto
+        {
+            Correct = correct,
+            Headword = material.Headword,
+            Meaning = material.Meaning,
+            Transcription = material.Transcription,
+            PartOfSpeech = material.PartOfSpeech,
+            ContextSentence = material.ContextSentence,
+            Chosen = correct ? null : await DescribeChoice(card, request, cancellationToken)
+        };
+    }
+
+    /// <summary>
+    /// Names the option that was picked by mistake. Which way round depends on the
+    /// question: choosing a meaning identifies a word, choosing a word identifies a meaning.
+    /// </summary>
+    private async Task<ChosenAnswerDto?> DescribeChoice(
+        ReviewCard card, SubmitReviewCommand request, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(request.Answer))
+        {
+            return null;
+        }
+
+        var language = card.Word.Language;
+
+        var chosen = request.ExerciseType switch
+        {
+            ExerciseType.WordToMeaningChoice =>
+                await _wordLookup.ByMeaningAsync(language, request.Answer, cancellationToken),
+            ExerciseType.MeaningToWordChoice =>
+                await _wordLookup.ByHeadwordAsync(language, request.Answer, cancellationToken),
+            _ => null
+        };
+
+        return new ChosenAnswerDto
+        {
+            Text = request.Answer,
+            Headword = chosen?.Headword,
+            Meaning = chosen?.Meaning
+        };
     }
 
     /// <summary>

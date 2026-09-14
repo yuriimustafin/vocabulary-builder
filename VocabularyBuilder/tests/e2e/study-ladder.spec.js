@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, submitReview, cardFor, advanceClock, getCard
+  ExerciseType, seedWords, seedCard, getQueue, submitReview, answerCard, cardFor, advanceClock, getCard
 } = require('./helpers/study-helpers');
 
 /**
@@ -17,7 +17,23 @@ test.describe('Study ladder', () => {
     await setupCleanDatabase(request);
   });
 
-  test('the first session gives three different exercise types', async ({ request }) => {
+  test('the first showing is met rather than graded', async ({ request }) => {
+    await seedWords(request, ['metfirst']);
+
+    const card = cardFor(await getQueue(request), 'metfirst');
+
+    expect(card.isIntroduction).toBe(true);
+    expect(card.exercise.answer).toBeTruthy();
+
+    await answerCard(request, card, {});
+
+    const after = await getCard(request, 'metfirst');
+    expect(after.gradedReviews).toBe(0);
+    expect(after.easeFactor).toBe(2.5);
+    expect(after.rung).toBe(1);
+  });
+
+  test('the first session shows three different exercise types', async ({ request }) => {
     // Enough words for the multiple-choice rungs to have distractors to draw on.
     await seedWords(request, Array.from({ length: 8 }, (_, i) => `lad${String(i).padStart(2, '0')}`));
 
@@ -29,7 +45,10 @@ test.describe('Study ladder', () => {
       expect(card, `lad00 should be due on touch ${touch + 1}`).not.toBeNull();
 
       seen.push(card.exercise.type);
-      await submitReview(request, card, answerFor(card, 3));
+
+      // The first showing is met rather than graded: the learner has read the word, not
+      // recalled it, so there is nothing to judge yet.
+      await answerCard(request, card, answerFor(card, 3));
 
       // Step past the learning delay rather than waiting it out.
       await advanceClock(request, { minutes: 15 });
@@ -47,7 +66,7 @@ test.describe('Study ladder', () => {
 
     for (let touch = 0; touch < 3; touch++) {
       const card = cardFor(await getQueue(request), 'clo00');
-      await submitReview(request, card, answerFor(card, 3));
+      await answerCard(request, card, answerFor(card, 3));
       await advanceClock(request, { minutes: 15 });
     }
 

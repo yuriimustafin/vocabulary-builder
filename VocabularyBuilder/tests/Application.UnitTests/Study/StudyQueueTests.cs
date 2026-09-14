@@ -130,12 +130,136 @@ public class StudyQueueTests
     public async Task TheCapLetsMoreThroughOnceTheDayRollsOver()
     {
         await SeedWords(40);
-        await Queue();
+        await DrainNewWords();
+
+        (await _db.Context.ReviewCards.CountAsync()).Should().Be(_options.NewCardsPerDay);
 
         _clock.Advance(TimeSpan.FromDays(1));
-        await Queue();
+        await DrainNewWords();
 
         (await _db.Context.ReviewCards.CountAsync()).Should().Be(_options.NewCardsPerDay * 2);
+    }
+
+    [Test]
+    public async Task ABatchIntroducesOnlyAFewWordsAtATime()
+    {
+        // Small batches are what let the first tests fall due while the next handful is
+        // still being introduced, so the two end up mixed rather than in blocks.
+        await SeedWords(40);
+
+        var queue = await Queue();
+
+        queue.Cards.Should().HaveCount(_options.NewCardsPerBatch);
+    }
+
+    [Test]
+    public async Task NewWordsComeBackFlaggedAsIntroductions()
+    {
+        await SeedWords(5);
+
+        var queue = await Queue();
+
+        queue.Cards.Should().OnlyContain(c => c.IsIntroduction,
+            "a word being met for the first time has nothing to grade yet");
+    }
+
+    [Test]
+    public async Task AStepDueShortlyIsPulledForwardWhenNothingElseIsLeft()
+    {
+        // Twelve words introduced leaves twelve cards due a minute from now and nothing due
+        // this instant. Without pulling one forward the first day would stop dead.
+        await SeedWords(3);
+        await DrainNewWords();
+
+        foreach (var card in await _db.Context.ReviewCards.ToListAsync())
+        {
+            card.State = CardState.Learning;
+            card.DueAtUtc = Start.UtcDateTime.AddMinutes(5);
+        }
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        (await Queue()).Cards.Should().NotBeEmpty();
+    }
+
+    [Test]
+    public async Task AReviewIsNotPulledForward()
+    {
+        // Bringing a day-scale card days early would be a distortion, not a convenience.
+        await SeedWords(3);
+        await DrainNewWords();
+
+        foreach (var card in await _db.Context.ReviewCards.ToListAsync())
+        {
+            card.State = CardState.Review;
+            card.IntervalDays = 10;
+            card.DueAtUtc = Start.UtcDateTime.AddMinutes(5);
+        }
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        (await Queue()).Cards.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task TheSessionSaysWhenTheNextWordIsDue()
+    {
+        await SeedWords(2);
+        await DrainNewWords();
+
+        foreach (var card in await _db.Context.ReviewCards.ToListAsync())
+        {
+            card.State = CardState.Review;
+            card.IntervalDays = 3;
+            card.DueAtUtc = Start.UtcDateTime.AddHours(4);
+        }
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        var queue = await Queue();
+
+        queue.Cards.Should().BeEmpty();
+        queue.NextDueAtUtc.Should().NotBeNull("the session should say how long the wait is");
+    }
+
+    [Test]
+    public async Task ABatchMixesNewWordsInAmongTheOnesComingBack()
+    {
+        await SeedWords(40);
+        await Queue();
+
+        // Acknowledge the first handful and make them due, so the next batch has both an
+        // introduction and a card coming back to serve. A card left in New has not been met
+        // yet and would still count as an introduction.
+        foreach (var card in await _db.Context.ReviewCards.ToListAsync())
+        {
+            card.State = CardState.Learning;
+            card.CurrentRung = 1;
+            card.DueAtUtc = Start.UtcDateTime.AddMinutes(-1);
+        }
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        var queue = await Queue();
+        var kinds = queue.Cards.Select(c => c.IsIntroduction).ToList();
+
+        kinds.Should().Contain(true).And.Contain(false);
+
+        // Not all of one then all of the other.
+        kinds.Distinct().Count().Should().Be(2);
+        var firstNew = kinds.IndexOf(true);
+        var lastReview = kinds.LastIndexOf(false);
+        firstNew.Should().BeLessThan(lastReview, "the two kinds should be interleaved");
+    }
+
+    /// <summary>Works through batches the way a session does, until the day's cap is reached.</summary>
+    private async Task DrainNewWords()
+    {
+        for (var batch = 0; batch < 20; batch++)
+        {
+            var queue = await Queue();
+
+            if (queue.Cards.All(c => !c.IsIntroduction))
+            {
+                return;
+            }
+        }
     }
 
     [Test]

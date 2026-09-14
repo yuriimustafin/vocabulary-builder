@@ -27,15 +27,13 @@ export function PreparingWords({ count, onRefresh, refreshing }) {
 }
 
 /** Nothing due and nothing left of today's new words. */
-export function StudyDone({ stats, onRefresh }) {
+export function StudyDone({ stats, nextDueAtUtc, onRefresh }) {
   return (
     <Card className="text-center" data-testid="study-done">
       <CardBody className="py-5">
         <h5>Nothing due right now</h5>
-        <p className="text-muted mb-4">
-          {stats && stats.newToday >= stats.newCardsPerDay
-            ? `That is today's ${stats.newCardsPerDay} new words done. Come back when the next review falls due.`
-            : 'Every word that was due has been reviewed.'}
+        <p className="text-muted mb-4" data-testid="done-detail">
+          {describeWait(stats, nextDueAtUtc)}
         </p>
         <div className="d-flex gap-2 justify-content-center">
           <Button color="primary" outline onClick={onRefresh} data-testid="done-refresh">Check again</Button>
@@ -44,6 +42,27 @@ export function StudyDone({ stats, onRefresh }) {
       </CardBody>
     </Card>
   );
+}
+
+/**
+ * Says how long the wait is rather than implying the day is over. A step measured in
+ * minutes is a pause, not a finish, and the two should not read the same.
+ */
+function describeWait(stats, nextDueAtUtc) {
+  const minutes = nextDueAtUtc
+    ? Math.round((Date.parse(nextDueAtUtc.endsWith('Z') ? nextDueAtUtc : `${nextDueAtUtc}Z`) - Date.now()) / 60000)
+    : null;
+
+  if (minutes !== null && minutes > 0 && minutes < 90) {
+    return `The next word is ready in about ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}.`;
+  }
+
+  if (stats && stats.newToday >= stats.newCardsPerDay) {
+    return `That is today's ${stats.newCardsPerDay} new words done, and every step cleared. `
+      + 'The next review falls due later.';
+  }
+
+  return 'Every word that was due has been reviewed.';
 }
 
 /** Nothing to study because nothing has been collected yet. */

@@ -134,6 +134,76 @@ function submitReview(request, card, body, lang = 'en') {
 }
 
 /**
+ * Records that a word has been met. The first showing is not graded - the learner has read
+ * the word, not recalled it - so it goes to its own endpoint.
+ */
+function acknowledgeIntroduction(request, card, lang = 'en') {
+  return post(request, `/api/${lang}/study/introductions`, {
+    cardId: card.cardId,
+    attemptId: card.attemptId,
+    exerciseType: card.exercise.type,
+    elapsedMs: 3000
+  });
+}
+
+/** Answers a card whichever way it is asking, so a caller need not care which it got. */
+function answerCard(request, card, body, lang = 'en') {
+  return card.isIntroduction
+    ? acknowledgeIntroduction(request, card, lang)
+    : submitReview(request, card, body, lang);
+}
+
+/**
+ * Works through batches the way a session does, until every new word for the day has been
+ * met. Batches are small on purpose, so one call is not the whole day's allowance.
+ */
+async function introduceAllNewWords(request, { maxBatches = 20 } = {}) {
+  const met = [];
+
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const queue = await getQueue(request);
+    const introductions = queue.cards.filter(card => card.isIntroduction);
+
+    if (introductions.length === 0) {
+      return met;
+    }
+
+    for (const card of introductions) {
+      await acknowledgeIntroduction(request, card);
+      met.push(card.headword);
+    }
+  }
+
+  return met;
+}
+
+/**
+ * Leaves one word as the only thing the session will offer.
+ *
+ * Batches are small, so a single queue call introduces only a few of the words on hand.
+ * Everything has to be brought into play before the rest can be put aside, or the next
+ * batch quietly introduces more.
+ */
+async function isolateWord(request, headword, lang = 'en') {
+  for (let batch = 0; batch < 20; batch++) {
+    const queue = await getQueue(request, { lang });
+    const others = queue.cards.filter(card => card.headword !== headword);
+
+    if (others.length === 0 && queue.cards.length > 0) {
+      return;
+    }
+
+    for (const card of others) {
+      await request.post(`/api/${lang}/study/cards/${card.cardId}/suspend`);
+    }
+
+    if (queue.cards.length === 0) {
+      return;
+    }
+  }
+}
+
+/**
  * Waits until the background worker has filled a word in. Enrichment is deliberately not
  * pushed to the client, so polling is what the page itself does.
  */
@@ -170,6 +240,10 @@ module.exports = {
   getQueue,
   getStats,
   submitReview,
+  acknowledgeIntroduction,
+  answerCard,
+  introduceAllNewWords,
+  isolateWord,
   waitForContent,
   cardFor
 };

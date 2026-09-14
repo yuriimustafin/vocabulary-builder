@@ -1,6 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
-const { seedWords, getQueue, submitReview, cardFor, getCard } = require('./helpers/study-helpers');
+const {
+  seedWords, seedCard, getQueue, submitReview, cardFor, getCard
+} = require('./helpers/study-helpers');
 
 /**
  * Answering twice must not score twice.
@@ -14,7 +16,17 @@ test.describe('Review idempotency', () => {
 
   test.beforeEach(async ({ request }) => {
     await setupCleanDatabase(request);
-    await seedWords(request, Array.from({ length: 6 }, (_, i) => `id${String(i).padStart(2, '0')}`));
+
+    const words = Array.from({ length: 6 }, (_, i) => `id${String(i).padStart(2, '0')}`);
+    await seedWords(request, words);
+
+    // Past their first showing, so these are genuine graded reviews. A word being met has
+    // nothing to score, so it could not show whether scoring happens twice.
+    for (const headword of words) {
+      await seedCard(request, {
+        headword, rung: 0, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+      });
+    }
   });
 
   test('a repeated submit reports itself as a duplicate and changes nothing', async ({ request }) => {

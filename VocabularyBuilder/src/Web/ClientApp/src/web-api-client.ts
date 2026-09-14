@@ -900,6 +900,48 @@ export class StudyClient {
         return Promise.resolve<ReviewResultDto>(null as any);
     }
 
+    postApiStudyIntroductions(lang: string, command: AcknowledgeIntroductionCommand): Promise<IntroductionResultDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/introductions";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyIntroductions(_response);
+        });
+    }
+
+    protected processPostApiStudyIntroductions(response: Response): Promise<IntroductionResultDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = IntroductionResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<IntroductionResultDto>(null as any);
+    }
+
     postApiStudyFollowUps(lang: string, command: RecordFollowUpCommand): Promise<void> {
         let url_ = this.baseUrl + "/api/{lang}/study/follow-ups";
         if (lang === undefined || lang === null)
@@ -2827,6 +2869,7 @@ export class StudyQueueDto implements IStudyQueueDto {
     dueCount?: number;
     newToday?: number;
     newCardsPerDay?: number;
+    nextDueAtUtc?: Date | undefined;
 
     constructor(data?: IStudyQueueDto) {
         if (data) {
@@ -2848,6 +2891,7 @@ export class StudyQueueDto implements IStudyQueueDto {
             this.dueCount = _data["dueCount"];
             this.newToday = _data["newToday"];
             this.newCardsPerDay = _data["newCardsPerDay"];
+            this.nextDueAtUtc = _data["nextDueAtUtc"] ? new Date(_data["nextDueAtUtc"].toString()) : <any>undefined;
         }
     }
 
@@ -2869,6 +2913,7 @@ export class StudyQueueDto implements IStudyQueueDto {
         data["dueCount"] = this.dueCount;
         data["newToday"] = this.newToday;
         data["newCardsPerDay"] = this.newCardsPerDay;
+        data["nextDueAtUtc"] = this.nextDueAtUtc ? this.nextDueAtUtc.toISOString() : <any>undefined;
         return data;
     }
 }
@@ -2879,6 +2924,7 @@ export interface IStudyQueueDto {
     dueCount?: number;
     newToday?: number;
     newCardsPerDay?: number;
+    nextDueAtUtc?: Date | undefined;
 }
 
 export class StudyCardDto implements IStudyCardDto {
@@ -2890,6 +2936,7 @@ export class StudyCardDto implements IStudyCardDto {
     state?: CardState;
     difficulty?: CardDifficulty;
     isNew?: boolean;
+    isIntroduction?: boolean;
     exercise?: ExercisePayload;
 
     constructor(data?: IStudyCardDto) {
@@ -2911,6 +2958,7 @@ export class StudyCardDto implements IStudyCardDto {
             this.state = _data["state"];
             this.difficulty = _data["difficulty"];
             this.isNew = _data["isNew"];
+            this.isIntroduction = _data["isIntroduction"];
             this.exercise = _data["exercise"] ? ExercisePayload.fromJS(_data["exercise"]) : <any>undefined;
         }
     }
@@ -2932,6 +2980,7 @@ export class StudyCardDto implements IStudyCardDto {
         data["state"] = this.state;
         data["difficulty"] = this.difficulty;
         data["isNew"] = this.isNew;
+        data["isIntroduction"] = this.isIntroduction;
         data["exercise"] = this.exercise ? this.exercise.toJSON() : <any>undefined;
         return data;
     }
@@ -2946,6 +2995,7 @@ export interface IStudyCardDto {
     state?: CardState;
     difficulty?: CardDifficulty;
     isNew?: boolean;
+    isIntroduction?: boolean;
     exercise?: ExercisePayload;
 }
 
@@ -3159,6 +3209,7 @@ export class ReviewResultDto implements IReviewResultDto {
     nextDueAtUtc?: Date | undefined;
     followUps?: FollowUpDto[];
     wasDuplicate?: boolean;
+    feedback?: ReviewFeedbackDto | undefined;
 
     constructor(data?: IReviewResultDto) {
         if (data) {
@@ -3183,6 +3234,7 @@ export class ReviewResultDto implements IReviewResultDto {
                     this.followUps!.push(FollowUpDto.fromJS(item));
             }
             this.wasDuplicate = _data["wasDuplicate"];
+            this.feedback = _data["feedback"] ? ReviewFeedbackDto.fromJS(_data["feedback"]) : <any>undefined;
         }
     }
 
@@ -3207,6 +3259,7 @@ export class ReviewResultDto implements IReviewResultDto {
                 data["followUps"].push(item ? item.toJSON() : <any>undefined);
         }
         data["wasDuplicate"] = this.wasDuplicate;
+        data["feedback"] = this.feedback ? this.feedback.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -3220,6 +3273,7 @@ export interface IReviewResultDto {
     nextDueAtUtc?: Date | undefined;
     followUps?: FollowUpDto[];
     wasDuplicate?: boolean;
+    feedback?: ReviewFeedbackDto | undefined;
 }
 
 export enum ReviewGrade {
@@ -3263,6 +3317,110 @@ export class FollowUpDto implements IFollowUpDto {
 
 export interface IFollowUpDto {
     exercise?: ExercisePayload;
+}
+
+export class ReviewFeedbackDto implements IReviewFeedbackDto {
+    correct?: boolean;
+    headword?: string;
+    meaning?: string | undefined;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    contextSentence?: string | undefined;
+    chosen?: ChosenAnswerDto | undefined;
+
+    constructor(data?: IReviewFeedbackDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.correct = _data["correct"];
+            this.headword = _data["headword"];
+            this.meaning = _data["meaning"];
+            this.transcription = _data["transcription"];
+            this.partOfSpeech = _data["partOfSpeech"];
+            this.contextSentence = _data["contextSentence"];
+            this.chosen = _data["chosen"] ? ChosenAnswerDto.fromJS(_data["chosen"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): ReviewFeedbackDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ReviewFeedbackDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["correct"] = this.correct;
+        data["headword"] = this.headword;
+        data["meaning"] = this.meaning;
+        data["transcription"] = this.transcription;
+        data["partOfSpeech"] = this.partOfSpeech;
+        data["contextSentence"] = this.contextSentence;
+        data["chosen"] = this.chosen ? this.chosen.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IReviewFeedbackDto {
+    correct?: boolean;
+    headword?: string;
+    meaning?: string | undefined;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    contextSentence?: string | undefined;
+    chosen?: ChosenAnswerDto | undefined;
+}
+
+export class ChosenAnswerDto implements IChosenAnswerDto {
+    text?: string;
+    headword?: string | undefined;
+    meaning?: string | undefined;
+
+    constructor(data?: IChosenAnswerDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.text = _data["text"];
+            this.headword = _data["headword"];
+            this.meaning = _data["meaning"];
+        }
+    }
+
+    static fromJS(data: any): ChosenAnswerDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChosenAnswerDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["text"] = this.text;
+        data["headword"] = this.headword;
+        data["meaning"] = this.meaning;
+        return data;
+    }
+}
+
+export interface IChosenAnswerDto {
+    text?: string;
+    headword?: string | undefined;
+    meaning?: string | undefined;
 }
 
 export class SubmitReviewCommand implements ISubmitReviewCommand {
@@ -3331,6 +3489,102 @@ export interface ISubmitReviewCommand {
     resets?: number;
     hintUsed?: boolean;
     abandoned?: boolean;
+}
+
+export class IntroductionResultDto implements IIntroductionResultDto {
+    state?: CardState;
+    rung?: number;
+    nextDueAtUtc?: Date | undefined;
+    wasDuplicate?: boolean;
+
+    constructor(data?: IIntroductionResultDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.rung = _data["rung"];
+            this.nextDueAtUtc = _data["nextDueAtUtc"] ? new Date(_data["nextDueAtUtc"].toString()) : <any>undefined;
+            this.wasDuplicate = _data["wasDuplicate"];
+        }
+    }
+
+    static fromJS(data: any): IntroductionResultDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new IntroductionResultDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["rung"] = this.rung;
+        data["nextDueAtUtc"] = this.nextDueAtUtc ? this.nextDueAtUtc.toISOString() : <any>undefined;
+        data["wasDuplicate"] = this.wasDuplicate;
+        return data;
+    }
+}
+
+export interface IIntroductionResultDto {
+    state?: CardState;
+    rung?: number;
+    nextDueAtUtc?: Date | undefined;
+    wasDuplicate?: boolean;
+}
+
+export class AcknowledgeIntroductionCommand implements IAcknowledgeIntroductionCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    elapsedMs?: number;
+
+    constructor(data?: IAcknowledgeIntroductionCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.cardId = _data["cardId"];
+            this.attemptId = _data["attemptId"];
+            this.exerciseType = _data["exerciseType"];
+            this.elapsedMs = _data["elapsedMs"];
+        }
+    }
+
+    static fromJS(data: any): AcknowledgeIntroductionCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new AcknowledgeIntroductionCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["cardId"] = this.cardId;
+        data["attemptId"] = this.attemptId;
+        data["exerciseType"] = this.exerciseType;
+        data["elapsedMs"] = this.elapsedMs;
+        return data;
+    }
+}
+
+export interface IAcknowledgeIntroductionCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    elapsedMs?: number;
 }
 
 export class RecordFollowUpCommand implements IRecordFollowUpCommand {

@@ -38,6 +38,7 @@ public static class DependencyInjection
         services.AddSingleton<IStudyMaterialResolver, StudyMaterialResolver>();
         services.AddSingleton<IDistractorPicker>(sp => new DistractorPicker(sp.GetRequiredService<StudyOptions>()));
         services.AddScoped<IDistractorSource, DistractorSource>();
+        services.AddScoped<IStudyWordLookup, StudyWordLookup>();
 
         // One class per exercise type. A new kind of question is added here and nowhere
         // else in the scheduling or session machinery.

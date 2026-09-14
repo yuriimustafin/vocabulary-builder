@@ -39,6 +39,13 @@ public class Sm2Scheduler : IReviewScheduler
     /// difference is what interval they graduate to: a fresh card gets the graduating
     /// interval, a relearning card returns to whatever survived its lapse.
     /// </summary>
+    /// <summary>
+    /// Moves the word onto the first learning step, leaving ease untouched. A first meeting
+    /// says nothing about how well it is known, so it must not look like evidence.
+    /// </summary>
+    public SchedulingResult Introduce(ReviewCard card, DateTime nowUtc) =>
+        ScheduleSteps(card, ReviewGrade.Good, nowUtc, CardState.Learning);
+
     private SchedulingResult ScheduleSteps(ReviewCard card, ReviewGrade grade, DateTime nowUtc, CardState state)
     {
         var steps = Steps();

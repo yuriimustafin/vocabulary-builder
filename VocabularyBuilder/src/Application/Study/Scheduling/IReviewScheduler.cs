@@ -11,4 +11,12 @@ namespace VocabularyBuilder.Application.Study.Scheduling;
 public interface IReviewScheduler
 {
     SchedulingResult Schedule(ReviewCard card, ReviewGrade grade, DateTime nowUtc);
+
+    /// <summary>
+    /// Schedules a word that has just been met for the first time.
+    ///
+    /// Separate from Schedule because there is nothing to grade: the learner has not been
+    /// tested yet, so no judgement of theirs should reach the card's ease or its record.
+    /// </summary>
+    SchedulingResult Introduce(ReviewCard card, DateTime nowUtc);
 }

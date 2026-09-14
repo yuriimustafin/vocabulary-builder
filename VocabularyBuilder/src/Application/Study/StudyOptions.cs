@@ -17,6 +17,23 @@ public class StudyOptions
 
     public int MaxCardsPerSession { get; set; } = 60;
 
+    /// <summary>
+    /// New words introduced per batch. Small on purpose: the session refetches when a batch
+    /// runs out, so a few at a time is what lets the first tests fall due and mix in among
+    /// the next introductions instead of arriving as one block afterwards.
+    /// </summary>
+    public int NewCardsPerBatch { get; set; } = 4;
+
+    /// <summary>
+    /// How far ahead a learning step may be pulled forward when nothing else is left.
+    ///
+    /// Without this the first day stops dead: twelve words introduced leaves twelve cards
+    /// due a minute from now and nothing due this instant. Rather than end the session,
+    /// a step within this window is brought forward - the cost being that a step set for
+    /// ten minutes may be seen after four.
+    /// </summary>
+    public int LearnAheadMinutes { get; set; } = 20;
+
     /// <summary>Hour (UTC) at which "today" rolls over, so a late-night session counts as one day.</summary>
     public int DayRolloverHourUtc { get; set; } = 4;
 

@@ -1,6 +1,8 @@
 import React, { Component } from 'react';
 import { Alert, Badge, Card, CardBody, Spinner } from 'reactstrap';
 import { componentFor } from './study/exerciseRegistry';
+import { IntroductionCard } from './study/IntroductionCard';
+import { AnswerFeedback } from './study/AnswerFeedback';
 import { GRADE_KEYS } from './study/GradeBar';
 import {
   CardDifficulty,
@@ -44,10 +46,12 @@ export class Study extends Component {
       cards: [],
       index: 0,
       pendingEnrichment: 0,
+      nextDueAtUtc: null,
       stats: null,
       hasAnyWords: true,
       followUps: [],
       followUpIndex: 0,
+      feedback: null,
       hintUsed: false,
       revealed: false,
       shownAt: Date.now()
@@ -91,12 +95,14 @@ export class Study extends Component {
         cards: queue.cards,
         index: 0,
         pendingEnrichment: queue.pendingEnrichmentCount,
+        nextDueAtUtc: queue.nextDueAtUtc,
         stats,
         // Nothing due, nothing waiting and nothing ever started means an empty collection
         // rather than a finished session.
         hasAnyWords: !stats || stats.notStarted > 0 || stats.learning > 0 || stats.young > 0 || stats.mature > 0,
         followUps: [],
         followUpIndex: 0,
+        feedback: null,
         hintUsed: false,
         revealed: false,
         shownAt: Date.now()
@@ -115,8 +121,40 @@ export class Study extends Component {
     return this.state.followUps[this.state.followUpIndex] || null;
   }
 
+  /**
+   * An answer is in flight, or the next batch is being fetched.
+   *
+   * The card stays on screen while the queue refetches, so without this a quick second
+   * click lands on a card that is already being replaced - which at best submits twice and
+   * at worst starts two overlapping requests.
+   */
+  get busy() {
+    return this.state.submitting || this.state.refreshing;
+  }
+
+  /** A first showing, which is acknowledged rather than graded. */
+  get isIntroduction() {
+    return !this.currentFollowUp && !!this.currentCard && this.currentCard.isIntroduction;
+  }
+
   handleKey = event => {
-    if (this.state.submitting || event.metaKey || event.ctrlKey || event.altKey) {
+    if (this.busy || event.metaKey || event.ctrlKey || event.altKey) {
+      return;
+    }
+
+    if (this.state.feedback) {
+      if (event.key === ' ' || event.key === 'Enter') {
+        event.preventDefault();
+        this.continueFromFeedback();
+      }
+      return;
+    }
+
+    if (this.isIntroduction) {
+      if (event.key === ' ') {
+        event.preventDefault();
+        this.acknowledge();
+      }
       return;
     }
 
@@ -141,6 +179,38 @@ export class Study extends Component {
     }
   };
 
+  acknowledge = async () => {
+    const card = this.currentCard;
+
+    if (!card || this.busy) {
+      return;
+    }
+
+    this.setState({ submitting: true });
+
+    try {
+      const response = await fetch(this.api('/introductions'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          cardId: card.cardId,
+          attemptId: card.attemptId,
+          exerciseType: card.exercise.type,
+          elapsedMs: Date.now() - this.state.shownAt
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Could not record the introduction: ${response.status}`);
+      }
+
+      this.setState({ submitting: false }, this.nextCard);
+    } catch (error) {
+      console.error('Could not record the introduction', error);
+      this.setState({ submitting: false, error: 'Could not record that word.' });
+    }
+  };
+
   /** Self-graded: the learner's own judgement goes straight through. */
   grade = selfGrade => this.submit({ selfGrade });
 
@@ -150,7 +220,7 @@ export class Study extends Component {
 
   async submit(payload) {
     const card = this.currentCard;
-    if (!card || this.state.submitting) {
+    if (!card || this.busy) {
       return;
     }
 
@@ -181,6 +251,18 @@ export class Study extends Component {
 
       const result = await response.json();
 
+      // An automatically graded answer comes back with the word to show. Holding it on
+      // screen is the only chance to see what was marked and why, since unlike a self-graded
+      // card the learner never revealed the answer themselves.
+      if (result.feedback) {
+        this.setState({
+          submitting: false,
+          feedback: result.feedback,
+          pendingFollowUps: result.followUps || []
+        });
+        return;
+      }
+
       if (result.followUps && result.followUps.length > 0) {
         this.setState({
           submitting: false,
@@ -199,6 +281,26 @@ export class Study extends Component {
       this.setState({ submitting: false, error: 'Could not record that answer.' });
     }
   }
+
+  /** Dismisses the result, then plays out any re-encoding that was due to follow. */
+  continueFromFeedback = () => {
+    const followUps = this.state.pendingFollowUps || [];
+
+    if (followUps.length > 0) {
+      this.setState({
+        feedback: null,
+        pendingFollowUps: [],
+        followUps,
+        followUpIndex: 0,
+        hintUsed: false,
+        revealed: false,
+        shownAt: Date.now()
+      });
+      return;
+    }
+
+    this.setState({ feedback: null, pendingFollowUps: [] }, this.nextCard);
+  };
 
   /**
    * Records an ungraded re-encoding attempt and moves on. Failure here is not worth
@@ -231,7 +333,9 @@ export class Study extends Component {
       return;
     }
 
-    this.setState({ followUpIndex: nextIndex, hintUsed: false, revealed: false, shownAt: Date.now() });
+    this.setState({
+      followUpIndex: nextIndex, feedback: null, hintUsed: false, revealed: false, shownAt: Date.now()
+    });
   };
 
   nextCard = () => {
@@ -244,10 +348,22 @@ export class Study extends Component {
       return;
     }
 
-    this.setState({ index: nextIndex, hintUsed: false, revealed: false, shownAt: Date.now() });
+    this.setState({
+      index: nextIndex, feedback: null, hintUsed: false, revealed: false, shownAt: Date.now()
+    });
   };
 
   renderExercise(exercise, isFollowUp) {
+    if (this.isIntroduction) {
+      return (
+        <IntroductionCard
+          exercise={exercise}
+          submitting={this.busy}
+          onAcknowledge={this.acknowledge}
+        />
+      );
+    }
+
     const ExerciseComponent = componentFor(exercise.type);
 
     if (!ExerciseComponent) {
@@ -256,7 +372,7 @@ export class Study extends Component {
 
     const shared = {
       exercise,
-      submitting: this.state.submitting,
+      submitting: this.busy,
       onHintUsed: () => this.setState({ hintUsed: true })
     };
 
@@ -281,7 +397,9 @@ export class Study extends Component {
   }
 
   render() {
-    const { loading, refreshing, error, cards, index, pendingEnrichment, stats, hasAnyWords } = this.state;
+    const {
+      loading, refreshing, error, cards, index, pendingEnrichment, stats, hasAnyWords, nextDueAtUtc
+    } = this.state;
 
     if (loading) {
       return <div className="text-center py-5"><Spinner color="primary" /></div>;
@@ -303,7 +421,7 @@ export class Study extends Component {
         {!card && pendingEnrichment === 0 && !hasAnyWords && <NothingToStudy />}
 
         {!card && pendingEnrichment === 0 && hasAnyWords && (
-          <StudyDone stats={stats} onRefresh={() => this.load(true)} />
+          <StudyDone stats={stats} nextDueAtUtc={nextDueAtUtc} onRefresh={() => this.load(true)} />
         )}
 
         {card && (
@@ -314,9 +432,13 @@ export class Study extends Component {
               <CardBody className="p-4">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <span className="text-muted small text-uppercase" data-testid="exercise-label">
-                    {followUp
-                      ? 'Let us go over it'
-                      : EXERCISE_LABELS[card.exercise.type] || 'Review'}
+                    {this.state.feedback
+                      ? 'Result'
+                      : followUp
+                        ? 'Let us go over it'
+                        : card.isIntroduction
+                          ? 'New word'
+                          : EXERCISE_LABELS[card.exercise.type] || 'Review'}
                   </span>
                   <span className="d-flex gap-2">
                     {card.isNew && <Badge color="primary" pill data-testid="new-badge">New</Badge>}
@@ -328,9 +450,17 @@ export class Study extends Component {
                   </span>
                 </div>
 
-                {followUp
-                  ? this.renderExercise(followUp.exercise, true)
-                  : this.renderExercise(card.exercise, false)}
+                {this.state.feedback
+                  ? (
+                    <AnswerFeedback
+                      feedback={this.state.feedback}
+                      continuing={this.busy}
+                      onContinue={this.continueFromFeedback}
+                    />
+                  )
+                  : followUp
+                    ? this.renderExercise(followUp.exercise, true)
+                    : this.renderExercise(card.exercise, false)}
               </CardBody>
             </Card>
 

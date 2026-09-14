@@ -803,6 +803,49 @@
         }
       }
     },
+    "/api/{lang}/study/introductions": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyIntroductions",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeIntroductionCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntroductionResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/{lang}/study/follow-ups": {
       "post": {
         "tags": [
@@ -2233,6 +2276,11 @@
           "newCardsPerDay": {
             "type": "integer",
             "format": "int32"
+          },
+          "nextDueAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
           }
         }
       },
@@ -2266,6 +2314,9 @@
             "$ref": "#/components/schemas/CardDifficulty"
           },
           "isNew": {
+            "type": "boolean"
+          },
+          "isIntroduction": {
             "type": "boolean"
           },
           "exercise": {
@@ -2479,6 +2530,14 @@
           },
           "wasDuplicate": {
             "type": "boolean"
+          },
+          "feedback": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewFeedbackDto"
+              }
+            ]
           }
         }
       },
@@ -2504,6 +2563,59 @@
         "properties": {
           "exercise": {
             "$ref": "#/components/schemas/ExercisePayload"
+          }
+        }
+      },
+      "ReviewFeedbackDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "correct": {
+            "type": "boolean"
+          },
+          "headword": {
+            "type": "string"
+          },
+          "meaning": {
+            "type": "string",
+            "nullable": true
+          },
+          "transcription": {
+            "type": "string",
+            "nullable": true
+          },
+          "partOfSpeech": {
+            "type": "string",
+            "nullable": true
+          },
+          "contextSentence": {
+            "type": "string",
+            "nullable": true
+          },
+          "chosen": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChosenAnswerDto"
+              }
+            ]
+          }
+        }
+      },
+      "ChosenAnswerDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "headword": {
+            "type": "string",
+            "nullable": true
+          },
+          "meaning": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -2547,6 +2659,48 @@
           },
           "abandoned": {
             "type": "boolean"
+          }
+        }
+      },
+      "IntroductionResultDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/CardState"
+          },
+          "rung": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextDueAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "wasDuplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AcknowledgeIntroductionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "exerciseType": {
+            "$ref": "#/components/schemas/ExerciseType"
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

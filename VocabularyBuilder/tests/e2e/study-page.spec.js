@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  seedWords, seedBareWords, seedCard, getCard, getQueue
+  seedWords, seedBareWords, seedCard, getCard, isolateWord
 } = require('./helpers/study-helpers');
 
 /**
@@ -39,8 +39,31 @@ test.describe('Study page', () => {
     ).toBeVisible({ timeout: 30000 });
   }
 
+  test('a new word is shown with its meaning and only asks to be acknowledged',
+    async ({ request, page }) => {
+      await seedWords(request, ['metword']);
+      await openStudy(page);
+
+      await expect(page.getByTestId('introduction-card')).toBeVisible();
+      await expect(page.getByTestId('exercise-prompt')).toHaveText('metword');
+      await expect(page.getByTestId('introduction-meaning')).toHaveText('the meaning of metword');
+
+      // Nothing to grade: the word has been read, not recalled.
+      await expect(page.getByTestId('grade-bar')).toHaveCount(0);
+      await expect(page.getByTestId('reveal-button')).toHaveCount(0);
+
+      await page.getByTestId('introduction-acknowledge').click();
+
+      const card = await getCard(request, 'metword');
+      expect(card.gradedReviews).toBe(0);
+      expect(card.easeFactor).toBe(2.5);
+    });
+
   test('a flashcard reveals its answer and takes a grade', async ({ request, page }) => {
     await seedWords(request, ['pageone']);
+    await seedCard(request, {
+      headword: 'pageone', rung: 0, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+    });
     await openStudy(page);
 
     await expect(page.getByTestId('study-card')).toBeVisible();
@@ -62,6 +85,9 @@ test.describe('Study page', () => {
 
   test('the keyboard drives reveal and grading', async ({ request, page }) => {
     await seedWords(request, ['keyword01']);
+    await seedCard(request, {
+      headword: 'keyword01', rung: 0, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+    });
     await openStudy(page);
 
     await page.keyboard.press('Space');
@@ -73,17 +99,65 @@ test.describe('Study page', () => {
     expect((await getCard(request, 'keyword01')).gradedReviews).toBe(1);
   });
 
-  test('the session moves through several cards in order', async ({ request, page }) => {
+  test('meeting the new words rolls straight on into testing them', async ({ request, page }) => {
     await seedWords(request, ['seqone', 'seqtwo', 'seqthree']);
     await openStudy(page);
 
     for (let card = 0; card < 3; card++) {
       await expect(page.getByTestId('session-progress')).toContainText(`Card ${card + 1} of 3`);
-      await page.getByTestId('reveal-button').click();
-      await page.getByTestId('grade-good').click();
+      await expect(page.getByTestId('introduction-card')).toBeVisible();
+      await page.getByTestId('introduction-acknowledge').click();
     }
 
-    await expect(page.getByTestId('study-done')).toBeVisible();
+    // The steps for these words are a minute out. Rather than stopping and asking the
+    // learner to come back, the session pulls them forward and keeps going.
+    await expect(page.getByTestId('study-card')).toBeVisible();
+    await expect(page.getByTestId('introduction-card')).toHaveCount(0);
+    await expect(page.getByTestId('study-done')).toHaveCount(0);
+  });
+
+  test('the whole first day can be worked through in one sitting', async ({ request, page }) => {
+    // Six words is eighteen interactions once each has been met and tested twice, with a
+    // refetch between batches, so this needs more than the default budget.
+    test.setTimeout(120_000);
+
+    await seedWords(request, Array.from({ length: 6 }, (_, i) => `day${String(i).padStart(2, '0')}`));
+    await openStudy(page);
+
+    // Meet and test whatever is put in front of us until the session genuinely runs out.
+    // Whichever control is showing gets clicked; the session decides what comes next.
+    const controls = [
+      'feedback-continue',        // a marked answer holds the word on screen
+      'introduction-acknowledge', // a word being met
+      'choice-option',            // multiple choice
+      'reveal-button',            // a self-graded card, revealed first
+      'grade-good',               // then judged
+      'scramble-give-up'          // spelling, which this driver does not attempt
+    ];
+
+    for (let step = 0; step < 60; step++) {
+      if (await page.getByTestId('study-done').count() > 0) {
+        break;
+      }
+
+      let acted = false;
+
+      for (const control of controls) {
+        if (await clickIfPresent(page, control)) {
+          acted = true;
+          break;
+        }
+      }
+
+      if (!acted) {
+        await page.waitForTimeout(200);
+      }
+    }
+
+    // Every word met, and none of them still sitting on its first showing.
+    const stats = await request.get('/api/en/study/stats').then(r => r.json());
+    expect(stats.newToday).toBe(6);
+    expect(stats.reviewedToday).toBeGreaterThan(0);
   });
 
   test('a multiple-choice card is answered by clicking an option', async ({ request, page }) => {
@@ -92,11 +166,9 @@ test.describe('Study page', () => {
       headword: 'mc00', rung: 1, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
-    // Keep the rest out of the way so mc00 is the only card in the session.
-    const queue = await getQueue(request);
-    for (const card of queue.cards.filter(c => c.headword !== 'mc00')) {
-      await request.post(`/api/en/study/cards/${card.cardId}/suspend`);
-    }
+    // Keep the rest out of the way so mc00 is the only card in the session. The others
+    // still serve as distractors: the pool is drawn from the words, not from their cards.
+    await isolateWord(request, 'mc00');
 
     await openStudy(page);
 
@@ -105,12 +177,20 @@ test.describe('Study page', () => {
 
     await page.getByTestId('choice-option').filter({ hasText: 'the meaning of mc00' }).click();
 
+    // The answer is marked and the word held on screen, since a multiple-choice question
+    // never revealed it.
+    await expect(page.getByTestId('feedback-correct')).toBeVisible();
+    await page.getByTestId('feedback-continue').click();
+
     await expect(page.getByTestId('study-done')).toBeVisible();
     expect((await getCard(request, 'mc00')).gradedReviews).toBe(1);
   });
 
   test('failing a word plays out the diminishing-cues sequence', async ({ request, page }) => {
     await seedWords(request, ['failword']);
+    await seedCard(request, {
+      headword: 'failword', rung: 0, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+    });
     await openStudy(page);
 
     await page.getByTestId('reveal-button').click();
@@ -148,6 +228,10 @@ test.describe('Study page', () => {
     }
 
     await page.getByTestId('scramble-submit').click();
+
+    // Spelling is marked too, so the word is held on screen before moving on.
+    await expect(page.getByTestId('feedback-correct')).toBeVisible();
+    await page.getByTestId('feedback-continue').click();
 
     await expect(page.getByTestId('study-done')).toBeVisible();
     expect((await getCard(request, 'abc')).gradedReviews).toBe(1);
@@ -203,3 +287,25 @@ test.describe('Study page', () => {
     await expect(page).toHaveURL(/\/study$/);
   });
 });
+
+/**
+ * Clicks a control if it happens to be on screen.
+ *
+ * The session re-renders as soon as an answer lands, so checking for an element and then
+ * clicking it are two moments with a transition in between. A detached element simply means
+ * the card moved on, which is success rather than failure.
+ */
+async function clickIfPresent(page, testId) {
+  const locator = page.getByTestId(testId).first();
+
+  try {
+    if (await locator.count() === 0) {
+      return false;
+    }
+
+    await locator.click({ timeout: 2000 });
+    return true;
+  } catch {
+    return false;
+  }
+}

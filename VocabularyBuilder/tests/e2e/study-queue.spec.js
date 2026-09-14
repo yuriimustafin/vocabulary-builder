@@ -1,7 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  seedWords, getQueue, getStats, submitReview, cardFor, advanceClock, getCard
+  seedWords, seedCard, getQueue, getStats, submitReview, answerCard, introduceAllNewWords,
+  cardFor, advanceClock, getCard
 } = require('./helpers/study-helpers');
 
 /**
@@ -35,29 +36,30 @@ test.describe('Study queue', () => {
     const words = Array.from({ length: 40 }, (_, i) => `cap${String(i).padStart(2, '0')}`);
     await seedWords(request, words);
 
-    let queue;
+    // Batches are small, so the day's allowance is reached over several of them.
+    await introduceAllNewWords(request);
+
     for (let refresh = 0; refresh < 5; refresh++) {
-      queue = await getQueue(request);
+      await getQueue(request);
     }
 
     // The cap is derived from what has been introduced today, not from a counter that a
     // refresh could advance.
-    expect(queue.cards.length).toBe(queue.newCardsPerDay);
-    expect(queue.newToday).toBe(queue.newCardsPerDay);
+    expect((await getStats(request)).newToday).toBe(12);
   });
 
   test('lets more through once the day rolls over', async ({ request }) => {
     const words = Array.from({ length: 40 }, (_, i) => `roll${String(i).padStart(2, '0')}`);
     await seedWords(request, words);
 
-    const first = await getQueue(request);
-    expect(first.newToday).toBe(first.newCardsPerDay);
+    await introduceAllNewWords(request);
+    expect((await getStats(request)).newToday).toBe(12);
 
     await advanceClock(request, { days: 1 });
+    expect((await getStats(request)).newToday).toBe(0);
 
-    const second = await getQueue(request);
-    expect(second.newToday).toBeGreaterThan(0);
-    expect(second.newToday).toBeLessThanOrEqual(second.newCardsPerDay);
+    await getQueue(request);
+    expect((await getStats(request)).newToday).toBeGreaterThan(0);
   });
 
   test('a marked word does not wait behind the frequency list', async ({ request }) => {
@@ -102,17 +104,32 @@ test.describe('Study queue', () => {
     expect(cardFor(queue, 'encountered')).not.toBeNull();
   });
 
-  test('reports nothing to do when everything due has been answered', async ({ request }) => {
-    await seedWords(request, ['solo']);
+  test('a step a minute away is pulled forward rather than ending the session',
+    async ({ request }) => {
+      await seedWords(request, ['solo']);
 
-    const queue = await getQueue(request);
-    await submitReview(request, queue.cards[0], { selfGrade: 3 });
+      const queue = await getQueue(request);
+      await answerCard(request, queue.cards[0], {});
 
-    // The card is now in a learning step a minute away, so nothing is due this instant.
-    const after = await getQueue(request);
-    expect(after.cards).toHaveLength(0);
-    expect(after.pendingEnrichmentCount).toBe(0);
-  });
+      // The step is a minute out. Stopping here would make the first day a handful of words
+      // followed by a wait, so it is brought forward instead.
+      const after = await getQueue(request);
+      expect(after.cards).toHaveLength(1);
+      expect(after.cards[0].isIntroduction).toBe(false);
+    });
+
+  test('the session reports the wait when the next word is genuinely far off',
+    async ({ request }) => {
+      await seedWords(request, ['faroff']);
+      await seedCard(request, {
+        headword: 'faroff', rung: 3, state: 2, intervalDays: 10, dueInDays: 5
+      });
+
+      const queue = await getQueue(request);
+
+      expect(queue.cards).toHaveLength(0);
+      expect(queue.nextDueAtUtc).not.toBeNull();
+    });
 
   test('a suspended word stays out of the session', async ({ request }) => {
     await seedWords(request, ['suspendme', 'keepme']);
@@ -142,19 +159,27 @@ test.describe('Study queue', () => {
     expect(cardFor(after, 'pausedword')).not.toBeNull();
   });
 
-  test('stats line up with what was actually reviewed', async ({ request }) => {
+  test('meeting a word is not counted as reviewing it', async ({ request }) => {
     await seedWords(request, ['statone', 'stattwo', 'statthree']);
 
     const queue = await getQueue(request);
-    await submitReview(request, queue.cards[0], { selfGrade: 3 });
-    await submitReview(request, queue.cards[1], { selfGrade: 3 });
+    for (const card of queue.cards) {
+      await answerCard(request, card, {});
+    }
 
-    const stats = await getStats(request);
+    const met = await getStats(request);
+    expect(met.newToday).toBe(3);
+    expect(met.reviewedToday).toBe(0);
 
-    expect(stats.reviewedToday).toBe(2);
-    expect(stats.newToday).toBe(3);
-    expect(stats.learning).toBe(3);
-    expect(stats.notStarted).toBe(0);
+    // Now answer two of them for real.
+    const back = await getQueue(request);
+    await submitReview(request, back.cards[0], { selfGrade: 3 });
+    await submitReview(request, back.cards[1], { selfGrade: 3 });
+
+    const reviewed = await getStats(request);
+    expect(reviewed.reviewedToday).toBe(2);
+    expect(reviewed.learning).toBe(3);
+    expect(reviewed.notStarted).toBe(0);
   });
 
   test('only the chosen language is studied', async ({ request }) => {
