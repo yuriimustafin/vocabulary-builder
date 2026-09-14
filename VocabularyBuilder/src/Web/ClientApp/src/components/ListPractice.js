@@ -19,6 +19,7 @@ class ListPracticeClass extends Component {
       score: 0,
       totalCorrect: 0,
       finished: false,
+      noAvailableLists: false,
       language: language
     };
   }
@@ -85,15 +86,36 @@ class ListPracticeClass extends Component {
       const targetItems = listDetails.items;
       const targetItemCount = targetItems.length;
 
+      // Create a set of target item texts for efficient lookup (case-insensitive)
+      const targetItemTexts = new Set(targetItems.map(item => item.text.toLowerCase()));
+
       // Get other lists (excluding the target)
       const otherLists = lists.filter(list => list.id !== targetList.id);
       
-      // Collect items from other lists
+      // Collect items from other lists, filtering out lists with overlapping items
       const otherItems = [];
       for (const list of otherLists) {
         const otherResponse = await fetch(`/api/${language}/lists/${list.id}`);
         const otherDetails = await otherResponse.json();
-        otherItems.push(...otherDetails.items);
+        
+        // Check if any items from this list overlap with target list
+        const hasOverlap = otherDetails.items.some(item => 
+          targetItemTexts.has(item.text.toLowerCase())
+        );
+        
+        // Only add items from this list if there's no overlap
+        if (!hasOverlap) {
+          otherItems.push(...otherDetails.items);
+        }
+      }
+
+      // Check if we have enough items after filtering
+      if (otherItems.length === 0) {
+        this.setState({ 
+          noAvailableLists: true,
+          loading: false
+        });
+        return;
       }
 
       // Shuffle and pick random items from other lists
@@ -187,6 +209,7 @@ class ListPracticeClass extends Component {
     this.setState({
       practicedListIds: [],
       finished: false,
+      noAvailableLists: false,
       currentList: null,
       mixedItems: [],
       selectedItemIds: new Set(),
@@ -214,6 +237,7 @@ class ListPracticeClass extends Component {
       incorrectCount,
       missedCount,
       finished,
+      noAvailableLists,
       lists,
       practicedListIds
     } = this.state;
@@ -229,6 +253,22 @@ class ListPracticeClass extends Component {
           <Button color="primary" onClick={this.handleGoBack}>
             Back to Lists
           </Button>
+        </div>
+      );
+    }
+
+    if (noAvailableLists) {
+      return (
+        <div>
+          <h1>Cannot Practice Lists</h1>
+          <Alert color="danger">
+            All available lists have overlapping items with the selected list. Practice cannot continue.
+          </Alert>
+          <div className="mt-3">
+            <Button color="secondary" onClick={this.handleGoBack}>
+              Back to Lists
+            </Button>
+          </div>
         </div>
       );
     }
