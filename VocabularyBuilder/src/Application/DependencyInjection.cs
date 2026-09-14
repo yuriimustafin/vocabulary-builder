@@ -3,6 +3,7 @@ using VocabularyBuilder.Application.Common.Behaviours;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Study;
 using VocabularyBuilder.Application.Study.Exercises;
+using VocabularyBuilder.Application.Study.Exercises.Definitions;
 using VocabularyBuilder.Application.Study.Scheduling;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -32,6 +33,21 @@ public static class DependencyInjection
         services.AddSingleton<IScaffoldSequencer>(sp => new ScaffoldSequencer(
             sp.GetRequiredService<StudyOptions>(),
             sp.GetRequiredService<IExerciseLadder>()));
+
+        services.AddSingleton<IStudyMaterialResolver, StudyMaterialResolver>();
+        services.AddSingleton<IDistractorPicker>(sp => new DistractorPicker(sp.GetRequiredService<StudyOptions>()));
+        services.AddScoped<IDistractorSource, DistractorSource>();
+
+        // One class per exercise type. A new kind of question is added here and nowhere
+        // else in the scheduling or session machinery.
+        services.AddSingleton<IExerciseDefinition, WordToMeaningRevealExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, WordToMeaningChoiceExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, MeaningToWordChoiceExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, ContextToWordRecallExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, MeaningToWordScrambleExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, MeaningToWordRecallExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, MeaningToWordPartialLettersExerciseDefinition>();
+        services.AddSingleton<IExerciseCatalog, ExerciseCatalog>();
 
         return services;
     }

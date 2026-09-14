@@ -81,8 +81,12 @@ public class StudyOptions
 
     // --- exercise content --------------------------------------------------
 
-    /// <summary>Minimum candidate words needed before a multiple-choice rung can be built.</summary>
-    public int MinDistractorPool { get; set; } = 4;
+    /// <summary>
+    /// Options shown by a multiple-choice rung, the correct one included. A rung cannot be
+    /// built unless one fewer usable distractor than this is available, so a thin corpus
+    /// makes the ladder fall back rather than showing a give-away two-option question.
+    /// </summary>
+    public int ChoiceOptionCount { get; set; } = 4;
 
     /// <summary>Extra letters mixed into the scramble tiles that do not belong to the word.</summary>
     public int ScrambleDecoyLetters { get; set; }
