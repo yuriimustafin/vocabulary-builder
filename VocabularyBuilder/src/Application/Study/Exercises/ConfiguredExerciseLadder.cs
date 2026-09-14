@@ -11,12 +11,12 @@ namespace VocabularyBuilder.Application.Study.Exercises;
 public class ConfiguredExerciseLadder : IExerciseLadder
 {
     private readonly StudyOptions _options;
-    private readonly List<LadderRungOptions> _rungs;
+    private readonly IReadOnlyList<LadderRungOptions> _rungs;
 
     public ConfiguredExerciseLadder(StudyOptions options)
     {
         _options = options;
-        _rungs = options.Ladder is { Count: > 0 } ladder ? ladder : new StudyOptions().Ladder;
+        _rungs = options.EffectiveLadder;
     }
 
     public int RungCount => _rungs.Count;
@@ -79,7 +79,7 @@ public class ConfiguredExerciseLadder : IExerciseLadder
 
     private int LongGapRung()
     {
-        var index = _rungs.FindIndex(r => r.Type == _options.LongGapProbeType);
+        var index = _rungs.ToList().FindIndex(r => r.Type == _options.LongGapProbeType);
         return index >= 0 ? index : _rungs.Count - 1;
     }
 

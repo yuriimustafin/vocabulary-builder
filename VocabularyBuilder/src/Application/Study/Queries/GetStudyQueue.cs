@@ -142,10 +142,13 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
 
             _context.ReviewCards.Add(card);
             word.IsMarkedForStudy = false;
-            rendered.Add(result);
+            rendered.Add(result with { Introduced = true });
         }
 
-        var introduced = rendered.Count(r => r.Card.State == CardState.New);
+        // Counted from what this call actually created. A card that was introduced earlier
+        // today and has not been answered yet is still in the New state, so counting by
+        // state would charge it against the day's allowance again on every refresh.
+        var introduced = rendered.Count(r => r.Introduced);
 
         if (introduced > 0)
         {
@@ -228,5 +231,6 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         return new RenderedCard(card, word.Headword, rung, exercise);
     }
 
-    private record RenderedCard(ReviewCard Card, string Headword, int Rung, ExercisePayload Exercise);
+    private record RenderedCard(
+        ReviewCard Card, string Headword, int Rung, ExercisePayload Exercise, bool Introduced = false);
 }

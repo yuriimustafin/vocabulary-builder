@@ -25,8 +25,17 @@ public class StudyOptions
     /// <summary>
     /// Same-day steps before a card graduates. Two steps means three touches on day one,
     /// which is what puts the first three exercise types in the first session.
+    ///
+    /// Left empty on purpose: configuration binding appends to a collection that already
+    /// has contents rather than replacing it, so a populated default here would turn the
+    /// configured [1, 10] into [1, 10, 1, 10] and the card would never graduate. Read it
+    /// through <see cref="EffectiveLearningSteps"/>, which supplies the default.
     /// </summary>
-    public int[] LearningStepsMinutes { get; set; } = { 1, 10 };
+    public int[] LearningStepsMinutes { get; set; } = Array.Empty<int>();
+
+    /// <summary>The configured steps, or the built-in default when none are configured.</summary>
+    public int[] EffectiveLearningSteps =>
+        LearningStepsMinutes.Length > 0 ? LearningStepsMinutes : StudyDefaults.LearningStepsMinutes;
 
     public int GraduatingIntervalDays { get; set; } = 1;
     public int EasyIntervalDays { get; set; } = 4;
@@ -113,8 +122,27 @@ public class StudyOptions
     /// <summary>
     /// Ordered easiest to hardest. A card's CurrentRung indexes this list, so reordering
     /// or inserting a rung is a configuration change.
+    ///
+    /// Empty by default for the same reason as the learning steps: a populated default
+    /// would be appended to, not replaced, leaving a ladder with every rung twice. Read it
+    /// through <see cref="EffectiveLadder"/>.
     /// </summary>
-    public List<LadderRungOptions> Ladder { get; set; } = new()
+    public List<LadderRungOptions> Ladder { get; set; } = new();
+
+    /// <summary>The configured ladder, or the built-in default when none is configured.</summary>
+    public IReadOnlyList<LadderRungOptions> EffectiveLadder =>
+        Ladder.Count > 0 ? Ladder : StudyDefaults.Ladder;
+}
+
+/// <summary>
+/// The built-in defaults, kept out of the bound properties so configuration replaces them
+/// instead of being appended to them.
+/// </summary>
+public static class StudyDefaults
+{
+    public static int[] LearningStepsMinutes => new[] { 1, 10 };
+
+    public static IReadOnlyList<LadderRungOptions> Ladder => new List<LadderRungOptions>
     {
         new() { Type = ExerciseType.WordToMeaningReveal },
         new() { Type = ExerciseType.WordToMeaningChoice },

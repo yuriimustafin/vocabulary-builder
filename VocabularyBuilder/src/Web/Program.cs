@@ -12,6 +12,13 @@ builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration); 
 builder.Services.AddWebServices();
 
+// End-to-end tests need to move time: spaced repetition is measured in days, and a suite
+// that can only wait in real time could never reach the behaviour worth testing.
+if (builder.Environment.EnvironmentName == "E2ETest")
+{
+    builder.Services.AddSingleton<TimeProvider, VocabularyBuilder.Web.Services.TestTimeProvider>();
+}
+
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(

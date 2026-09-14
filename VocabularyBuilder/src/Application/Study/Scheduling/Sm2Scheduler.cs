@@ -138,7 +138,7 @@ public class Sm2Scheduler : IReviewScheduler
             IsLapse: false);
     }
 
-    private int[] Steps() => _options.LearningStepsMinutes is { Length: > 0 } s ? s : new[] { 1, 10 };
+    private int[] Steps() => _options.EffectiveLearningSteps;
 
     private double ClampEase(double ease) => Math.Max(_options.MinEaseFactor, ease);
 

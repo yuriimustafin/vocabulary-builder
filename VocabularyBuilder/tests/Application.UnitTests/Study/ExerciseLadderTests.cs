@@ -115,10 +115,19 @@ public class ExerciseLadderTests
         Ladder().SelectProbeRung(Card(rung: 2), "noun", Now, CanBuild).Should().Be(0);
     }
 
+    /// <summary>
+    /// A copy of the built-in ladder that a test can adjust. The bound property is empty by
+    /// default so configuration replaces it rather than being appended to it.
+    /// </summary>
+    private static StudyOptions OptionsWithLadder() => new()
+    {
+        Ladder = StudyDefaults.Ladder.Select(rung => new LadderRungOptions { Type = rung.Type }).ToList()
+    };
+
     [Test]
     public void ARungIsWithheldUntilTheCardReachesItsMinimumInterval()
     {
-        var options = new StudyOptions();
+        var options = OptionsWithLadder();
         options.Ladder[3].MinIntervalDays = 10;
 
         var card = Card(rung: 3, interval: 3);
@@ -129,7 +138,7 @@ public class ExerciseLadderTests
     [Test]
     public void ARungRestrictedByPartOfSpeechIsSkippedForOtherWords()
     {
-        var options = new StudyOptions();
+        var options = OptionsWithLadder();
         options.Ladder[3].PartsOfSpeech = new List<string> { "verb" };
 
         Ladder(options).SelectProbeRung(Card(rung: 3), "noun", Now, Anything).Should().Be(2);

@@ -71,16 +71,18 @@ export class Study extends Component {
     this.setState({ [refreshing ? 'refreshing' : 'loading']: true, error: null });
 
     try {
-      const [queueResponse, statsResponse] = await Promise.all([
-        fetch(this.api('/queue')),
-        fetch(this.api('/stats'))
-      ]);
+      // Fetched one after the other rather than together: the queue is what the session
+      // needs and the stats only decorate it, and issuing both at once puts two concurrent
+      // requests on a database that may be served by a single connection.
+      const queueResponse = await fetch(this.api('/queue'));
 
       if (!queueResponse.ok) {
         throw new Error(`Queue request failed with ${queueResponse.status}`);
       }
 
       const queue = await queueResponse.json();
+
+      const statsResponse = await fetch(this.api('/stats'));
       const stats = statsResponse.ok ? await statsResponse.json() : null;
 
       this.setState({
