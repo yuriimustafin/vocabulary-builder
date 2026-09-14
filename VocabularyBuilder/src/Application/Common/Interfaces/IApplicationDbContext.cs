@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
 using VocabularyBuilder.Domain.Entities.Frequency;
+using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
@@ -24,6 +25,12 @@ public interface IApplicationDbContext
     DbSet<VocabularyList> VocabularyLists { get; }
 
     DbSet<VocabularyListItem> VocabularyListItems { get; }
+
+    DbSet<ReviewCard> ReviewCards { get; }
+
+    DbSet<ReviewLog> ReviewLogs { get; }
+
+    DbSet<WordStudyContent> WordStudyContents { get; }
 
     ChangeTracker ChangeTracker { get; }
 
