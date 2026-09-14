@@ -4,6 +4,7 @@ using Moq;
 using NUnit.Framework;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Study;
+using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Application.Study.Scheduling;
 using VocabularyBuilder.Domain.Enums;
@@ -47,6 +48,20 @@ public class StudyServiceRegistrationTests
         services.GetRequiredService<IDistractorPicker>().Should().NotBeNull();
         services.GetRequiredService<IDistractorSource>().Should().NotBeNull();
         services.GetRequiredService<IExerciseCatalog>().Should().NotBeNull();
+        services.GetRequiredService<IStudyEnrichmentQueue>().Should().NotBeNull();
+    }
+
+    [Test]
+    public void TheEnrichmentQueueIsSharedBetweenTheSessionAndTheWorker()
+    {
+        using var provider = BuildProvider();
+
+        // A scoped query enqueues; a background worker reads. They must see one queue.
+        using var first = provider.CreateScope();
+        using var second = provider.CreateScope();
+
+        first.ServiceProvider.GetRequiredService<IStudyEnrichmentQueue>()
+            .Should().BeSameAs(second.ServiceProvider.GetRequiredService<IStudyEnrichmentQueue>());
     }
 
     [Test]

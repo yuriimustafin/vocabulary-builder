@@ -4,6 +4,7 @@ using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Study;
 using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Application.Study.Exercises.Definitions;
+using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Application.Study.Scheduling;
 
 namespace Microsoft.Extensions.DependencyInjection;
@@ -48,6 +49,8 @@ public static class DependencyInjection
         services.AddSingleton<IExerciseDefinition, MeaningToWordRecallExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordPartialLettersExerciseDefinition>();
         services.AddSingleton<IExerciseCatalog, ExerciseCatalog>();
+
+        services.AddSingleton<IStudyEnrichmentQueue, StudyEnrichmentQueue>();
 
         return services;
     }

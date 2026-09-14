@@ -2,6 +2,7 @@
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Infrastructure.Data;
 using VocabularyBuilder.Web.Services;
+using VocabularyBuilder.Application.Study.Enrichment;
 using Microsoft.AspNetCore.Mvc;
 
 using ZymLabs.NSwag.FluentValidation;
@@ -18,6 +19,9 @@ public static class DependencyInjection
         services.AddDatabaseDeveloperPageExceptionFilter();
 
         services.AddScoped<IUser, CurrentUser>();
+
+        // Fills in missing study content away from the request that noticed it.
+        services.AddHostedService<StudyContentEnrichmentWorker>();
 
         services.AddHttpContextAccessor();
 

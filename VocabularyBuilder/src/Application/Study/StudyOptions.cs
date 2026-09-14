@@ -79,6 +79,20 @@ public class StudyOptions
 
     public FollowUpCountOptions FollowUpsByTier { get; set; } = new();
 
+    // --- enrichment --------------------------------------------------------
+
+    /// <summary>
+    /// How long a generation claim is trusted. A claim older than this is assumed to have
+    /// been abandoned by a crash or restart and the word is picked up again.
+    /// </summary>
+    public int EnrichmentStaleClaimMinutes { get; set; } = 5;
+
+    /// <summary>Failures allowed before a word is left alone rather than retried forever.</summary>
+    public int EnrichmentMaxAttempts { get; set; } = 3;
+
+    /// <summary>Words the distractor pool is drawn from, per session.</summary>
+    public int DistractorPoolSize { get; set; } = 500;
+
     // --- exercise content --------------------------------------------------
 
     /// <summary>

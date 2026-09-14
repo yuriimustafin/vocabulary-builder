@@ -1,5 +1,6 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
+using VocabularyBuilder.Application.Study.Enrichment;
 
 namespace VocabularyBuilder.Infrastructure.HttpClients;
 
@@ -8,6 +9,12 @@ namespace VocabularyBuilder.Infrastructure.HttpClients;
 /// </summary>
 public class MockGptClient : IGptClient
 {
+    /// <summary>
+    /// Headword prefix that makes generation fail on purpose, so a study session's failure
+    /// handling can be exercised end to end without calling a real model.
+    /// </summary>
+    private const string FailureTriggerPrefix = "zzfail";
+
     private readonly Dictionary<string, string> _mockResponses;
     private readonly string _mockDataPath;
 
@@ -30,7 +37,7 @@ public class MockGptClient : IGptClient
         {
             var fileName = Path.GetFileNameWithoutExtension(file);
             var content = File.ReadAllText(file);
-            
+
             try
             {
                 var mockData = JsonSerializer.Deserialize<MockGptResponse>(content);
@@ -48,8 +55,15 @@ public class MockGptClient : IGptClient
 
     public Task<string?> SendMessageAsync(string prompt)
     {
+        // Study content has its own shape and has to satisfy the resolver, so it is built
+        // rather than served from the recorded responses.
+        if (prompt.Contains(StudyContentPrompt.Marker, StringComparison.Ordinal))
+        {
+            return Task.FromResult(StudyContentResponse(prompt));
+        }
+
         var key = GetPromptKey(prompt);
-        
+
         if (_mockResponses.TryGetValue(key, out var response))
         {
             return Task.FromResult<string?>(response);
@@ -70,13 +84,35 @@ public class MockGptClient : IGptClient
         return Task.FromResult<string?>(GetDefaultResponse(word ?? "unknown"));
     }
 
+    /// <summary>
+    /// Builds study content for the requested word. The sentence must contain the headword
+    /// verbatim or the resolver rejects it - the same rule a real response is held to.
+    /// </summary>
+    private static string? StudyContentResponse(string prompt)
+    {
+        var word = ExtractWordFromPrompt(prompt) ?? "unknown";
+
+        if (word.StartsWith(FailureTriggerPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var payload = new
+        {
+            definition = $"a mock definition of {word}",
+            sentence = $"This sentence uses {word} exactly once."
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
     private string GetPromptKey(string prompt)
     {
         // Create a normalized key from the prompt
         return prompt.ToLowerInvariant().Trim();
     }
 
-    private string? ExtractWordFromPrompt(string prompt)
+    private static string? ExtractWordFromPrompt(string prompt)
     {
         // Try to extract the word being queried from the prompt
         var match = System.Text.RegularExpressions.Regex.Match(prompt, @"word:\s*""([^""]+)""");
