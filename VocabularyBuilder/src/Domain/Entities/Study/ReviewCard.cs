@@ -28,7 +28,7 @@ public class ReviewCard : BaseAuditableEntity
     /// <summary>Current scheduling interval in days. Zero while still in learning steps.</summary>
     public int IntervalDays { get; set; }
 
-    /// <summary>Index into StudyOptions.LearningStepsMinutes while Learning or Relearning.</summary>
+    /// <summary>Learning steps completed so far, while Learning or Relearning.</summary>
     public int LearningStepIndex { get; set; }
 
     /// <summary>Count of graded (non-follow-up) reviews. Statistics only - the ladder uses CurrentRung.</summary>

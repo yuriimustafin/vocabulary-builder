@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.Study;
 using VocabularyBuilder.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -5,6 +6,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddKeyVaultIfConfigured(builder.Configuration);
 
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection(StudyOptions.SectionName).Get<StudyOptions>() ?? new StudyOptions());
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration); 
 builder.Services.AddWebServices();
