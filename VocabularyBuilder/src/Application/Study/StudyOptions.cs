@@ -42,6 +42,9 @@ public class StudyOptions
 
     public int MaxIntervalDays { get; set; } = 365;
 
+    /// <summary>Interval at which a word counts as known rather than still bedding in.</summary>
+    public int MatureIntervalDays { get; set; } = 21;
+
     // --- probe selection ---------------------------------------------------
 
     /// <summary>Absolute gap after which the probe escalates to unhinted production.</summary>

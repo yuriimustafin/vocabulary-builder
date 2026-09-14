@@ -1,5 +1,6 @@
-using VocabularyBuilder.Application.Common.Models;
+﻿using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Words.Commands;
+using VocabularyBuilder.Application.Study.Commands;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
 
@@ -22,6 +23,7 @@ public class Words : EndpointGroupBase
         group.MapPost("/", CreateWord);
         group.MapPut("/{id}", UpdateWord);
         group.MapPut("/{id}/status", UpdateWordStatus);
+        group.MapPut("/{id}/mark-for-study", MarkForStudy);
         group.MapDelete("/{id}", DeleteWord);
         group.MapPost("/update-frequencies", UpdateWordFrequencies);
         group.MapGet("/for-export", GetWordsForExport);
@@ -75,6 +77,12 @@ public class Words : EndpointGroupBase
         if (id != command.Id) return Results.BadRequest();
         await sender.Send(command);
         return Results.NoContent();
+    }
+
+    public async Task<IResult> MarkForStudy(ISender sender, string lang, int id, MarkWordForStudyCommand command)
+    {
+        var updated = await sender.Send(command with { WordId = id });
+        return updated ? Results.NoContent() : Results.NotFound();
     }
 
     public async Task<IResult> DeleteWord(ISender sender, string lang, int id)

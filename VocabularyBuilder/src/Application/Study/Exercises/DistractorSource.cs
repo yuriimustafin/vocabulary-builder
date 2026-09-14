@@ -40,7 +40,15 @@ public class DistractorSource : IDistractorSource
                 w.Headword,
                 w.PartOfSpeech,
                 w.Frequency,
-                w.Senses!.Select(s => s.Definition).FirstOrDefault()))
+                // Same precedence as StudyMaterialResolver: a dictionary sense if there is
+                // one, otherwise whatever was generated. Reading only from senses would
+                // leave a collection built without dictionary data with no usable wrong
+                // meanings at all, which silently pins every word to the bottom rung.
+                w.Senses!.Select(s => s.Definition).FirstOrDefault()
+                    ?? _context.WordStudyContents
+                        .Where(c => c.WordId == w.Id)
+                        .Select(c => c.GeneratedDefinition)
+                        .FirstOrDefault()))
             .ToListAsync(cancellationToken);
     }
 }
