@@ -3,6 +3,7 @@ import { Alert, Badge, Card, CardBody, Spinner } from 'reactstrap';
 import { componentFor } from './study/exerciseRegistry';
 import { IntroductionCard } from './study/IntroductionCard';
 import { AnswerFeedback } from './study/AnswerFeedback';
+import { DevControls, isDevelopmentBuild } from './study/DevControls';
 import { GRADE_KEYS } from './study/GradeBar';
 import {
   CardDifficulty,
@@ -470,6 +471,10 @@ export class Study extends Component {
               </p>
             )}
           </>
+        )}
+
+        {isDevelopmentBuild && (
+          <DevControls language={this.state.language} onCleared={() => this.load(true)} />
         )}
       </div>
     );

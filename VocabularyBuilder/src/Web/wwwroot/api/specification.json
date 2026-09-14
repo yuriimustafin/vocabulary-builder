@@ -984,6 +984,68 @@
         }
       }
     },
+    "/api/{lang}/study/dev/clear-today": {
+      "post": {
+        "tags": [
+          "StudyDev"
+        ],
+        "operationId": "PostApiStudyDevClearToday",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearStudyProgressResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/dev/clear-all": {
+      "post": {
+        "tags": [
+          "StudyDev"
+        ],
+        "operationId": "PostApiStudyDevClearAll",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearStudyProgressResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/WeatherForecasts": {
       "get": {
         "tags": [
@@ -2725,6 +2787,24 @@
           },
           "correct": {
             "type": "boolean"
+          }
+        }
+      },
+      "ClearStudyProgressResultDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cardsRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewsRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cardsLeftAdvanced": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },

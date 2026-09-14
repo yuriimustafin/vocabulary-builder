@@ -1092,6 +1092,93 @@ export class StudyClient {
     }
 }
 
+export class StudyDevClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
+    }
+
+    postApiStudyDevClearToday(lang: string): Promise<ClearStudyProgressResultDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/dev/clear-today";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyDevClearToday(_response);
+        });
+    }
+
+    protected processPostApiStudyDevClearToday(response: Response): Promise<ClearStudyProgressResultDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ClearStudyProgressResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ClearStudyProgressResultDto>(null as any);
+    }
+
+    postApiStudyDevClearAll(lang: string): Promise<ClearStudyProgressResultDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/dev/clear-all";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyDevClearAll(_response);
+        });
+    }
+
+    protected processPostApiStudyDevClearAll(response: Response): Promise<ClearStudyProgressResultDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ClearStudyProgressResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ClearStudyProgressResultDto>(null as any);
+    }
+}
+
 export class WeatherForecastsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -3637,6 +3724,50 @@ export interface IRecordFollowUpCommand {
     exerciseType?: ExerciseType;
     elapsedMs?: number;
     correct?: boolean;
+}
+
+export class ClearStudyProgressResultDto implements IClearStudyProgressResultDto {
+    cardsRemoved?: number;
+    reviewsRemoved?: number;
+    cardsLeftAdvanced?: number;
+
+    constructor(data?: IClearStudyProgressResultDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.cardsRemoved = _data["cardsRemoved"];
+            this.reviewsRemoved = _data["reviewsRemoved"];
+            this.cardsLeftAdvanced = _data["cardsLeftAdvanced"];
+        }
+    }
+
+    static fromJS(data: any): ClearStudyProgressResultDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ClearStudyProgressResultDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["cardsRemoved"] = this.cardsRemoved;
+        data["reviewsRemoved"] = this.reviewsRemoved;
+        data["cardsLeftAdvanced"] = this.cardsLeftAdvanced;
+        return data;
+    }
+}
+
+export interface IClearStudyProgressResultDto {
+    cardsRemoved?: number;
+    reviewsRemoved?: number;
+    cardsLeftAdvanced?: number;
 }
 
 export class WeatherForecast implements IWeatherForecast {
