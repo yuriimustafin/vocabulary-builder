@@ -25,6 +25,18 @@ public class StudyOptions
     public int NewCardsPerBatch { get; set; } = 4;
 
     /// <summary>
+    /// How early a learning step may be served so that it mixes in among the words still
+    /// being introduced.
+    ///
+    /// The first step is a minute out, and a batch only ever holds a few new words, so
+    /// without a little grace the first tests are never quite due when the next batch is
+    /// fetched - and a session becomes every new word first, every test afterwards. Kept
+    /// short on purpose: it should catch the one-minute step, not collapse the ten-minute
+    /// one.
+    /// </summary>
+    public int InterleaveWindowMinutes { get; set; } = 2;
+
+    /// <summary>
     /// How far ahead a learning step may be pulled forward when nothing else is left.
     ///
     /// Without this the first day stops dead: twelve words introduced leaves twelve cards

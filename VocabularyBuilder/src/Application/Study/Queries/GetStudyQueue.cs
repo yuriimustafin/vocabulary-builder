@@ -104,7 +104,12 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         var dayStart = StudyDay.StartOf(now, _options.DayRolloverHourUtc);
         var limit = Math.Clamp(request.Limit ?? _options.MaxCardsPerSession, 1, _options.MaxCardsPerSession);
 
-        var due = await DueCardsAsync(request.Language, now, limit, cancellationToken);
+        // A little grace on minute-scale steps, so the first tests are actually available
+        // when the next batch is fetched and end up mixed in among the new words rather
+        // than queued behind all of them.
+        var due = await DueCardsAsync(
+            request.Language, now, now.AddMinutes(_options.InterleaveWindowMinutes),
+            limit, cancellationToken);
 
         // Counting what has already been introduced today is what makes the cap hold
         // however many times the page is refreshed.
@@ -127,8 +132,8 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         if (due.Count == 0 && newWords.Count == 0)
         {
             due = await DueCardsAsync(
-                request.Language, now.AddMinutes(_options.LearnAheadMinutes), limit, cancellationToken,
-                learningOnly: true);
+                request.Language, now, now.AddMinutes(_options.LearnAheadMinutes),
+                limit, cancellationToken);
         }
 
         var wordIds = due.Select(c => c.WordId).Concat(newWords.Select(w => w.Id)).ToList();
@@ -245,27 +250,26 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         return mixed;
     }
 
+    /// <summary>
+    /// Everything due now, plus any minute-scale step falling due within the grace given.
+    ///
+    /// Only steps are ever pulled forward. Bringing a day-scale review early would be a real
+    /// distortion of the schedule rather than a convenience, so those wait until they are
+    /// genuinely due.
+    /// </summary>
     private async Task<List<ReviewCard>> DueCardsAsync(
-        Language language, DateTime cutoff, int limit, CancellationToken cancellationToken,
-        bool learningOnly = false)
+        Language language, DateTime now, DateTime stepCutoff, int limit, CancellationToken cancellationToken)
     {
-        var query = _context.ReviewCards
+        return await _context.ReviewCards
             .Include(c => c.Word).ThenInclude(w => w.Senses)
             .Where(c => c.Word.Language == language)
             .Where(c => c.State != CardState.Suspended)
-            .Where(c => c.DueAtUtc != null && c.DueAtUtc <= cutoff);
-
-        if (learningOnly)
-        {
-            // Only minute-scale steps are worth pulling forward. Bringing a review card
-            // days early would be a real distortion rather than a convenience.
-            query = query.Where(c =>
-                c.State == CardState.New
-                || c.State == CardState.Learning
-                || c.State == CardState.Relearning);
-        }
-
-        return await query
+            .Where(c => c.DueAtUtc != null)
+            .Where(c => c.DueAtUtc <= now
+                || ((c.State == CardState.New
+                        || c.State == CardState.Learning
+                        || c.State == CardState.Relearning)
+                    && c.DueAtUtc <= stepCutoff))
             .OrderBy(c => c.DueAtUtc)
             .Take(limit)
             .ToListAsync(cancellationToken);
