@@ -50,7 +50,7 @@ test.describe('Answer feedback', () => {
     const result = await submitReview(request, card, { answer: wrong });
 
     expect(result.feedback.correct).toBe(false);
-    expect(result.feedback.headword).toBe('fb01', 'the word being asked about is still shown');
+    expect(result.feedback.headword, 'the word being asked about is still shown').toBe('fb01');
     expect(result.feedback.chosen.text).toBe(wrong);
 
     // The meaning that was picked belongs to some other word, and it is named.

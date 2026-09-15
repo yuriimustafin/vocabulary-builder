@@ -42,6 +42,28 @@ export class ScrambleExercise extends Component {
     }));
   };
 
+  /**
+   * Takes back the last letter placed.
+   *
+   * Not counted as starting over: correcting a letter is part of spelling a word, whereas
+   * clearing the lot means the spelling was not known. Only the latter should cost the
+   * grade.
+   */
+  deleteLast = () => {
+    this.setState(state => {
+      if (state.placed.length === 0) {
+        return null;
+      }
+
+      const last = state.placed[state.placed.length - 1];
+
+      return {
+        placed: state.placed.slice(0, -1),
+        available: [...state.available, last]
+      };
+    });
+  };
+
   reset = () => {
     this.setState(state => ({
       ...this.emptyState(this.props.exercise),
@@ -90,6 +112,10 @@ export class ScrambleExercise extends Component {
           <Button color="primary" disabled={placed.length === 0 || submitting}
                   data-testid="scramble-submit" onClick={this.submit}>
             Check
+          </Button>
+          <Button color="secondary" outline disabled={placed.length === 0 || submitting}
+                  data-testid="scramble-delete" onClick={this.deleteLast}>
+            Delete
           </Button>
           <Button color="secondary" outline disabled={placed.length === 0 || submitting}
                   data-testid="scramble-reset" onClick={this.reset}>

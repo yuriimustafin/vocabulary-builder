@@ -984,6 +984,40 @@
         }
       }
     },
+    "/api/{lang}/study/cards/{id}/known": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyCardsKnown",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/{lang}/study/dev/clear-today": {
       "post": {
         "tags": [

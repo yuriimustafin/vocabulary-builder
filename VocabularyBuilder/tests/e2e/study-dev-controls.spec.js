@@ -75,7 +75,7 @@ test.describe('Clearing study progress', () => {
     const queue = await getQueue(request);
 
     expect(queue.cards.length).toBeGreaterThan(0);
-    expect(queue.cards[0].isIntroduction).toBe(true, 'every word is unmet again');
+    expect(queue.cards[0].isIntroduction, 'every word is unmet again').toBe(true);
   });
 
   test('the buttons are on the page and restart the session', async ({ request, page }) => {

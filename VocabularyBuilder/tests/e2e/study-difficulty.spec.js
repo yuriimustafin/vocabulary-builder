@@ -69,7 +69,7 @@ test.describe('Difficulty tiers', () => {
       easeFactor: 2.5, recentSuccessRate: 1.0, lapsesSinceRecovery: 0
     }, 2);
 
-    expect(queued.difficulty).toBe(0, 'the record is clean');
+    expect(queued.difficulty, 'the record is clean').toBe(0);
     expect(result.followUps).toHaveLength(2, 'but Hard means it was only just retrieved');
   });
 

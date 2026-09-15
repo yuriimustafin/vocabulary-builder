@@ -113,7 +113,7 @@ test.describe('Diminishing cues after a failure', () => {
     });
 
     const after = await getCard(request, 'sc02');
-    expect(after.gradedReviews).toBe(1, 'a follow-up is not a review');
+    expect(after.gradedReviews, 'a follow-up is not a review').toBe(1);
     expect(after.followUps).toBe(1);
   });
 

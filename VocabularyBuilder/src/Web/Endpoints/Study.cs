@@ -22,6 +22,7 @@ public class Study : EndpointGroupBase
         group.MapPost("/cards/{id}/suspend", SuspendCard);
         group.MapPost("/cards/{id}/resume", ResumeCard);
         group.MapPost("/cards/{id}/reset", ResetCard);
+        group.MapPost("/cards/{id}/known", MarkAsKnown);
     }
 
     public async Task<StudyQueueDto> GetQueue(ISender sender, string lang, int? limit = null)
@@ -63,6 +64,11 @@ public class Study : EndpointGroupBase
     public async Task<IResult> ResetCard(ISender sender, string lang, int id)
     {
         return await sender.Send(new ResetCardCommand(id)) ? Results.NoContent() : Results.NotFound();
+    }
+
+    public async Task<IResult> MarkAsKnown(ISender sender, string lang, int id)
+    {
+        return await sender.Send(new MarkWordAsKnownCommand(id)) ? Results.NoContent() : Results.NotFound();
     }
 
     private static Language ParseLanguage(string lang) => lang.ToLower() switch

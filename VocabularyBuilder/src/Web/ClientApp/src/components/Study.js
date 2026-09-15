@@ -212,6 +212,50 @@ export class Study extends Component {
     }
   };
 
+  /**
+   * Takes a word out of study because it is already known, and moves on. The card is gone,
+   * so the place it held in the day is handed back and another word fills it.
+   */
+  markKnown = async () => {
+    const card = this.currentCard;
+
+    if (!card || this.busy) {
+      return;
+    }
+
+    this.setState({ submitting: true });
+
+    try {
+      const response = await fetch(this.api(`/cards/${card.cardId}/known`), { method: 'POST' });
+
+      if (!response.ok) {
+        throw new Error(`Could not set the word aside: ${response.status}`);
+      }
+
+      // Dropped from the batch as well, so it cannot come round again in this session.
+      this.setState(state => ({
+        submitting: false,
+        cards: state.cards.filter(c => c.cardId !== card.cardId)
+      }), this.showCardAtCurrentIndex);
+    } catch (error) {
+      console.error('Could not set the word aside', error);
+      this.setState({ submitting: false, error: 'Could not set that word aside.' });
+    }
+  };
+
+  /**
+   * Shows whatever now sits at the current position. Removing a card shifts the rest up,
+   * so the index already points at the next one.
+   */
+  showCardAtCurrentIndex = () => {
+    if (this.state.index >= this.state.cards.length) {
+      this.load(true);
+      return;
+    }
+
+    this.setState({ feedback: null, hintUsed: false, revealed: false, shownAt: Date.now() });
+  };
+
   /** Self-graded: the learner's own judgement goes straight through. */
   grade = selfGrade => this.submit({ selfGrade });
 
@@ -361,6 +405,7 @@ export class Study extends Component {
           exercise={exercise}
           submitting={this.busy}
           onAcknowledge={this.acknowledge}
+          onAlreadyKnown={this.markKnown}
         />
       );
     }

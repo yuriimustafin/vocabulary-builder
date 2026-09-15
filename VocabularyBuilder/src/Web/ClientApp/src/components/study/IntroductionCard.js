@@ -8,7 +8,7 @@ import { Button } from 'reactstrap';
  * how well they recalled it would have no honest answer - the word simply goes on the
  * first learning step, and the real test comes a minute later.
  */
-export function IntroductionCard({ exercise, onAcknowledge, submitting }) {
+export function IntroductionCard({ exercise, onAcknowledge, onAlreadyKnown, submitting }) {
   return (
     <div data-testid="introduction-card">
       <div className="display-6 fw-bold" data-testid="exercise-prompt">{exercise.prompt}</div>
@@ -24,15 +24,30 @@ export function IntroductionCard({ exercise, onAcknowledge, submitting }) {
         </p>
       )}
 
-      <Button
-        color="primary"
-        className="mt-4"
-        disabled={submitting}
-        data-testid="introduction-acknowledge"
-        onClick={onAcknowledge}
-      >
-        Got it <span className="opacity-75 small">(space)</span>
-      </Button>
+      <div className="d-flex gap-2 flex-wrap mt-4">
+        <Button
+          color="primary"
+          disabled={submitting}
+          data-testid="introduction-acknowledge"
+          onClick={onAcknowledge}
+        >
+          Got it <span className="opacity-75 small">(space)</span>
+        </Button>
+
+        {/*
+          Recognising a word on sight is worth saying: studying it would spend a place in
+          the day on something already learned, and another word takes its place instead.
+        */}
+        <Button
+          color="secondary"
+          outline
+          disabled={submitting}
+          data-testid="introduction-known"
+          onClick={onAlreadyKnown}
+        >
+          I already know this word
+        </Button>
+      </div>
 
       <p className="text-muted small mt-3 mb-0">
         You will be asked about this one shortly.

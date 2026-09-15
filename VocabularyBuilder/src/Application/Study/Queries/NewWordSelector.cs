@@ -27,10 +27,15 @@ public static class NewWordSelector
         }
 
         // A word with a card has been introduced already; one without has not.
+        //
+        // Words marked Known are skipped. Saying so is the only way to decline a word for
+        // good: a card is what records that a word has been seen, so dismissing one without
+        // this would just mean it came back tomorrow.
         var candidates = context.Words
             .Include(w => w.Senses)
             .Include(w => w.WordEncounters)
             .Where(w => w.Language == language)
+            .Where(w => w.Status != WordStatus.Known)
             .Where(w => !context.ReviewCards.Any(c => c.WordId == w.Id));
 
         var share = Math.Max(1, count / 3);

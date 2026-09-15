@@ -91,6 +91,6 @@ test.describe('Long-gap escalation', () => {
     const { getCard } = require('./helpers/study-helpers');
     const stored = await getCard(request, 'lg05');
 
-    expect(stored.rung).toBe(3, 'the escalation is for this attempt only');
+    expect(stored.rung, 'the escalation is for this attempt only').toBe(3);
   });
 });
