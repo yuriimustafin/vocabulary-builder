@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.Study;
 using VocabularyBuilder.Infrastructure.Data;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -5,9 +6,18 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddKeyVaultIfConfigured(builder.Configuration);
 
+builder.Services.AddSingleton(
+    builder.Configuration.GetSection(StudyOptions.SectionName).Get<StudyOptions>() ?? new StudyOptions());
 builder.Services.AddApplicationServices();
 builder.Services.AddInfrastructureServices(builder.Configuration); 
 builder.Services.AddWebServices();
+
+// End-to-end tests need to move time: spaced repetition is measured in days, and a suite
+// that can only wait in real time could never reach the behaviour worth testing.
+if (builder.Environment.EnvironmentName == "E2ETest")
+{
+    builder.Services.AddSingleton<TimeProvider, VocabularyBuilder.Web.Services.TestTimeProvider>();
+}
 
 builder.Services.AddCors(options =>
 {

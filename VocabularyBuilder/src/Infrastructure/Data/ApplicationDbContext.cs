@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 using VocabularyBuilder.Domain.Entities.Frequency;
+using VocabularyBuilder.Domain.Entities.Study;
 using System.Reflection.Emit;
 
 namespace VocabularyBuilder.Infrastructure.Data;
@@ -31,6 +32,12 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<VocabularyList> VocabularyLists => Set<VocabularyList>();
 
     public DbSet<VocabularyListItem> VocabularyListItems => Set<VocabularyListItem>();
+
+    public DbSet<ReviewCard> ReviewCards => Set<ReviewCard>();
+
+    public DbSet<ReviewLog> ReviewLogs => Set<ReviewLog>();
+
+    public DbSet<WordStudyContent> WordStudyContents => Set<WordStudyContent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

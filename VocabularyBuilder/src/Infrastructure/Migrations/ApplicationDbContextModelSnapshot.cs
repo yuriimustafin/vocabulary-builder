@@ -186,6 +186,187 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.ToTable("FrequencyWords");
                 });
 
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewCard", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("CurrentRung")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("DueAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("EaseFactor")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("IntervalDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("IntroducedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Lapses")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("LapsesSinceRecovery")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastReviewedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("LearningStepIndex")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("RecentSuccessRate")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("ReviewNumber")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("State")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("IntroducedAtUtc");
+
+                    b.HasIndex("WordId")
+                        .IsUnique();
+
+                    b.HasIndex("State", "DueAtUtc");
+
+                    b.ToTable("ReviewCards");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<Guid>("AttemptId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("EaseFactorAfter")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("ElapsedMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ExerciseType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Grade")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("GradeWasSelfReported")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("HintUsed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("IntervalAfterDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("IntervalBeforeDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsScaffold")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ReviewCardId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ReviewedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("RungBefore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("StateBefore")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AttemptId")
+                        .IsUnique();
+
+                    b.HasIndex("ReviewCardId", "ReviewedAtUtc");
+
+                    b.ToTable("ReviewLogs");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.WordStudyContent", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ClaimedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GeneratedContextSentence")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("GeneratedDefinition")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("GenerationAttempts")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PromptVersion")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WordId")
+                        .IsUnique();
+
+                    b.HasIndex("Status", "ClaimedAtUtc");
+
+                    b.ToTable("WordStudyContents");
+                });
+
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.BookInfo", b =>
                 {
                     b.Property<int>("Id")
@@ -504,6 +685,9 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsMarkedForStudy")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Language")
                         .HasColumnType("INTEGER");
 
@@ -737,6 +921,39 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("BaseForm");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewCard", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Word");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewLog", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Domain.Entities.Study.ReviewCard", "ReviewCard")
+                        .WithMany()
+                        .HasForeignKey("ReviewCardId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReviewCard");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.WordStudyContent", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Word");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.ImportedBookWord", b =>

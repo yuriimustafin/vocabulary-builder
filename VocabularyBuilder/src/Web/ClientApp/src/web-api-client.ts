@@ -770,6 +770,452 @@ export class ListsClient {
     }
 }
 
+export class StudyClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
+    }
+
+    getApiStudyQueue(lang: string, limit: number | null | undefined): Promise<StudyQueueDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/queue?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (limit !== undefined && limit !== null)
+            url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiStudyQueue(_response);
+        });
+    }
+
+    protected processGetApiStudyQueue(response: Response): Promise<StudyQueueDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = StudyQueueDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StudyQueueDto>(null as any);
+    }
+
+    getApiStudyStats(lang: string): Promise<StudyStatsDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/stats";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiStudyStats(_response);
+        });
+    }
+
+    protected processGetApiStudyStats(response: Response): Promise<StudyStatsDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = StudyStatsDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<StudyStatsDto>(null as any);
+    }
+
+    postApiStudyReviews(lang: string, command: SubmitReviewCommand): Promise<ReviewResultDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/reviews";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyReviews(_response);
+        });
+    }
+
+    protected processPostApiStudyReviews(response: Response): Promise<ReviewResultDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ReviewResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ReviewResultDto>(null as any);
+    }
+
+    postApiStudyIntroductions(lang: string, command: AcknowledgeIntroductionCommand): Promise<IntroductionResultDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/introductions";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyIntroductions(_response);
+        });
+    }
+
+    protected processPostApiStudyIntroductions(response: Response): Promise<IntroductionResultDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = IntroductionResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<IntroductionResultDto>(null as any);
+    }
+
+    postApiStudyFollowUps(lang: string, command: RecordFollowUpCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/study/follow-ups";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyFollowUps(_response);
+        });
+    }
+
+    protected processPostApiStudyFollowUps(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    postApiStudyCardsSuspend(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/study/cards/{id}/suspend";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyCardsSuspend(_response);
+        });
+    }
+
+    protected processPostApiStudyCardsSuspend(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    postApiStudyCardsResume(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/study/cards/{id}/resume";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyCardsResume(_response);
+        });
+    }
+
+    protected processPostApiStudyCardsResume(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    postApiStudyCardsReset(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/study/cards/{id}/reset";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyCardsReset(_response);
+        });
+    }
+
+    protected processPostApiStudyCardsReset(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    postApiStudyCardsKnown(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/study/cards/{id}/known";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyCardsKnown(_response);
+        });
+    }
+
+    protected processPostApiStudyCardsKnown(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class StudyDevClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
+    }
+
+    postApiStudyDevClearToday(lang: string): Promise<ClearStudyProgressResultDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/dev/clear-today";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyDevClearToday(_response);
+        });
+    }
+
+    protected processPostApiStudyDevClearToday(response: Response): Promise<ClearStudyProgressResultDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ClearStudyProgressResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ClearStudyProgressResultDto>(null as any);
+    }
+
+    postApiStudyDevClearAll(lang: string): Promise<ClearStudyProgressResultDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/dev/clear-all";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiStudyDevClearAll(_response);
+        });
+    }
+
+    protected processPostApiStudyDevClearAll(response: Response): Promise<ClearStudyProgressResultDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ClearStudyProgressResultDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ClearStudyProgressResultDto>(null as any);
+    }
+}
+
 export class WeatherForecastsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -1108,6 +1554,47 @@ export class WordsClient {
     }
 
     protected processPutApiWordsStatus(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    putApiWordsMarkForStudy(lang: string, id: number, command: MarkWordForStudyCommand): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/words/{id}/mark-for-study";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = JSON.stringify(command);
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPutApiWordsMarkForStudy(_response);
+        });
+    }
+
+    protected processPutApiWordsMarkForStudy(response: Response): Promise<void> {
         followIfLoginRedirect(response);
         const status = response.status;
         let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
@@ -2500,6 +2987,826 @@ export interface IUpdateListItemCommand {
     isMastered?: boolean;
 }
 
+export class StudyQueueDto implements IStudyQueueDto {
+    cards?: StudyCardDto[];
+    pendingEnrichmentCount?: number;
+    dueCount?: number;
+    newToday?: number;
+    newCardsPerDay?: number;
+    nextDueAtUtc?: Date | undefined;
+
+    constructor(data?: IStudyQueueDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["cards"])) {
+                this.cards = [] as any;
+                for (let item of _data["cards"])
+                    this.cards!.push(StudyCardDto.fromJS(item));
+            }
+            this.pendingEnrichmentCount = _data["pendingEnrichmentCount"];
+            this.dueCount = _data["dueCount"];
+            this.newToday = _data["newToday"];
+            this.newCardsPerDay = _data["newCardsPerDay"];
+            this.nextDueAtUtc = _data["nextDueAtUtc"] ? new Date(_data["nextDueAtUtc"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): StudyQueueDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new StudyQueueDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.cards)) {
+            data["cards"] = [];
+            for (let item of this.cards)
+                data["cards"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["pendingEnrichmentCount"] = this.pendingEnrichmentCount;
+        data["dueCount"] = this.dueCount;
+        data["newToday"] = this.newToday;
+        data["newCardsPerDay"] = this.newCardsPerDay;
+        data["nextDueAtUtc"] = this.nextDueAtUtc ? this.nextDueAtUtc.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IStudyQueueDto {
+    cards?: StudyCardDto[];
+    pendingEnrichmentCount?: number;
+    dueCount?: number;
+    newToday?: number;
+    newCardsPerDay?: number;
+    nextDueAtUtc?: Date | undefined;
+}
+
+export class StudyCardDto implements IStudyCardDto {
+    cardId?: number;
+    wordId?: number;
+    headword?: string;
+    attemptId?: string;
+    rung?: number;
+    state?: CardState;
+    difficulty?: CardDifficulty;
+    isNew?: boolean;
+    isIntroduction?: boolean;
+    exercise?: ExercisePayload;
+
+    constructor(data?: IStudyCardDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.cardId = _data["cardId"];
+            this.wordId = _data["wordId"];
+            this.headword = _data["headword"];
+            this.attemptId = _data["attemptId"];
+            this.rung = _data["rung"];
+            this.state = _data["state"];
+            this.difficulty = _data["difficulty"];
+            this.isNew = _data["isNew"];
+            this.isIntroduction = _data["isIntroduction"];
+            this.exercise = _data["exercise"] ? ExercisePayload.fromJS(_data["exercise"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): StudyCardDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new StudyCardDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["cardId"] = this.cardId;
+        data["wordId"] = this.wordId;
+        data["headword"] = this.headword;
+        data["attemptId"] = this.attemptId;
+        data["rung"] = this.rung;
+        data["state"] = this.state;
+        data["difficulty"] = this.difficulty;
+        data["isNew"] = this.isNew;
+        data["isIntroduction"] = this.isIntroduction;
+        data["exercise"] = this.exercise ? this.exercise.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IStudyCardDto {
+    cardId?: number;
+    wordId?: number;
+    headword?: string;
+    attemptId?: string;
+    rung?: number;
+    state?: CardState;
+    difficulty?: CardDifficulty;
+    isNew?: boolean;
+    isIntroduction?: boolean;
+    exercise?: ExercisePayload;
+}
+
+export enum CardState {
+    New = 0,
+    Learning = 1,
+    Review = 2,
+    Relearning = 3,
+    Suspended = 4,
+}
+
+export enum CardDifficulty {
+    Comfortable = 0,
+    Shaky = 1,
+    Difficult = 2,
+}
+
+export class ExercisePayload implements IExercisePayload {
+    type?: ExerciseType;
+    gradingMode?: GradingMode;
+    wordId?: number;
+    prompt?: string;
+    answer?: string | undefined;
+    hint?: string | undefined;
+    hintAvailable?: boolean;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    options?: string[] | undefined;
+    tiles?: string[] | undefined;
+    letterMask?: string | undefined;
+    contextSentence?: string | undefined;
+
+    constructor(data?: IExercisePayload) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.type = _data["type"];
+            this.gradingMode = _data["gradingMode"];
+            this.wordId = _data["wordId"];
+            this.prompt = _data["prompt"];
+            this.answer = _data["answer"];
+            this.hint = _data["hint"];
+            this.hintAvailable = _data["hintAvailable"];
+            this.transcription = _data["transcription"];
+            this.partOfSpeech = _data["partOfSpeech"];
+            if (Array.isArray(_data["options"])) {
+                this.options = [] as any;
+                for (let item of _data["options"])
+                    this.options!.push(item);
+            }
+            if (Array.isArray(_data["tiles"])) {
+                this.tiles = [] as any;
+                for (let item of _data["tiles"])
+                    this.tiles!.push(item);
+            }
+            this.letterMask = _data["letterMask"];
+            this.contextSentence = _data["contextSentence"];
+        }
+    }
+
+    static fromJS(data: any): ExercisePayload {
+        data = typeof data === 'object' ? data : {};
+        let result = new ExercisePayload();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["type"] = this.type;
+        data["gradingMode"] = this.gradingMode;
+        data["wordId"] = this.wordId;
+        data["prompt"] = this.prompt;
+        data["answer"] = this.answer;
+        data["hint"] = this.hint;
+        data["hintAvailable"] = this.hintAvailable;
+        data["transcription"] = this.transcription;
+        data["partOfSpeech"] = this.partOfSpeech;
+        if (Array.isArray(this.options)) {
+            data["options"] = [];
+            for (let item of this.options)
+                data["options"].push(item);
+        }
+        if (Array.isArray(this.tiles)) {
+            data["tiles"] = [];
+            for (let item of this.tiles)
+                data["tiles"].push(item);
+        }
+        data["letterMask"] = this.letterMask;
+        data["contextSentence"] = this.contextSentence;
+        return data;
+    }
+}
+
+export interface IExercisePayload {
+    type?: ExerciseType;
+    gradingMode?: GradingMode;
+    wordId?: number;
+    prompt?: string;
+    answer?: string | undefined;
+    hint?: string | undefined;
+    hintAvailable?: boolean;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    options?: string[] | undefined;
+    tiles?: string[] | undefined;
+    letterMask?: string | undefined;
+    contextSentence?: string | undefined;
+}
+
+export enum ExerciseType {
+    WordToMeaningReveal = 0,
+    WordToMeaningChoice = 1,
+    MeaningToWordChoice = 2,
+    ContextToWordRecall = 3,
+    MeaningToWordScramble = 4,
+    MeaningToWordRecall = 5,
+    MeaningToWordPartialLetters = 6,
+}
+
+export enum GradingMode {
+    SelfReported = 0,
+    Automatic = 1,
+}
+
+export class StudyStatsDto implements IStudyStatsDto {
+    dueNow?: number;
+    newToday?: number;
+    newCardsPerDay?: number;
+    reviewedToday?: number;
+    learning?: number;
+    young?: number;
+    mature?: number;
+    suspended?: number;
+    notStarted?: number;
+    awaitingContent?: number;
+
+    constructor(data?: IStudyStatsDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.dueNow = _data["dueNow"];
+            this.newToday = _data["newToday"];
+            this.newCardsPerDay = _data["newCardsPerDay"];
+            this.reviewedToday = _data["reviewedToday"];
+            this.learning = _data["learning"];
+            this.young = _data["young"];
+            this.mature = _data["mature"];
+            this.suspended = _data["suspended"];
+            this.notStarted = _data["notStarted"];
+            this.awaitingContent = _data["awaitingContent"];
+        }
+    }
+
+    static fromJS(data: any): StudyStatsDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new StudyStatsDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["dueNow"] = this.dueNow;
+        data["newToday"] = this.newToday;
+        data["newCardsPerDay"] = this.newCardsPerDay;
+        data["reviewedToday"] = this.reviewedToday;
+        data["learning"] = this.learning;
+        data["young"] = this.young;
+        data["mature"] = this.mature;
+        data["suspended"] = this.suspended;
+        data["notStarted"] = this.notStarted;
+        data["awaitingContent"] = this.awaitingContent;
+        return data;
+    }
+}
+
+export interface IStudyStatsDto {
+    dueNow?: number;
+    newToday?: number;
+    newCardsPerDay?: number;
+    reviewedToday?: number;
+    learning?: number;
+    young?: number;
+    mature?: number;
+    suspended?: number;
+    notStarted?: number;
+    awaitingContent?: number;
+}
+
+export class ReviewResultDto implements IReviewResultDto {
+    grade?: ReviewGrade;
+    state?: CardState;
+    intervalDays?: number;
+    rung?: number;
+    difficulty?: CardDifficulty;
+    nextDueAtUtc?: Date | undefined;
+    followUps?: FollowUpDto[];
+    wasDuplicate?: boolean;
+    feedback?: ReviewFeedbackDto | undefined;
+
+    constructor(data?: IReviewResultDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.grade = _data["grade"];
+            this.state = _data["state"];
+            this.intervalDays = _data["intervalDays"];
+            this.rung = _data["rung"];
+            this.difficulty = _data["difficulty"];
+            this.nextDueAtUtc = _data["nextDueAtUtc"] ? new Date(_data["nextDueAtUtc"].toString()) : <any>undefined;
+            if (Array.isArray(_data["followUps"])) {
+                this.followUps = [] as any;
+                for (let item of _data["followUps"])
+                    this.followUps!.push(FollowUpDto.fromJS(item));
+            }
+            this.wasDuplicate = _data["wasDuplicate"];
+            this.feedback = _data["feedback"] ? ReviewFeedbackDto.fromJS(_data["feedback"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): ReviewResultDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ReviewResultDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["grade"] = this.grade;
+        data["state"] = this.state;
+        data["intervalDays"] = this.intervalDays;
+        data["rung"] = this.rung;
+        data["difficulty"] = this.difficulty;
+        data["nextDueAtUtc"] = this.nextDueAtUtc ? this.nextDueAtUtc.toISOString() : <any>undefined;
+        if (Array.isArray(this.followUps)) {
+            data["followUps"] = [];
+            for (let item of this.followUps)
+                data["followUps"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["wasDuplicate"] = this.wasDuplicate;
+        data["feedback"] = this.feedback ? this.feedback.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IReviewResultDto {
+    grade?: ReviewGrade;
+    state?: CardState;
+    intervalDays?: number;
+    rung?: number;
+    difficulty?: CardDifficulty;
+    nextDueAtUtc?: Date | undefined;
+    followUps?: FollowUpDto[];
+    wasDuplicate?: boolean;
+    feedback?: ReviewFeedbackDto | undefined;
+}
+
+export enum ReviewGrade {
+    Again = 1,
+    Hard = 2,
+    Good = 3,
+    Easy = 4,
+}
+
+export class FollowUpDto implements IFollowUpDto {
+    exercise?: ExercisePayload;
+
+    constructor(data?: IFollowUpDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.exercise = _data["exercise"] ? ExercisePayload.fromJS(_data["exercise"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): FollowUpDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new FollowUpDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["exercise"] = this.exercise ? this.exercise.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IFollowUpDto {
+    exercise?: ExercisePayload;
+}
+
+export class ReviewFeedbackDto implements IReviewFeedbackDto {
+    correct?: boolean;
+    headword?: string;
+    meaning?: string | undefined;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    contextSentence?: string | undefined;
+    chosen?: ChosenAnswerDto | undefined;
+
+    constructor(data?: IReviewFeedbackDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.correct = _data["correct"];
+            this.headword = _data["headword"];
+            this.meaning = _data["meaning"];
+            this.transcription = _data["transcription"];
+            this.partOfSpeech = _data["partOfSpeech"];
+            this.contextSentence = _data["contextSentence"];
+            this.chosen = _data["chosen"] ? ChosenAnswerDto.fromJS(_data["chosen"]) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): ReviewFeedbackDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ReviewFeedbackDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["correct"] = this.correct;
+        data["headword"] = this.headword;
+        data["meaning"] = this.meaning;
+        data["transcription"] = this.transcription;
+        data["partOfSpeech"] = this.partOfSpeech;
+        data["contextSentence"] = this.contextSentence;
+        data["chosen"] = this.chosen ? this.chosen.toJSON() : <any>undefined;
+        return data;
+    }
+}
+
+export interface IReviewFeedbackDto {
+    correct?: boolean;
+    headword?: string;
+    meaning?: string | undefined;
+    transcription?: string | undefined;
+    partOfSpeech?: string | undefined;
+    contextSentence?: string | undefined;
+    chosen?: ChosenAnswerDto | undefined;
+}
+
+export class ChosenAnswerDto implements IChosenAnswerDto {
+    text?: string;
+    headword?: string | undefined;
+    meaning?: string | undefined;
+
+    constructor(data?: IChosenAnswerDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.text = _data["text"];
+            this.headword = _data["headword"];
+            this.meaning = _data["meaning"];
+        }
+    }
+
+    static fromJS(data: any): ChosenAnswerDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ChosenAnswerDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["text"] = this.text;
+        data["headword"] = this.headword;
+        data["meaning"] = this.meaning;
+        return data;
+    }
+}
+
+export interface IChosenAnswerDto {
+    text?: string;
+    headword?: string | undefined;
+    meaning?: string | undefined;
+}
+
+export class SubmitReviewCommand implements ISubmitReviewCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    answer?: string | undefined;
+    selfGrade?: ReviewGrade | undefined;
+    elapsedMs?: number;
+    resets?: number;
+    hintUsed?: boolean;
+    abandoned?: boolean;
+
+    constructor(data?: ISubmitReviewCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.cardId = _data["cardId"];
+            this.attemptId = _data["attemptId"];
+            this.exerciseType = _data["exerciseType"];
+            this.answer = _data["answer"];
+            this.selfGrade = _data["selfGrade"];
+            this.elapsedMs = _data["elapsedMs"];
+            this.resets = _data["resets"];
+            this.hintUsed = _data["hintUsed"];
+            this.abandoned = _data["abandoned"];
+        }
+    }
+
+    static fromJS(data: any): SubmitReviewCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new SubmitReviewCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["cardId"] = this.cardId;
+        data["attemptId"] = this.attemptId;
+        data["exerciseType"] = this.exerciseType;
+        data["answer"] = this.answer;
+        data["selfGrade"] = this.selfGrade;
+        data["elapsedMs"] = this.elapsedMs;
+        data["resets"] = this.resets;
+        data["hintUsed"] = this.hintUsed;
+        data["abandoned"] = this.abandoned;
+        return data;
+    }
+}
+
+export interface ISubmitReviewCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    answer?: string | undefined;
+    selfGrade?: ReviewGrade | undefined;
+    elapsedMs?: number;
+    resets?: number;
+    hintUsed?: boolean;
+    abandoned?: boolean;
+}
+
+export class IntroductionResultDto implements IIntroductionResultDto {
+    state?: CardState;
+    rung?: number;
+    nextDueAtUtc?: Date | undefined;
+    wasDuplicate?: boolean;
+
+    constructor(data?: IIntroductionResultDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.state = _data["state"];
+            this.rung = _data["rung"];
+            this.nextDueAtUtc = _data["nextDueAtUtc"] ? new Date(_data["nextDueAtUtc"].toString()) : <any>undefined;
+            this.wasDuplicate = _data["wasDuplicate"];
+        }
+    }
+
+    static fromJS(data: any): IntroductionResultDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new IntroductionResultDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["state"] = this.state;
+        data["rung"] = this.rung;
+        data["nextDueAtUtc"] = this.nextDueAtUtc ? this.nextDueAtUtc.toISOString() : <any>undefined;
+        data["wasDuplicate"] = this.wasDuplicate;
+        return data;
+    }
+}
+
+export interface IIntroductionResultDto {
+    state?: CardState;
+    rung?: number;
+    nextDueAtUtc?: Date | undefined;
+    wasDuplicate?: boolean;
+}
+
+export class AcknowledgeIntroductionCommand implements IAcknowledgeIntroductionCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    elapsedMs?: number;
+
+    constructor(data?: IAcknowledgeIntroductionCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.cardId = _data["cardId"];
+            this.attemptId = _data["attemptId"];
+            this.exerciseType = _data["exerciseType"];
+            this.elapsedMs = _data["elapsedMs"];
+        }
+    }
+
+    static fromJS(data: any): AcknowledgeIntroductionCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new AcknowledgeIntroductionCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["cardId"] = this.cardId;
+        data["attemptId"] = this.attemptId;
+        data["exerciseType"] = this.exerciseType;
+        data["elapsedMs"] = this.elapsedMs;
+        return data;
+    }
+}
+
+export interface IAcknowledgeIntroductionCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    elapsedMs?: number;
+}
+
+export class RecordFollowUpCommand implements IRecordFollowUpCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    elapsedMs?: number;
+    correct?: boolean;
+
+    constructor(data?: IRecordFollowUpCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.cardId = _data["cardId"];
+            this.attemptId = _data["attemptId"];
+            this.exerciseType = _data["exerciseType"];
+            this.elapsedMs = _data["elapsedMs"];
+            this.correct = _data["correct"];
+        }
+    }
+
+    static fromJS(data: any): RecordFollowUpCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new RecordFollowUpCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["cardId"] = this.cardId;
+        data["attemptId"] = this.attemptId;
+        data["exerciseType"] = this.exerciseType;
+        data["elapsedMs"] = this.elapsedMs;
+        data["correct"] = this.correct;
+        return data;
+    }
+}
+
+export interface IRecordFollowUpCommand {
+    cardId?: number;
+    attemptId?: string;
+    exerciseType?: ExerciseType;
+    elapsedMs?: number;
+    correct?: boolean;
+}
+
+export class ClearStudyProgressResultDto implements IClearStudyProgressResultDto {
+    cardsRemoved?: number;
+    reviewsRemoved?: number;
+    cardsLeftAdvanced?: number;
+
+    constructor(data?: IClearStudyProgressResultDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.cardsRemoved = _data["cardsRemoved"];
+            this.reviewsRemoved = _data["reviewsRemoved"];
+            this.cardsLeftAdvanced = _data["cardsLeftAdvanced"];
+        }
+    }
+
+    static fromJS(data: any): ClearStudyProgressResultDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ClearStudyProgressResultDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["cardsRemoved"] = this.cardsRemoved;
+        data["reviewsRemoved"] = this.reviewsRemoved;
+        data["cardsLeftAdvanced"] = this.cardsLeftAdvanced;
+        return data;
+    }
+}
+
+export interface IClearStudyProgressResultDto {
+    cardsRemoved?: number;
+    reviewsRemoved?: number;
+    cardsLeftAdvanced?: number;
+}
+
 export class WeatherForecast implements IWeatherForecast {
     date?: Date;
     temperatureC?: number;
@@ -2886,6 +4193,46 @@ export class UpdateWordStatusCommand implements IUpdateWordStatusCommand {
 export interface IUpdateWordStatusCommand {
     id?: number;
     status?: WordStatus;
+}
+
+export class MarkWordForStudyCommand implements IMarkWordForStudyCommand {
+    wordId?: number;
+    marked?: boolean;
+
+    constructor(data?: IMarkWordForStudyCommand) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.wordId = _data["wordId"];
+            this.marked = _data["marked"];
+        }
+    }
+
+    static fromJS(data: any): MarkWordForStudyCommand {
+        data = typeof data === 'object' ? data : {};
+        let result = new MarkWordForStudyCommand();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["wordId"] = this.wordId;
+        data["marked"] = this.marked;
+        return data;
+    }
+}
+
+export interface IMarkWordForStudyCommand {
+    wordId?: number;
+    marked?: boolean;
 }
 
 export class UpdateWordFrequenciesResult implements IUpdateWordFrequenciesResult {

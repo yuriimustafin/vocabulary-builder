@@ -688,6 +688,398 @@
         }
       }
     },
+    "/api/{lang}/study/queue": {
+      "get": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "GetApiStudyQueue",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyQueueDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/stats": {
+      "get": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "GetApiStudyStats",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StudyStatsDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/reviews": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyReviews",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitReviewCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/introductions": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyIntroductions",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AcknowledgeIntroductionCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IntroductionResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/follow-ups": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyFollowUps",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecordFollowUpCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 2
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/cards/{id}/suspend": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyCardsSuspend",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/cards/{id}/resume": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyCardsResume",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/cards/{id}/reset": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyCardsReset",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/cards/{id}/known": {
+      "post": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "PostApiStudyCardsKnown",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/dev/clear-today": {
+      "post": {
+        "tags": [
+          "StudyDev"
+        ],
+        "operationId": "PostApiStudyDevClearToday",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearStudyProgressResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/study/dev/clear-all": {
+      "post": {
+        "tags": [
+          "StudyDev"
+        ],
+        "operationId": "PostApiStudyDevClearAll",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClearStudyProgressResultDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/WeatherForecasts": {
       "get": {
         "tags": [
@@ -1025,6 +1417,52 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/UpdateWordStatusCommand"
+              }
+            }
+          },
+          "required": true,
+          "x-position": 3
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/words/{id}/mark-for-study": {
+      "put": {
+        "tags": [
+          "Words"
+        ],
+        "operationId": "PutApiWordsMarkForStudy",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "requestBody": {
+          "x-name": "command",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MarkWordForStudyCommand"
               }
             }
           },
@@ -1909,6 +2347,501 @@
           }
         }
       },
+      "StudyQueueDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StudyCardDto"
+            }
+          },
+          "pendingEnrichmentCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "dueCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "newToday": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "newCardsPerDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextDueAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "StudyCardDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "wordId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "headword": {
+            "type": "string"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "rung": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CardState"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/CardDifficulty"
+          },
+          "isNew": {
+            "type": "boolean"
+          },
+          "isIntroduction": {
+            "type": "boolean"
+          },
+          "exercise": {
+            "$ref": "#/components/schemas/ExercisePayload"
+          }
+        }
+      },
+      "CardState": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "New",
+          "Learning",
+          "Review",
+          "Relearning",
+          "Suspended"
+        ],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "CardDifficulty": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Comfortable",
+          "Shaky",
+          "Difficult"
+        ],
+        "enum": [
+          0,
+          1,
+          2
+        ]
+      },
+      "ExercisePayload": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ExerciseType"
+          },
+          "gradingMode": {
+            "$ref": "#/components/schemas/GradingMode"
+          },
+          "wordId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "answer": {
+            "type": "string",
+            "nullable": true
+          },
+          "hint": {
+            "type": "string",
+            "nullable": true
+          },
+          "hintAvailable": {
+            "type": "boolean"
+          },
+          "transcription": {
+            "type": "string",
+            "nullable": true
+          },
+          "partOfSpeech": {
+            "type": "string",
+            "nullable": true
+          },
+          "options": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "tiles": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "letterMask": {
+            "type": "string",
+            "nullable": true
+          },
+          "contextSentence": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ExerciseType": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "WordToMeaningReveal",
+          "WordToMeaningChoice",
+          "MeaningToWordChoice",
+          "ContextToWordRecall",
+          "MeaningToWordScramble",
+          "MeaningToWordRecall",
+          "MeaningToWordPartialLetters"
+        ],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6
+        ]
+      },
+      "GradingMode": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "SelfReported",
+          "Automatic"
+        ],
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "StudyStatsDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dueNow": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "newToday": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "newCardsPerDay": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewedToday": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "learning": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "young": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "mature": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "suspended": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "notStarted": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "awaitingContent": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "ReviewResultDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "grade": {
+            "$ref": "#/components/schemas/ReviewGrade"
+          },
+          "state": {
+            "$ref": "#/components/schemas/CardState"
+          },
+          "intervalDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rung": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/CardDifficulty"
+          },
+          "nextDueAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "followUps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FollowUpDto"
+            }
+          },
+          "wasDuplicate": {
+            "type": "boolean"
+          },
+          "feedback": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewFeedbackDto"
+              }
+            ]
+          }
+        }
+      },
+      "ReviewGrade": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Again",
+          "Hard",
+          "Good",
+          "Easy"
+        ],
+        "enum": [
+          1,
+          2,
+          3,
+          4
+        ]
+      },
+      "FollowUpDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "exercise": {
+            "$ref": "#/components/schemas/ExercisePayload"
+          }
+        }
+      },
+      "ReviewFeedbackDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "correct": {
+            "type": "boolean"
+          },
+          "headword": {
+            "type": "string"
+          },
+          "meaning": {
+            "type": "string",
+            "nullable": true
+          },
+          "transcription": {
+            "type": "string",
+            "nullable": true
+          },
+          "partOfSpeech": {
+            "type": "string",
+            "nullable": true
+          },
+          "contextSentence": {
+            "type": "string",
+            "nullable": true
+          },
+          "chosen": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ChosenAnswerDto"
+              }
+            ]
+          }
+        }
+      },
+      "ChosenAnswerDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string"
+          },
+          "headword": {
+            "type": "string",
+            "nullable": true
+          },
+          "meaning": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "SubmitReviewCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "exerciseType": {
+            "$ref": "#/components/schemas/ExerciseType"
+          },
+          "answer": {
+            "type": "string",
+            "nullable": true
+          },
+          "selfGrade": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ReviewGrade"
+              }
+            ]
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "resets": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hintUsed": {
+            "type": "boolean"
+          },
+          "abandoned": {
+            "type": "boolean"
+          }
+        }
+      },
+      "IntroductionResultDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "state": {
+            "$ref": "#/components/schemas/CardState"
+          },
+          "rung": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "nextDueAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "wasDuplicate": {
+            "type": "boolean"
+          }
+        }
+      },
+      "AcknowledgeIntroductionCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "exerciseType": {
+            "$ref": "#/components/schemas/ExerciseType"
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
+      "RecordFollowUpCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cardId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "attemptId": {
+            "type": "string",
+            "format": "guid"
+          },
+          "exerciseType": {
+            "$ref": "#/components/schemas/ExerciseType"
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "correct": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ClearStudyProgressResultDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "cardsRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewsRemoved": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "cardsLeftAdvanced": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "WeatherForecast": {
         "type": "object",
         "additionalProperties": false,
@@ -2129,6 +3062,19 @@
           },
           "status": {
             "$ref": "#/components/schemas/WordStatus"
+          }
+        }
+      },
+      "MarkWordForStudyCommand": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "wordId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "marked": {
+            "type": "boolean"
           }
         }
       },
