@@ -1841,6 +1841,121 @@
         }
       }
     },
+    "/api/NewWords/import-lingq": {
+      "post": {
+        "tags": [
+          "NewWords"
+        ],
+        "operationId": "NewWords_ImportLingQ",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "fr"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "listName",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "ContentType": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "ContentDisposition": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "Headers": {
+                    "type": "array",
+                    "nullable": true,
+                    "items": {}
+                  },
+                  "Length": {
+                    "type": "integer",
+                    "format": "int64"
+                  },
+                  "Name": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "FileName": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VocabularyImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/NewWords/import-notes": {
+      "post": {
+        "tags": [
+          "NewWords"
+        ],
+        "operationId": "NewWords_ImportNotes",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "fr"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "listName",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VocabularyImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/NewWords/import-frequency": {
       "post": {
         "tags": [
@@ -3122,14 +3237,18 @@
           "KindleHighlights",
           "OxfordDictionaryList",
           "ImportedFile",
-          "Api"
+          "Api",
+          "LingQ",
+          "LessonNotes"
         ],
         "enum": [
           0,
           1,
           2,
           3,
-          4
+          4,
+          5,
+          6
         ]
       },
       "UpdateWordCommand": {
@@ -3274,6 +3393,52 @@
           5,
           99
         ]
+      },
+      "VocabularyImportResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "termsRead": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "termsImported": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "wordsCreated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "encountersCreated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "lemmas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "skipped": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SkippedTerm"
+            }
+          }
+        }
+      },
+      "SkippedTerm": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "sourceTerm": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        }
       },
       "CreateTextForAudioCommand": {
         "type": "object",

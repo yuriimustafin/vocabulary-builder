@@ -12,6 +12,7 @@ using VocabularyBuilder.Infrastructure.Parsers;
 using VocabularyBuilder.Infrastructure.Exporters;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Infrastructure.HttpClients;
+using VocabularyBuilder.Infrastructure.Ai;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -112,6 +113,9 @@ public static class DependencyInjection
         services.Configure<AnkiExportOptions>(configuration.GetSection(AnkiExportOptions.SectionName));
         services.AddScoped<IWordsExporter, AnkiClozeCsvExporter>();
         services.AddScoped<IBookImportParser, BookImportParser>();
+
+        // Reads notes and resolves lemmas for the LingQ and lesson-notes imports
+        services.AddScoped<IVocabularyAnalyzer, GptVocabularyAnalyzer>();
 
         // Register GPT client (mock or real based on configuration)
         if (useMockMode)

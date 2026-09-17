@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Study.Enrichment;
+using VocabularyBuilder.Infrastructure.Ai;
 
 namespace VocabularyBuilder.Infrastructure.HttpClients;
 
@@ -62,6 +63,18 @@ public class MockGptClient : IGptClient
             return Task.FromResult(StudyContentResponse(prompt));
         }
 
+        // The import prompts answer in arrays and are asked about a whole list at a time,
+        // so they are built here rather than served from the recorded responses.
+        if (prompt.Contains(GptVocabularyAnalyzer.ExtractionMarker, StringComparison.Ordinal))
+        {
+            return Task.FromResult<string?>(ExtractedItemsResponse(prompt));
+        }
+
+        if (prompt.Contains(GptVocabularyAnalyzer.LemmaMarker, StringComparison.Ordinal))
+        {
+            return Task.FromResult<string?>(LemmaResponse(prompt));
+        }
+
         var key = GetPromptKey(prompt);
 
         if (_mockResponses.TryGetValue(key, out var response))
@@ -104,6 +117,63 @@ public class MockGptClient : IGptClient
         };
 
         return JsonSerializer.Serialize(payload);
+    }
+
+    /// <summary>
+    /// Reads the notes the prompt ends with the way the real model is asked to: one item
+    /// per line, the translation after "=" or "=>" dropped, and a line of several items
+    /// divided at its commas.
+    /// </summary>
+    private static string ExtractedItemsResponse(string prompt)
+    {
+        var notes = prompt[(prompt.IndexOf("The notes:", StringComparison.Ordinal) + "The notes:".Length)..];
+
+        var items = notes
+            .Split('\n')
+            .Select(line => line.Split(new[] { "=>", "=" }, StringSplitOptions.None)[0].Trim())
+            .SelectMany(line => line.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            .Select(item => item.Trim())
+            .Where(item => item.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        return JsonSerializer.Serialize(items);
+    }
+
+    /// <summary>
+    /// Subject pronouns, so a conjugated verb at least loses its pronoun. Kept here rather
+    /// than shared with the normalizer: this is a stand-in, and it should not drift into
+    /// looking like the real rules.
+    /// </summary>
+    private static readonly string[] MockPronouns =
+    {
+        "je", "j'", "tu", "il", "elle", "on", "nous", "vous", "ils", "elles"
+    };
+
+    /// <summary>
+    /// Drops a leading pronoun and answers with whatever is left. No mock can know a real
+    /// infinitive, so this settles for being deterministic, keeping the shape the parser
+    /// expects, and leaving compounds ("pomme de terre") intact rather than mangling them.
+    /// </summary>
+    private static string LemmaResponse(string prompt)
+    {
+        var start = prompt.LastIndexOf('[');
+        var terms = start < 0
+            ? new List<string>()
+            : JsonSerializer.Deserialize<List<string>>(prompt[start..]) ?? new List<string>();
+
+        var answers = terms.Select(term =>
+        {
+            var words = term.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+            var lemma = words.Length > 1 && MockPronouns.Contains(words[0], StringComparer.OrdinalIgnoreCase)
+                ? string.Join(' ', words.Skip(1))
+                : term;
+
+            return new { term, lemma, reason = (string?)null };
+        });
+
+        return JsonSerializer.Serialize(answers);
     }
 
     private string GetPromptKey(string prompt)

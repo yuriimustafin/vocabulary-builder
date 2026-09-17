@@ -97,6 +97,60 @@ public class NewWordsController : ControllerBase
         return Ok(result);
     }
 
+    [HttpPost("import-lingq")]
+    public async Task<ActionResult<VocabularyImportResult>> ImportLingQ(
+        [FromForm] IFormFile file,
+        [FromQuery] string lang = "fr",
+        [FromQuery] string? listName = null)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("No file uploaded");
+        }
+
+        string fileContent;
+        using (var reader = new StreamReader(file.OpenReadStream(), Encoding.UTF8))
+        {
+            fileContent = await reader.ReadToEndAsync();
+        }
+
+        var result = await _sender.Send(new ImportLingQWordsCommand
+        {
+            FileContent = fileContent,
+            Language = ParseLanguage(lang),
+            ListName = listName
+        });
+
+        return Ok(result);
+    }
+
+    [HttpPost("import-notes")]
+    public async Task<ActionResult<VocabularyImportResult>> ImportNotes(
+        [FromQuery] string lang = "fr",
+        [FromQuery] string? listName = null)
+    {
+        string notes;
+        using (var reader = new StreamReader(Request.Body, Encoding.UTF8))
+        {
+            notes = await reader.ReadToEndAsync();
+        }
+
+        if (string.IsNullOrWhiteSpace(notes))
+        {
+            return BadRequest("No notes provided");
+        }
+
+        var result = await _sender.Send(new ImportLessonNotesCommand
+        {
+            Notes = notes,
+            Language = ParseLanguage(lang),
+            ListName = listName
+        });
+
+        return Ok(result);
+    }
+
+
     [HttpPost("import-frequency")]
     public async Task<ActionResult<int>> ImportFrequency([FromQuery] string filePath, [FromQuery] string lang = "en")
     {

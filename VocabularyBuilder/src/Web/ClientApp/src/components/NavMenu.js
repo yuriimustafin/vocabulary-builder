@@ -76,6 +76,12 @@ export class NavMenu extends Component {
                                 <NavLink tag={Link} className="text-dark" to="/kindle-import">Kindle Import</NavLink>
                             </NavItem>
                             <NavItem>
+                                <NavLink tag={Link} className="text-dark" to="/lingq-import">LingQ Import</NavLink>
+                            </NavItem>
+                            <NavItem>
+                                <NavLink tag={Link} className="text-dark" to="/notes-import">Notes Import</NavLink>
+                            </NavItem>
+                            <NavItem>
                                 <NavLink tag={Link} className="text-dark" to="/export-words">Export</NavLink>
                             </NavItem>
                             <NavItem>

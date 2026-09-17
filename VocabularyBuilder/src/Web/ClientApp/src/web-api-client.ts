@@ -1900,6 +1900,105 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
+    newWords_ImportLingQ(lang: string | undefined, listName: string | null | undefined, contentType: string | null | undefined, contentDisposition: string | null | undefined, headers: any[] | null | undefined, length: number | undefined, name: string | null | undefined, fileName: string | null | undefined): Promise<VocabularyImportResult> {
+        let url_ = this.baseUrl + "/api/NewWords/import-lingq?";
+        if (lang === null)
+            throw new Error("The parameter 'lang' cannot be null.");
+        else if (lang !== undefined)
+            url_ += "lang=" + encodeURIComponent("" + lang) + "&";
+        if (listName !== undefined && listName !== null)
+            url_ += "listName=" + encodeURIComponent("" + listName) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        const content_ = new FormData();
+        if (contentType !== null && contentType !== undefined)
+            content_.append("ContentType", contentType.toString());
+        if (contentDisposition !== null && contentDisposition !== undefined)
+            content_.append("ContentDisposition", contentDisposition.toString());
+        if (headers !== null && headers !== undefined)
+            headers.forEach(item_ => content_.append("Headers", item_.toString()));
+        if (length === null || length === undefined)
+            throw new Error("The parameter 'length' cannot be null.");
+        else
+            content_.append("Length", length.toString());
+        if (name !== null && name !== undefined)
+            content_.append("Name", name.toString());
+        if (fileName !== null && fileName !== undefined)
+            content_.append("FileName", fileName.toString());
+
+        let options_: RequestInit = {
+            body: content_,
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processNewWords_ImportLingQ(_response);
+        });
+    }
+
+    protected processNewWords_ImportLingQ(response: Response): Promise<VocabularyImportResult> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = VocabularyImportResult.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VocabularyImportResult>(null as any);
+    }
+
+    newWords_ImportNotes(lang: string | undefined, listName: string | null | undefined): Promise<VocabularyImportResult> {
+        let url_ = this.baseUrl + "/api/NewWords/import-notes?";
+        if (lang === null)
+            throw new Error("The parameter 'lang' cannot be null.");
+        else if (lang !== undefined)
+            url_ += "lang=" + encodeURIComponent("" + lang) + "&";
+        if (listName !== undefined && listName !== null)
+            url_ += "listName=" + encodeURIComponent("" + listName) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processNewWords_ImportNotes(_response);
+        });
+    }
+
+    protected processNewWords_ImportNotes(response: Response): Promise<VocabularyImportResult> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = VocabularyImportResult.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<VocabularyImportResult>(null as any);
+    }
+
     newWords_ImportFrequency(filePath: string | undefined, lang: string | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords/import-frequency?";
         if (filePath === null)
@@ -4185,6 +4284,8 @@ export enum WordEncounterSource {
     OxfordDictionaryList = 2,
     ImportedFile = 3,
     Api = 4,
+    LingQ = 5,
+    LessonNotes = 6,
 }
 
 export class UpdateWordCommand implements IUpdateWordCommand {
@@ -4487,6 +4588,118 @@ export enum DictionarySourceType {
     WordReference = 4,
     WordReferenceConjugation = 5,
     Other = 99,
+}
+
+export class VocabularyImportResult implements IVocabularyImportResult {
+    termsRead?: number;
+    termsImported?: number;
+    wordsCreated?: number;
+    encountersCreated?: number;
+    lemmas?: string[];
+    skipped?: SkippedTerm[];
+
+    constructor(data?: IVocabularyImportResult) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.termsRead = _data["termsRead"];
+            this.termsImported = _data["termsImported"];
+            this.wordsCreated = _data["wordsCreated"];
+            this.encountersCreated = _data["encountersCreated"];
+            if (Array.isArray(_data["lemmas"])) {
+                this.lemmas = [] as any;
+                for (let item of _data["lemmas"])
+                    this.lemmas!.push(item);
+            }
+            if (Array.isArray(_data["skipped"])) {
+                this.skipped = [] as any;
+                for (let item of _data["skipped"])
+                    this.skipped!.push(SkippedTerm.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): VocabularyImportResult {
+        data = typeof data === 'object' ? data : {};
+        let result = new VocabularyImportResult();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["termsRead"] = this.termsRead;
+        data["termsImported"] = this.termsImported;
+        data["wordsCreated"] = this.wordsCreated;
+        data["encountersCreated"] = this.encountersCreated;
+        if (Array.isArray(this.lemmas)) {
+            data["lemmas"] = [];
+            for (let item of this.lemmas)
+                data["lemmas"].push(item);
+        }
+        if (Array.isArray(this.skipped)) {
+            data["skipped"] = [];
+            for (let item of this.skipped)
+                data["skipped"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IVocabularyImportResult {
+    termsRead?: number;
+    termsImported?: number;
+    wordsCreated?: number;
+    encountersCreated?: number;
+    lemmas?: string[];
+    skipped?: SkippedTerm[];
+}
+
+export class SkippedTerm implements ISkippedTerm {
+    sourceTerm?: string;
+    reason?: string;
+
+    constructor(data?: ISkippedTerm) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.sourceTerm = _data["sourceTerm"];
+            this.reason = _data["reason"];
+        }
+    }
+
+    static fromJS(data: any): SkippedTerm {
+        data = typeof data === 'object' ? data : {};
+        let result = new SkippedTerm();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["sourceTerm"] = this.sourceTerm;
+        data["reason"] = this.reason;
+        return data;
+    }
+}
+
+export interface ISkippedTerm {
+    sourceTerm?: string;
+    reason?: string;
 }
 
 export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
