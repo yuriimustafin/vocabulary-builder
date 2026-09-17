@@ -22,18 +22,24 @@ test.describe('Export Words', () => {
     
     // Create 2 test words
     for (let i = 0; i < 2; i++) {
-      await page.click('button:has-text("Add Word")');
-      await expect(page.locator('.modal-title')).toContainText('Add Word', { timeout: 10000 });
+      await page.click('button:has-text("Add New Word")');
+      await expect(page.locator('.modal-title')).toContainText('Add New Word', { timeout: 10000 });
       
       const uniqueWord = createUniqueWord(`exportword${i}`);
       await page.fill('input[name="headword"]', uniqueWord);
       await page.fill('input[name="partOfSpeech"]', 'noun');
       await page.fill('textarea[name="examples"]', `Example sentence ${i}.`);
-      await page.click('button:has-text("Save")');
+      await page.click('.modal-footer button:has-text("Create")');
       await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
       
       // Verify word was created
-      await waitForWordInDb(page, uniqueWord);
+      const created = await waitForWordInDb(page, uniqueWord);
+
+      // The export page lists words marked Next Export (WordStatus 1); a new word is New
+      const marked = await page.request.put(`/api/en/words/${created.id}/status`, {
+        data: { id: created.id, status: 1 }
+      });
+      expect(marked.ok(), 'marking the word for export').toBeTruthy();
     }
     
     // Now navigate to export page
@@ -45,7 +51,7 @@ test.describe('Export Words', () => {
   });
 
   test('should display export page', async ({ page }) => {
-    await expect(page.locator('h2, h3, h4')).toContainText(/Export/i);
+    await expect(page.locator('h1, h2, h3, h4').first()).toContainText(/Export/i);
     
     // Check for export button or form
     await expect(page.locator('button:has-text("Export"), button:has-text("Download")')).toBeVisible();
@@ -177,35 +183,15 @@ test.describe('Export Words', () => {
     }
   });
 
-  test('should handle empty export (no words)', async ({ page }) => {
-    // Uncheck all status filters to get empty result
-    const checkboxes = page.locator('input[type="checkbox"]');
-    const count = await checkboxes.count();
+  test('should handle empty export (no words)', async ({ request, page }) => {
+    // The page has no status filters, so emptiness comes from there being no words
+    await setupCleanDatabase(request);
+    await page.goto('/export-words');
+    await page.waitForSelector('#root', { timeout: 60000 });
     
-    for (let i = 0; i < count; i++) {
-      const checkbox = checkboxes.nth(i);
-      if (await checkbox.isChecked()) {
-        await checkbox.uncheck();
-      }
-    }
-    
-    await page.waitForTimeout(500);
-    
-    // Try to export
-    const exportButton = page.locator('button:has-text("Export"), button:has-text("Download")').first();
-    
-    // Button might be disabled or clicking might show an error
-    if (await exportButton.isEnabled()) {
-      await exportButton.click();
-      
-      // Should show message about no words
-      await expect(page.locator('text=/no words|nothing to export|select.*word/i')).toBeVisible({ 
-        timeout: 5000 
-      });
-    } else {
-      // Button is disabled, which is correct behavior
-      expect(await exportButton.isDisabled()).toBe(true);
-    }
+    // It says so, and offers nothing to export
+    await expect(page.locator('text=/no words to export/i')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('button:has-text("Export"), button:has-text("Download")')).toHaveCount(0);
   });
 
   test('should export with custom format options', async ({ page }) => {

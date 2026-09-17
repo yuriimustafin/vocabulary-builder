@@ -206,8 +206,16 @@ No tab-separated values here.`;
       await expect(page.locator('.alert').first()).toBeVisible();
       
     } finally {
+      // On Windows the browser can still hold the uploaded file for a moment, and an
+      // unlink that loses that race fails the test over cleanup alone.
       if (fs.existsSync(tmpFile)) {
-        fs.unlinkSync(tmpFile);
+        try {
+          fs.unlinkSync(tmpFile);
+        } catch (error) {
+          if (error.code !== 'EBUSY' && error.code !== 'EPERM') {
+            throw error;
+          }
+        }
       }
     }
   });

@@ -16,8 +16,9 @@ test.describe('Navigation and Home Page', () => {
     // Verify we're on the home page
     expect(page.url()).toContain('/');
     
-    // Check for main navigation or header
-    await expect(page.locator('nav, header, .navbar')).toBeVisible();
+    // Check for main navigation or header.
+    // The page has both a <header> and a <nav>, so the match has to be narrowed.
+    await expect(page.locator('nav, header, .navbar').first()).toBeVisible();
   });
 
   test('should display navigation menu', async ({ page }) => {
@@ -76,7 +77,7 @@ test.describe('Navigation and Home Page', () => {
     await page.waitForLoadState('networkidle');
     
     expect(page.url()).toContain('/export');
-    await expect(page.locator('h1, h2, h3, h4')).toContainText(/Export/i, { timeout: 10000 });
+    await expect(page.locator('h1, h2, h3, h4').first()).toContainText(/Export/i, { timeout: 10000 });
   });
 
   test('should handle browser back/forward navigation', async ({ page }) => {
@@ -150,14 +151,19 @@ test.describe('Navigation and Home Page', () => {
   });
 
   test('should display app title/logo', async ({ page }) => {
-    // Check for app title or logo
-    const title = page.locator('.navbar-brand, h1, .logo, text=/Vocabulary Builder/i');
+    // Check for app title or logo.
+    // "text=" is a separate selector engine and cannot be mixed into a CSS list,
+    // so the brand is matched on its own and the heading is the fallback.
+    const title = page.locator('.navbar-brand, h1, .logo');
     await expect(title.first()).toBeVisible();
   });
 
   test('should handle language switcher if available', async ({ page }) => {
-    // Look for language selector
-    const langSelector = page.locator('select#language, button:has-text("EN"), button:has-text("FR")');
+    // Look for language selector.
+    // The switcher is a dropdown whose toggle is a link reading "EN" or "FR"; the
+    // buttons inside it are the menu items, which stay hidden until it is opened.
+    const langSelector = page.locator(
+      'select#language, .navbar a.dropdown-toggle:has-text("EN"), .navbar a.dropdown-toggle:has-text("FR")');
     
     if (await langSelector.count() > 0) {
       const firstSelector = langSelector.first();

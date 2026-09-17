@@ -12,9 +12,20 @@ test.describe('Words Management', () => {
   // Configure retries for backend race conditions during parallel execution
   test.describe.configure({ retries: 2 });
 
+  // The reset empties the database, so the tests that act on an existing row need
+  // something to act on.
+  const SEEDED_WORDS = ['alphaseed', 'betaseed', 'gammaseed'];
+
   test.beforeEach(async ({ request, page }) => {
     // Clean database before each test for isolation (use request context)
     await setupCleanDatabase(request);
+
+    for (const headword of SEEDED_WORDS) {
+      const response = await request.post('/api/en/words', {
+        data: { headword, partOfSpeech: 'noun', frequency: 100 }
+      });
+      expect(response.ok(), `seeding ${headword}`).toBeTruthy();
+    }
     
     await page.goto('/words');
     
@@ -28,7 +39,7 @@ test.describe('Words Management', () => {
     
     // Check for key UI elements
     await expect(page.locator('table')).toBeVisible();
-    await expect(page.locator('button:has-text("Add Word")')).toBeVisible();
+    await expect(page.locator('button:has-text("Add New Word")')).toBeVisible();
   });
 
   test('should filter words by status', async ({ page }) => {
@@ -55,26 +66,26 @@ test.describe('Words Management', () => {
     // Wait for initial load
     await page.waitForSelector('table tbody tr', { timeout: 10000 });
     
-    // Sort by headword
-    await page.selectOption('select#sortBy', 'headword');
+    // Sort alphabetically (the option with an empty value)
+    await page.selectOption('select#sortBy', { label: 'Alphabetical' });
     await page.waitForTimeout(500);
     
     // Verify table is still visible and has data
     await expect(page.locator('table tbody tr').first()).toBeVisible();
     
-    // Sort by encounter count
-    await page.selectOption('select#sortBy', 'encounterCount');
+    // Sort by encounters, then frequency
+    await page.selectOption('select#sortBy', 'encounterfrequency');
     await page.waitForTimeout(500);
     
     await expect(page.locator('table tbody tr').first()).toBeVisible();
   });
 
   test('should create a new word', async ({ page }) => {
-    // Click Add Word button
-    await page.click('button:has-text("Add Word")');
+    // Click Add New Word button
+    await page.click('button:has-text("Add New Word")');
     
     // Wait for modal
-    await expect(page.locator('.modal-title')).toContainText('Add Word', { timeout: 10000 });
+    await expect(page.locator('.modal-title')).toContainText('Add New Word', { timeout: 10000 });
     
     // Fill in word details with unique identifier
     const uniqueWord = createUniqueWord('testword');
@@ -84,7 +95,7 @@ test.describe('Words Management', () => {
     await page.fill('textarea[name="examples"]', 'This is a test example.');
     
     // Save the word
-    await page.click('button:has-text("Save")');
+    await page.click('.modal-footer button:has-text("Create")');
     
     // Wait for modal to close
     await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
@@ -97,14 +108,13 @@ test.describe('Words Management', () => {
     expect(dbWord.headword).toBe(uniqueWord);
     expect(dbWord.transcription).toBe('/test/');
     expect(dbWord.partOfSpeech).toBe('noun');
-    expect(dbWord.examples).toContain('This is a test example');
+    expect(dbWord.examples).toContain('This is a test example.');
     
-    // Also verify it appears in the UI (search for it)
-    await page.fill('input[type="text"]', uniqueWord);
-    await page.waitForTimeout(500);
-    
-    const wordCell = page.locator(`td:has-text("${uniqueWord}")`);
-    await expect(wordCell).toBeVisible({ timeout: 5000 });
+    // Also verify it appears in the UI. There is no search box, so the new word is
+    // brought to the top by sorting on when it was created.
+    await page.selectOption('select#sortBy', 'created');
+    await expect(page.locator('table tbody tr').first())
+      .toContainText(uniqueWord, { timeout: 10000 });
   });
 
   test('should view word details', async ({ page }) => {
@@ -112,7 +122,7 @@ test.describe('Words Management', () => {
     await page.waitForSelector('table tbody tr', { timeout: 10000 });
     
     // Click on first word's details button
-    const firstDetailsButton = page.locator('table tbody tr').first().locator('button:has-text("Details")');
+    const firstDetailsButton = page.locator('table tbody tr').first().locator('button:has-text("View")');
     await firstDetailsButton.click();
     
     // Wait for details modal
@@ -140,7 +150,7 @@ test.describe('Words Management', () => {
     await page.fill('input[name="transcription"]', '/edited/');
     
     // Save changes
-    await page.click('button:has-text("Save")');
+    await page.click('.modal-footer button:has-text("Update")');
     
     // Wait for modal to close
     await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
@@ -150,29 +160,27 @@ test.describe('Words Management', () => {
 
   test('should delete a word', async ({ page }) => {
     // First create a test word to delete
-    await page.click('button:has-text("Add Word")');
-    await expect(page.locator('.modal-title')).toContainText('Add Word', { timeout: 10000 });
+    await page.click('button:has-text("Add New Word")');
+    await expect(page.locator('.modal-title')).toContainText('Add New Word', { timeout: 10000 });
     
     const uniqueWord = createUniqueWord('deleteme');
     await page.fill('input[name="headword"]', uniqueWord);
     await page.fill('input[name="partOfSpeech"]', 'noun');
-    await page.click('button:has-text("Save")');
+    await page.click('.modal-footer button:has-text("Create")');
     await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
     
     // Verify word was created in database
     const createdWord = await waitForWordInDb(page, uniqueWord);
     expect(createdWord).toBeTruthy();
     
-    // Find and delete the word
-    await page.fill('input[type="text"]', uniqueWord);
-    await page.waitForTimeout(500);
+    // Find the word. There is no search box, so sort the newest to the top.
+    await page.selectOption('select#sortBy', 'created');
+    const row = page.locator(`tr:has-text("${uniqueWord}")`);
+    await expect(row).toBeVisible({ timeout: 10000 });
+    await row.locator('button:has-text("Delete")').click();
     
-    // Click delete button
-    const deleteButton = page.locator(`tr:has-text("${uniqueWord}") button:has-text("Delete")`);
-    await deleteButton.click();
-    
-    // Confirm deletion
-    await page.click('button:has-text("Confirm")');
+    // Confirm deletion - the dialog is titled "Confirm Delete" but its button says Delete
+    await page.click('.modal-footer button:has-text("Delete")');
     await page.waitForTimeout(500);
     
     // VERIFY: Word is gone from database

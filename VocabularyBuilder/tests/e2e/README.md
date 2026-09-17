@@ -60,6 +60,28 @@ The E2E tests run in mock mode to avoid calling external APIs (OpenAI GPT and Ox
 3. **Mock Data Location**:
    - Oxford: `src/Web/MockData/oxford/*.html`
    - GPT: `src/Web/MockData/gpt/*.json`
+   - WordReference (French): `src/Web/MockData/wordreference/*.html`
+
+### French words
+
+French is looked up in WordReference, mocked by `WordReference:UseMockMode` in
+`appsettings.E2ETest.json`. `MockWordReferencePageLoader` maps a URL to a file:
+`/fren/maison` reads `maison.html`, and `/conj/frverbs.aspx?v=prendre` reads
+`prendre.conj.html`. A word with no file is treated as absent from the dictionary, which
+is what makes the fallback to GPT testable.
+
+The recorded pages are trimmed to the part that is parsed. Between them they cover each
+way a noun can be tagged, which is what `french-words.spec.js` asserts against:
+
+| Word | Covers |
+| --- | --- |
+| `maison` | feminine (`la`) |
+| `arbre` | masculine before a vowel (`l'`) |
+| `hache` | aspirated h, so no elision (`la hache`) |
+| `livre` | meanings that differ in gender (`le livre`, `la livre`) |
+| `élève` | either gender (`l'`, `un/une`) |
+| `gens` | plural only (`les`) |
+| `prendre` | a verb: no article, plus its conjugation |
 
 ### Generating Mock Data
 
