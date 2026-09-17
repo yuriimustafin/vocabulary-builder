@@ -1,4 +1,4 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
@@ -69,8 +69,11 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
                     Senses = lookupResult.Word.Senses?.ToList(),
                     Source = WordEncounterSource.OxfordDictionaryList,
                     SourceIdentifier = $"{sourceIdentifierBase}:{lookupResult.Word.Headword}",
-                    Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Oxford Dictionary Import",
-                    DictionarySources = lookupResult.DictionarySources.Any() ? lookupResult.DictionarySources : null
+                    Context = !string.IsNullOrWhiteSpace(request.ListName)
+                        ? request.ListName
+                        : $"{request.SourceType} Dictionary Import",
+                    DictionarySources = lookupResult.DictionarySources.Any() ? lookupResult.DictionarySources : null,
+                    Forms = lookupResult.Forms.Any() ? lookupResult.Forms : null
                 }, cancellationToken);
                 
                 result.ImportedWords.Add(lookupResult.Word.Headword);

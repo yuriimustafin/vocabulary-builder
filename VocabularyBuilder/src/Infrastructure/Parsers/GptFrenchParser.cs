@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,6 +17,8 @@ namespace VocabularyBuilder.Infrastructure.Parsers;
 public class GptFrenchParser : IWordReferenceParser
 {
     private readonly IGptClient _gptClient;
+
+    public DictionarySourceType SourceType => DictionarySourceType.Gpt;
     
     private const string SystemPrompt = @"You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.
 
@@ -74,6 +76,7 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
                     results.Add(new WordParseResult
                     {
                         Word = word,
+                        SearchedTerm = searchedWord,
                         SourceHtml = response, // Store the raw GPT response as "HTML"
                         SourceUrl = $"gpt://french/{searchedWord}"
                     });

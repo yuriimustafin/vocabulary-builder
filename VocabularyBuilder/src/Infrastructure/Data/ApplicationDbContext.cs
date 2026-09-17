@@ -24,6 +24,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     
     public DbSet<WordDictionarySource> WordDictionarySources => Set<WordDictionarySource>();
 
+    public DbSet<WordForm> WordForms => Set<WordForm>();
+
     public DbSet<FrequencyWord> FrequencyWords => Set<FrequencyWord>();
 
     public DbSet<ImportedBookWord> ImportedBookWords => Set<ImportedBookWord>();
@@ -60,6 +62,23 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         // Create unique index to prevent duplicate sources for same word
         builder.Entity<WordDictionarySource>()
             .HasIndex(wds => new { wds.WordId, wds.SourceType })
+            .IsUnique();
+
+        builder.Entity<WordForm>()
+            .HasOne(wf => wf.Word)
+            .WithMany()
+            .HasForeignKey(wf => wf.WordId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        // Looked up by written form when resolving an encounter to its lemma.
+        // Deliberately not unique: one French form regularly belongs to several
+        // words ("suis" to both etre and suivre).
+        builder.Entity<WordForm>()
+            .HasIndex(wf => new { wf.Form, wf.Language });
+
+        // A word lists each of its forms once
+        builder.Entity<WordForm>()
+            .HasIndex(wf => new { wf.WordId, wf.Form })
             .IsUnique();
 
         builder.Entity<ImportedBookWord>()

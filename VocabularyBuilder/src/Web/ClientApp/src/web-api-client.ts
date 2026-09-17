@@ -1451,8 +1451,12 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    newWords_GenerateText(command: CreateTextForAudioCommand): Promise<string> {
-        let url_ = this.baseUrl + "/api/NewWords/audio-text";
+    newWords_GenerateText(lang: string | undefined, command: CreateTextForAudioCommand): Promise<string> {
+        let url_ = this.baseUrl + "/api/NewWords/audio-text?";
+        if (lang === null)
+            throw new Error("The parameter 'lang' cannot be null.");
+        else if (lang !== undefined)
+            url_ += "lang=" + encodeURIComponent("" + lang) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -3033,11 +3037,14 @@ export enum DictionarySourceType {
     MerriamWebster = 1,
     Cambridge = 2,
     Gpt = 3,
+    WordReference = 4,
+    WordReferenceConjugation = 5,
     Other = 99,
 }
 
 export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
     words?: string[];
+    language?: Language;
 
     constructor(data?: ICreateTextForAudioCommand) {
         if (data) {
@@ -3055,6 +3062,7 @@ export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
                 for (let item of _data["words"])
                     this.words!.push(item);
             }
+            this.language = _data["language"];
         }
     }
 
@@ -3072,12 +3080,14 @@ export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
             for (let item of this.words)
                 data["words"].push(item);
         }
+        data["language"] = this.language;
         return data;
     }
 }
 
 export interface ICreateTextForAudioCommand {
     words?: string[];
+    language?: Language;
 }
 
 export class SwaggerException extends Error {

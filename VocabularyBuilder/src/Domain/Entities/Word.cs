@@ -46,9 +46,15 @@ public class Word : BaseAuditableEntity
     /// </summary>
     public int EncounterCount => WordEncounters?.Count ?? 0;
 
+    /// <summary>
+    /// The headword as it should be presented on a card. English verbs are
+    /// shown in the "to run" citation form; French infinitives stand alone,
+    /// so the particle is only ever added for English.
+    /// </summary>
     public string GetHeadword()
     {
-        var prefix = (PartOfSpeech is not null 
+        var prefix = (Language == Language.English
+                && PartOfSpeech is not null 
                 && PartOfSpeech.ToLower().Contains("verb")
                 && !PartOfSpeech.ToLower().Contains("adverb")) 
             ? "to " 

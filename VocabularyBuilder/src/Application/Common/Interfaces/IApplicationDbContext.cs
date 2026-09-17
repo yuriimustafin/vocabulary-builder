@@ -17,6 +17,8 @@ public interface IApplicationDbContext
     
     DbSet<WordDictionarySource> WordDictionarySources { get; }
 
+    DbSet<WordForm> WordForms { get; }
+
     DbSet<FrequencyWord> FrequencyWords { get; }
 
     DbSet<ImportedBookWord> ImportedBookWords { get; }

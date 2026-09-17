@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -10,6 +11,13 @@ using VocabularyBuilder.Domain.Samples.Entities;
 namespace VocabularyBuilder.Infrastructure.Exporters;
 internal class AnkiClozeCsvExporter : IWordsExporter
 {
+    private readonly AnkiExportOptions _options;
+
+    public AnkiClozeCsvExporter(IOptions<AnkiExportOptions> options)
+    {
+        _options = options.Value;
+    }
+
     public string ExportWords(IEnumerable<Word> words)
     {
         var result = new StringBuilder();
@@ -17,13 +25,13 @@ internal class AnkiClozeCsvExporter : IWordsExporter
         {
             if (word.Senses is null)
                 continue;
-            // TODO: Move note type and deck name to settings
+            // TODO: Move note type to settings
             /* 
                 #separator:Semicolon
                 #html:true
                 #deck column:1 
             */
-            result.Append("English::Vocabulary;");
+            result.Append(_options.GetDeckName(word.Language) + ";");
             result.Append(word.Headword + ";");
             result.Append($"\"<span class='headword'>{ClozeWholeString(word.GetHeadword())}</span> &nbsp;&nbsp;" +
                 $"{

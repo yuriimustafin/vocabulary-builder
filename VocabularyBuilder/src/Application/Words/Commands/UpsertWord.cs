@@ -1,4 +1,4 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -21,6 +21,9 @@ public record UpsertWordCommand : IRequest<int>
     
     // Dictionary sources for caching (optional)
     public List<WordDictionarySource>? DictionarySources { get; init; }
+
+    // Inflected forms, e.g. a verb's conjugation (optional)
+    public List<WordForm>? Forms { get; init; }
 }
 
 public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
@@ -75,6 +78,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 }
                 await _context.SaveChangesAsync(cancellationToken);
             }
+            
+            await SaveWordForms(newWord.Id, request, cancellationToken);
             
             // Create the encounter record
             await CreateWordEncounter(newWord.Id, request, cancellationToken);
@@ -139,12 +144,45 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 }
             }
             
+            await SaveWordForms(existingWord.Id, request, cancellationToken);
+            
             // Create new encounter record (idempotency check based on SourceIdentifier)
             await CreateWordEncounter(existingWord.Id, request, cancellationToken);
             
             await _context.SaveChangesAsync(cancellationToken);
             
             return existingWord.Id;
+        }
+    }
+
+    /// <summary>
+    /// Record the word's inflected forms, adding only those not already stored
+    /// so that re-importing a word does not duplicate its conjugation.
+    /// </summary>
+    private async Task SaveWordForms(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
+    {
+        if (request.Forms == null || !request.Forms.Any())
+        {
+            return;
+        }
+
+        var existingForms = await _context.WordForms
+            .Where(wf => wf.WordId == wordId)
+            .Select(wf => wf.Form)
+            .ToListAsync(cancellationToken);
+
+        var known = new HashSet<string>(existingForms, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var form in request.Forms)
+        {
+            if (string.IsNullOrWhiteSpace(form.Form) || !known.Add(form.Form))
+            {
+                continue;
+            }
+
+            form.WordId = wordId;
+            form.Language = request.Language;
+            _context.WordForms.Add(form);
         }
     }
 

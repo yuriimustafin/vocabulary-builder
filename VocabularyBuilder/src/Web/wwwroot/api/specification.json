@@ -1428,6 +1428,17 @@
           "NewWords"
         ],
         "operationId": "NewWords_GenerateText",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "en"
+            },
+            "x-position": 2
+          }
+        ],
         "requestBody": {
           "x-name": "command",
           "content": {
@@ -2191,6 +2202,8 @@
           "MerriamWebster",
           "Cambridge",
           "Gpt",
+          "WordReference",
+          "WordReferenceConjugation",
           "Other"
         ],
         "enum": [
@@ -2198,6 +2211,8 @@
           1,
           2,
           3,
+          4,
+          5,
           99
         ]
       },
@@ -2210,6 +2225,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
           }
         }
       }

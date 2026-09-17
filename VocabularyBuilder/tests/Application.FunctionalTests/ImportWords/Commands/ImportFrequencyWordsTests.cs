@@ -1,5 +1,7 @@
-using VocabularyBuilder.Application.ImportWords.Commands;
+﻿using VocabularyBuilder.Application.ImportWords.Commands;
+using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Entities.Frequency;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.FunctionalTests.ImportWords.Commands;
 
@@ -91,6 +93,94 @@ word2/200
             result.Should().Be(2);
             var count = await CountAsync<FrequencyWord>();
             count.Should().Be(2);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Test]
+    public async Task ShouldImportFrenchWordsWithTheirOwnLanguage()
+    {
+        // Arrange - the shape produced by scripts/convert-lexique-to-frequency.js
+        var testData = @"être/3223650 -> suis,sommes,sont,était
+prendre/191383 -> prends,prend,pris";
+
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, testData);
+
+        try
+        {
+            var command = new ImportFrequencyWordsCommand(tempFile, Language.French);
+
+            // Act
+            var result = await SendAsync(command);
+
+            // Assert
+            result.Should().Be(2);
+
+            var count = await CountAsync<FrequencyWord>();
+            count.Should().Be(9); // 2 lemmas + 7 derived forms
+
+            var lemma = (await FindAsync<FrequencyWord>(1))!;
+            lemma.Headword.Should().Be("être");
+            lemma.Language.Should().Be(Language.French);
+            lemma.Frequency.Should().Be(3223650);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Test]
+    public async Task ShouldResolveConjugatedFrenchFormToItsLemmaFrequency()
+    {
+        // Arrange
+        var testData = "prendre/191383 -> prends,prend,pris";
+
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, testData);
+
+        try
+        {
+            await SendAsync(new ImportFrequencyWordsCommand(tempFile, Language.French));
+
+            // Act - a conjugated form carries no frequency of its own, so it has
+            // to reach the lemma's through BaseForm
+            var frequency = await SendAsync(new GetWordFrequencyQuery("prends", Language.French));
+
+            // Assert
+            frequency.Should().Be(191383);
+        }
+        finally
+        {
+            if (File.Exists(tempFile))
+                File.Delete(tempFile);
+        }
+    }
+
+    [Test]
+    public async Task ShouldNotResolveFrenchFormAgainstEnglishFrequencies()
+    {
+        // Arrange - "prend" exists only as French, so an English lookup must miss it
+        var testData = "prendre/191383 -> prends,prend,pris";
+
+        var tempFile = Path.GetTempFileName();
+        await File.WriteAllTextAsync(tempFile, testData);
+
+        try
+        {
+            await SendAsync(new ImportFrequencyWordsCommand(tempFile, Language.French));
+
+            // Act
+            var frequency = await SendAsync(new GetWordFrequencyQuery("prend", Language.English));
+
+            // Assert
+            frequency.Should().BeNull();
         }
         finally
         {

@@ -1,7 +1,8 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Application.Words.Commands;
 
@@ -48,45 +49,55 @@ public class ExportWordsCommandHandler : IRequestHandler<ExportWordsCommand, Exp
         {
             Console.WriteLine($"Parsing {unparsedWords.Count} words that don't have definitions yet...");
             
-            var headwordsToLookup = unparsedWords.Select(w => w.Headword).ToList();
-            var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
+            // Look up each language against its own dictionary. Sending French
+            // words to Oxford returns nothing, and upserting them without their
+            // language would create a second, English copy of the word.
+            foreach (var languageGroup in unparsedWords.GroupBy(w => w.Language))
             {
-                Words = headwordsToLookup,
-                SourceType = DictionarySourceType.Oxford
-            }, cancellationToken);
-            
-            // Update words with parsed data using UpsertWordCommand
-            foreach (var lookupResult in lookupResults)
-            {
-                var wordToUpdate = unparsedWords.FirstOrDefault(w => 
-                    w.Headword.Equals(lookupResult.Word.Headword, StringComparison.OrdinalIgnoreCase) ||
-                    w.Headword.Equals(lookupResult.SearchedTerm, StringComparison.OrdinalIgnoreCase));
-                
-                if (wordToUpdate != null)
+                var language = languageGroup.Key;
+                var headwordsToLookup = languageGroup.Select(w => w.Headword).ToList();
+                var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
                 {
-                    Console.WriteLine($"Updating word: {wordToUpdate.Headword} with parsed data");
+                    Words = headwordsToLookup,
+                    Language = language,
+                    SourceType = language.GetDefaultSourceType()
+                }, cancellationToken);
+                
+                // Update words with parsed data using UpsertWordCommand
+                foreach (var lookupResult in lookupResults)
+                {
+                    var wordToUpdate = languageGroup.FirstOrDefault(w => 
+                        w.Headword.Equals(lookupResult.Word.Headword, StringComparison.OrdinalIgnoreCase) ||
+                        w.Headword.Equals(lookupResult.SearchedTerm, StringComparison.OrdinalIgnoreCase));
                     
-                    // Get the original encounter info to preserve it
-                    // Load to memory first, then order (SQLite doesn't support OrderBy on DateTimeOffset)
-                    var encounters = await _context.WordEncounters
-                        .Where(we => we.WordId == wordToUpdate.Id)
-                        .ToListAsync(cancellationToken);
-                    var firstEncounter = encounters.OrderBy(we => we.Created).FirstOrDefault();
-                    
-                    // Use UpsertWordCommand to handle all the update logic
-                    await _sender.Send(new UpsertWordCommand
+                    if (wordToUpdate != null)
                     {
-                        Headword = lookupResult.Word.Headword,
-                        Transcription = lookupResult.Word.Transcription,
-                        PartOfSpeech = lookupResult.Word.PartOfSpeech,
-                        Frequency = lookupResult.Word.Frequency,
-                        Examples = lookupResult.Word.Examples?.ToList(),
-                        Senses = lookupResult.Word.Senses?.ToList(),
-                        Source = firstEncounter?.Source ?? WordEncounterSource.Manual,
-                        SourceIdentifier = firstEncounter?.SourceIdentifier ?? $"export-{DateTime.UtcNow:yyyy-MM-dd}",
-                        Context = firstEncounter?.Context ?? "Dictionary parsing on export",
-                        DictionarySources = lookupResult.DictionarySources.Any() ? lookupResult.DictionarySources : null
-                    }, cancellationToken);
+                        Console.WriteLine($"Updating word: {wordToUpdate.Headword} with parsed data");
+                        
+                        // Get the original encounter info to preserve it
+                        // Load to memory first, then order (SQLite doesn't support OrderBy on DateTimeOffset)
+                        var encounters = await _context.WordEncounters
+                            .Where(we => we.WordId == wordToUpdate.Id)
+                            .ToListAsync(cancellationToken);
+                        var firstEncounter = encounters.OrderBy(we => we.Created).FirstOrDefault();
+                        
+                        // Use UpsertWordCommand to handle all the update logic
+                        await _sender.Send(new UpsertWordCommand
+                        {
+                            Headword = lookupResult.Word.Headword,
+                            Language = language,
+                            Transcription = lookupResult.Word.Transcription,
+                            PartOfSpeech = lookupResult.Word.PartOfSpeech,
+                            Frequency = lookupResult.Word.Frequency,
+                            Examples = lookupResult.Word.Examples?.ToList(),
+                            Senses = lookupResult.Word.Senses?.ToList(),
+                            Source = firstEncounter?.Source ?? WordEncounterSource.Manual,
+                            SourceIdentifier = firstEncounter?.SourceIdentifier ?? $"export-{DateTime.UtcNow:yyyy-MM-dd}",
+                            Context = firstEncounter?.Context ?? "Dictionary parsing on export",
+                            DictionarySources = lookupResult.DictionarySources.Any() ? lookupResult.DictionarySources : null,
+                            Forms = lookupResult.Forms.Any() ? lookupResult.Forms : null
+                        }, cancellationToken);
+                    }
                 }
             }
             

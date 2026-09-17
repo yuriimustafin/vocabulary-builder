@@ -8,6 +8,7 @@ using AngleSharp;
 using AngleSharp.Html.Parser;
 using System.Web;
 using VocabularyBuilder.Application.Parsers;
+using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 using Microsoft.Identity.Client;
 
@@ -19,6 +20,8 @@ namespace VocabularyBuilder.Infrastructure.Parsers;
 public class OxfordParser : IWordReferenceParser
 {
     const string SearchUrl = "https://www.oxfordlearnersdictionaries.com/us/search/english/?q=";
+
+    public DictionarySourceType SourceType => DictionarySourceType.Oxford;
     
     public async Task<IEnumerable<Word>> GetWords(IEnumerable<string> searchedWords)
     {
@@ -65,6 +68,7 @@ public class OxfordParser : IWordReferenceParser
                 results.Add(new WordParseResult
                 {
                     Word = word,
+                    SearchedTerm = searchedWord,
                     SourceHtml = document.DocumentElement.OuterHtml,
                     SourceUrl = address
                 });
