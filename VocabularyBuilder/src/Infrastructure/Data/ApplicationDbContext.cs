@@ -83,11 +83,6 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<WordForm>()
             .HasIndex(wf => new { wf.Form, wf.Language });
 
-        // A word lists each of its forms once
-        builder.Entity<WordForm>()
-            .HasIndex(wf => new { wf.WordId, wf.Form })
-            .IsUnique();
-
         builder.Entity<ImportedBookWord>()
             .HasOne(ibw => ibw.Word)
             .WithMany()

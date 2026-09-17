@@ -88,6 +88,8 @@ public class ExportWordsCommandHandler : IRequestHandler<ExportWordsCommand, Exp
                             Language = language,
                             Transcription = lookupResult.Word.Transcription,
                             PartOfSpeech = lookupResult.Word.PartOfSpeech,
+                            Gender = lookupResult.Word.Gender,
+                            IsPluralOnly = lookupResult.Word.IsPluralOnly,
                             Frequency = lookupResult.Word.Frequency,
                             Examples = lookupResult.Word.Examples?.ToList(),
                             Senses = lookupResult.Word.Senses?.ToList(),

@@ -502,6 +502,12 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("Gender")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPluralOnly")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTimeOffset>("LastModified")
                         .HasColumnType("TEXT");
 
@@ -680,12 +686,18 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<int?>("Frequency")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("Gender")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Headword")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsMarkedForStudy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPluralOnly")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Language")
@@ -841,10 +853,9 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Form", "Language");
+                    b.HasIndex("WordId");
 
-                    b.HasIndex("WordId", "Form")
-                        .IsUnique();
+                    b.HasIndex("Form", "Language");
 
                     b.ToTable("WordForms");
                 });

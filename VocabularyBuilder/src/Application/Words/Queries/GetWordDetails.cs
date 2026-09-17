@@ -1,4 +1,5 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
@@ -27,20 +28,40 @@ public class GetWordDetailsQueryHandler : IRequestHandler<GetWordDetailsQuery, W
         if (word == null)
             return null;
 
+        // Loaded separately: WordForms has no navigation from Word, and a verb carries
+        // around eighty of them. Id order is the order the conjugation page listed them in.
+        var forms = await _context.WordForms
+            .AsNoTracking()
+            .Where(wf => wf.WordId == word.Id)
+            .OrderBy(wf => wf.Id)
+            .Select(wf => new WordFormDto
+            {
+                Form = wf.Form,
+                Mood = wf.Mood,
+                Tense = wf.Tense,
+                Person = wf.Person
+            })
+            .ToListAsync(cancellationToken);
+
         return new WordDetailsDto
         {
             Id = word.Id,
             Headword = word.Headword,
             Transcription = word.Transcription,
             PartOfSpeech = word.PartOfSpeech,
+            Gender = word.Gender,
+            IsPluralOnly = word.IsPluralOnly,
+            Article = NounArticleDto.From(word.GetArticle()),
+            Forms = forms,
             Frequency = word.Frequency,
             Status = word.Status,
             Language = word.Language,
             Examples = word.Examples?.ToList() ?? new List<string>(),
-            Senses = word.Senses?.Select(s => new SenseDto
+            Senses = word.Senses?.OrderBy(s => s.Id).Select(s => new SenseDto
             {
                 Definition = s.Definition,
                 PartOfSpeech = s.PartOfSpeech.ToString(),
+                Article = NounArticleDto.From(word.GetArticle(s)),
                 Examples = s.Examples?.ToList() ?? new List<string>()
             }).ToList() ?? new List<SenseDto>(),
             Encounters = word.WordEncounters?.Select(e => new EncounterDto
@@ -66,11 +87,17 @@ public class WordDetailsDto
     public string Headword { get; set; } = string.Empty;
     public string? Transcription { get; set; }
     public string? PartOfSpeech { get; set; }
+    public GrammaticalGender? Gender { get; set; }
+    public bool IsPluralOnly { get; set; }
+    public NounArticleDto? Article { get; set; }
     public int? Frequency { get; set; }
     public WordStatus Status { get; set; }
     public Language Language { get; set; }
     public List<string> Examples { get; set; } = new();
     public List<SenseDto> Senses { get; set; } = new();
+
+    /// <summary>Inflected forms, in the order the source listed them. Empty for most non-verbs.</summary>
+    public List<WordFormDto> Forms { get; set; } = new();
     public List<EncounterDto> Encounters { get; set; } = new();
     public List<DictionarySourceDto> DictionarySources { get; set; } = new();
 }
@@ -79,7 +106,19 @@ public class SenseDto
 {
     public string Definition { get; set; } = string.Empty;
     public string PartOfSpeech { get; set; } = string.Empty;
+
+    /// <summary>The article for this meaning, which can differ from the word's ("la livre").</summary>
+    public NounArticleDto? Article { get; set; }
+
     public List<string> Examples { get; set; } = new();
+}
+
+public class WordFormDto
+{
+    public string Form { get; set; } = string.Empty;
+    public string? Mood { get; set; }
+    public string? Tense { get; set; }
+    public string? Person { get; set; }
 }
 
 public class EncounterDto

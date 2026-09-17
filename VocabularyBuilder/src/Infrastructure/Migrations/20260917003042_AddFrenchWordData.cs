@@ -6,11 +6,37 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace VocabularyBuilder.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class AddWordForms : Migration
+    public partial class AddFrenchWordData : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.AddColumn<int>(
+                name: "Gender",
+                table: "Words",
+                type: "INTEGER",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "IsPluralOnly",
+                table: "Words",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.AddColumn<int>(
+                name: "Gender",
+                table: "Sense",
+                type: "INTEGER",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "IsPluralOnly",
+                table: "Sense",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: false);
+
             migrationBuilder.CreateTable(
                 name: "WordForms",
                 columns: table => new
@@ -45,10 +71,9 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                 columns: new[] { "Form", "Language" });
 
             migrationBuilder.CreateIndex(
-                name: "IX_WordForms_WordId_Form",
+                name: "IX_WordForms_WordId",
                 table: "WordForms",
-                columns: new[] { "WordId", "Form" },
-                unique: true);
+                column: "WordId");
         }
 
         /// <inheritdoc />
@@ -56,6 +81,22 @@ namespace VocabularyBuilder.Infrastructure.Migrations
         {
             migrationBuilder.DropTable(
                 name: "WordForms");
+
+            migrationBuilder.DropColumn(
+                name: "Gender",
+                table: "Words");
+
+            migrationBuilder.DropColumn(
+                name: "IsPluralOnly",
+                table: "Words");
+
+            migrationBuilder.DropColumn(
+                name: "Gender",
+                table: "Sense");
+
+            migrationBuilder.DropColumn(
+                name: "IsPluralOnly",
+                table: "Sense");
         }
     }
 }

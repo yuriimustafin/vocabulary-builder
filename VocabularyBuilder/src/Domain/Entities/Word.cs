@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Domain.Samples.Entities;
 public class Word : BaseAuditableEntity
@@ -20,6 +21,17 @@ public class Word : BaseAuditableEntity
 
     // TODO: Change it to enum
     public string? PartOfSpeech{ get; set; }
+
+    /// <summary>
+    /// Gender of the word's primary meaning, when that meaning is a noun. A noun whose
+    /// meanings differ in gender ("le livre", "la livre") keeps each one on its sense.
+    /// </summary>
+    public GrammaticalGender? Gender { get; set; }
+
+    /// <summary>
+    /// True for nouns that only exist in the plural ("les gens", "les vacances").
+    /// </summary>
+    public bool IsPluralOnly { get; set; }
     public IList<Sense>? Senses { get; set; }
     public IList<string>? Examples { get; set; }
     public int? Frequency { get; set; }
@@ -58,6 +70,23 @@ public class Word : BaseAuditableEntity
     /// shown in the "to run" citation form; French infinitives stand alone,
     /// so the particle is only ever added for English.
     /// </summary>
+    /// <summary>
+    /// The article the word is learned with, or null when it is not a French noun of
+    /// known gender.
+    /// </summary>
+    public NounArticle? GetArticle() =>
+        Language == Language.French
+            ? FrenchArticles.For(Headword, Gender, IsPluralOnly, Transcription)
+            : null;
+
+    /// <summary>
+    /// The article for one particular meaning, which can differ from the word's own.
+    /// </summary>
+    public NounArticle? GetArticle(Sense sense) =>
+        Language == Language.French
+            ? FrenchArticles.For(Headword, sense.Gender, sense.IsPluralOnly, Transcription)
+            : null;
+
     public string GetHeadword()
     {
         var prefix = (Language == Language.English

@@ -64,6 +64,8 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
                     Language = request.Language,
                     Transcription = lookupResult.Word.Transcription,
                     PartOfSpeech = lookupResult.Word.PartOfSpeech,
+                    Gender = lookupResult.Word.Gender,
+                    IsPluralOnly = lookupResult.Word.IsPluralOnly,
                     Frequency = lookupResult.Word.Frequency,
                     Examples = lookupResult.Word.Examples?.ToList(),
                     Senses = lookupResult.Word.Senses?.ToList(),

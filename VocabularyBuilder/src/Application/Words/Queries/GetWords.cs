@@ -1,4 +1,4 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Enums;
@@ -103,7 +103,10 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, PaginatedList
             EncounterCount = w.WordEncounters?.Count ?? 0,
             Examples = w.Examples?.ToList() ?? new List<string>(),
             Status = w.Status,
-            Language = w.Language
+            Language = w.Language,
+            Gender = w.Gender,
+            IsPluralOnly = w.IsPluralOnly,
+            Article = NounArticleDto.From(w.GetArticle())
         }).ToList();
 
         return new PaginatedList<WordDto>(wordDtos, totalCount, request.PageNumber, request.PageSize);
@@ -121,4 +124,9 @@ public class WordDto
     public List<string> Examples { get; set; } = new();
     public Language Language { get; set; }
     public WordStatus Status { get; set; }
+    public GrammaticalGender? Gender { get; set; }
+    public bool IsPluralOnly { get; set; }
+
+    /// <summary>Article to show with the headword; null unless it is a French noun of known gender.</summary>
+    public NounArticleDto? Article { get; set; }
 }

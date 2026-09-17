@@ -9,6 +9,11 @@ public record UpsertWordCommand : IRequest<int>
 {
     public string Headword { get; init; } = string.Empty;    public Language Language { get; init; } = Language.English;    public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
+
+    /// <summary>Gender of the primary meaning, when it is a noun.</summary>
+    public GrammaticalGender? Gender { get; init; }
+
+    public bool IsPluralOnly { get; init; }
     public int? Frequency { get; init; }
     public List<string>? Examples { get; init; }
     public List<Sense>? Senses { get; init; }
@@ -60,6 +65,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 Language = request.Language,
                 Transcription = request.Transcription,
                 PartOfSpeech = request.PartOfSpeech,
+                Gender = request.Gender,
+                IsPluralOnly = request.IsPluralOnly,
                 Frequency = frequency,
                 Examples = request.Examples,
                 Senses = request.Senses
@@ -92,6 +99,14 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             // Update existing word (only if new information is provided)
             existingWord.Transcription = request.Transcription ?? existingWord.Transcription;
             existingWord.PartOfSpeech = request.PartOfSpeech ?? existingWord.PartOfSpeech;
+
+            // Gender and number travel together: a request that knows the gender is
+            // authoritative for both, one that does not leaves them as they were
+            if (request.Gender.HasValue)
+            {
+                existingWord.Gender = request.Gender;
+                existingWord.IsPluralOnly = request.IsPluralOnly;
+            }
             
             // Set frequency: use provided value, or look up if not provided and not already set
             if (request.Frequency.HasValue)
@@ -156,8 +171,9 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
     }
 
     /// <summary>
-    /// Record the word's inflected forms, adding only those not already stored
-    /// so that re-importing a word does not duplicate its conjugation.
+    /// Record the word's inflected forms, adding only cells not already stored so that
+    /// re-importing a word does not duplicate its conjugation. A cell is the form together
+    /// with where it sits: "prends" is stored for both "je" and "tu".
     /// </summary>
     private async Task SaveWordForms(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
     {
@@ -168,14 +184,16 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
 
         var existingForms = await _context.WordForms
             .Where(wf => wf.WordId == wordId)
-            .Select(wf => wf.Form)
+            .Select(wf => new { wf.Mood, wf.Tense, wf.Person, wf.Form })
             .ToListAsync(cancellationToken);
 
-        var known = new HashSet<string>(existingForms, StringComparer.OrdinalIgnoreCase);
+        var known = existingForms
+            .Select(wf => (wf.Mood, wf.Tense, wf.Person, wf.Form))
+            .ToHashSet();
 
         foreach (var form in request.Forms)
         {
-            if (string.IsNullOrWhiteSpace(form.Form) || !known.Add(form.Form))
+            if (string.IsNullOrWhiteSpace(form.Form) || !known.Add((form.Mood, form.Tense, form.Person, form.Form)))
             {
                 continue;
             }

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Primitives;
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Infrastructure.Exporters;
@@ -33,7 +34,7 @@ internal class AnkiClozeCsvExporter : IWordsExporter
             */
             result.Append(_options.GetDeckName(word.Language) + ";");
             result.Append(word.Headword + ";");
-            result.Append($"\"<span class='headword'>{ClozeWholeString(word.GetHeadword())}</span> &nbsp;&nbsp;" +
+            result.Append($"\"<span class='headword'>{ClozeWholeString(FormatHeadword(word))}</span> &nbsp;&nbsp;" +
                 $"{
                     (word.Transcription is null 
                     ? "" 
@@ -67,6 +68,38 @@ internal class AnkiClozeCsvExporter : IWordsExporter
             result.Append("\r\n");
         }
         return result.ToString();
+    }
+
+    /// <summary>
+    /// Colours used for articles, matching the app. Set inline because the note type's
+    /// stylesheet lives in Anki, not here; the class is kept so it can still override them.
+    /// </summary>
+    private static readonly Dictionary<GrammaticalGender, string> ArticleColours = new()
+    {
+        [GrammaticalGender.Masculine] = "#1565c0",
+        [GrammaticalGender.Feminine] = "#c62828",
+        [GrammaticalGender.Common] = "#6a1b9a"
+    };
+
+    /// <summary>
+    /// "la maison" with the article coloured by gender. The article sits inside the cloze
+    /// with the word, so recalling the word means recalling its gender too.
+    /// </summary>
+    private static string FormatHeadword(Word word)
+    {
+        var article = word.GetArticle();
+        if (article is null)
+        {
+            return word.GetHeadword();
+        }
+
+        var gender = article.Gender.ToString().ToLowerInvariant();
+        var articleHtml =
+            $"<span class='article article-{gender}' style='color:{ArticleColours[article.Gender]}'>{article.Definite}</span>";
+
+        return article.IsElided
+            ? articleHtml + word.Headword
+            : $"{articleHtml} {word.Headword}";
     }
 
     private string MakeValidLine(string str)

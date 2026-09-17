@@ -18,7 +18,7 @@ public static class StudyContentPrompt
     public const string Marker = "STUDY_CONTENT_V1";
 
     /// <summary>Bumped when the wording changes, so content can be regenerated selectively.</summary>
-    public const string Version = "v1";
+    public const string Version = "v2";
 
     public static string For(Word word, StudyMaterialGaps gaps)
     {
@@ -34,7 +34,9 @@ public static class StudyContentPrompt
         {
             // The resolver rejects a sentence that does not contain the headword, so the
             // requirement is stated plainly rather than left to be inferred.
-            fields.Add("""  "sentence": one natural example sentence containing the word exactly as spelled, unchanged""");
+            // Named explicitly: a French word with an English definition beside it would
+            // otherwise invite an English sentence the word has to be forced into.
+            fields.Add($"""  "sentence": one natural {word.Language} example sentence containing the word exactly as spelled, unchanged""");
         }
 
         return $"""

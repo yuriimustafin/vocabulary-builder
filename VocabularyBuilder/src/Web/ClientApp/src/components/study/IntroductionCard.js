@@ -1,5 +1,6 @@
 import React from 'react';
 import { Button } from 'reactstrap';
+import { NounArticle } from '../NounArticle';
 
 /**
  * A word being met for the first time.
@@ -11,7 +12,10 @@ import { Button } from 'reactstrap';
 export function IntroductionCard({ exercise, onAcknowledge, onAlreadyKnown, submitting }) {
   return (
     <div data-testid="introduction-card">
-      <div className="display-6 fw-bold" data-testid="exercise-prompt">{exercise.prompt}</div>
+      <div className="display-6 fw-bold">
+        <NounArticle article={exercise.article} />
+        <span data-testid="exercise-prompt">{exercise.prompt}</span>
+      </div>
 
       {exercise.transcription && <div className="text-muted">/{exercise.transcription}/</div>}
       {exercise.partOfSpeech && <div className="text-muted small fst-italic">{exercise.partOfSpeech}</div>}

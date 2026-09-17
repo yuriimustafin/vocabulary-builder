@@ -1,5 +1,7 @@
 import React, { Component } from 'react';
 import { Button } from 'reactstrap';
+import { NounArticle } from '../NounArticle';
+import { ExerciseType } from './exerciseTypes';
 
 /**
  * Multiple choice, in either direction.
@@ -34,7 +36,11 @@ export class ChoiceExercise extends Component {
 
     return (
       <div data-testid="choice-exercise">
-        <div className="fs-4 fw-semibold" data-testid="exercise-prompt">{exercise.prompt}</div>
+        <div className="fs-4 fw-semibold">
+          {/* Only when the prompt is the word; picking a word from its meaning must not be cued */}
+          {exercise.type === ExerciseType.WordToMeaningChoice && <NounArticle article={exercise.article} />}
+          <span data-testid="exercise-prompt">{exercise.prompt}</span>
+        </div>
         {exercise.transcription && <div className="text-muted">/{exercise.transcription}/</div>}
 
         <div className="d-grid gap-2 mt-4">

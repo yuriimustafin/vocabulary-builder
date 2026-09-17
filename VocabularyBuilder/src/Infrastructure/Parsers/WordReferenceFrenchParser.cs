@@ -223,11 +223,17 @@ public class WordReferenceFrenchParser : IWordReferenceParser
         }
 
         var senses = entries
-            .Select(entry => new Sense
+            .Select(entry =>
             {
-                Definition = entry.BuildDefinition(),
-                PartOfSpeech = ParsePartOfSpeech(entry.PartOfSpeech),
-                Examples = entry.BuildExamples()
+                var noun = ReadNounTag(entry.PartOfSpeech);
+                return new Sense
+                {
+                    Definition = entry.BuildDefinition(),
+                    PartOfSpeech = ParsePartOfSpeech(entry.PartOfSpeech),
+                    Gender = noun?.Gender,
+                    IsPluralOnly = noun?.IsPluralOnly ?? false,
+                    Examples = entry.BuildExamples()
+                };
             })
             .Where(sense => !string.IsNullOrWhiteSpace(sense.Definition))
             .ToList();
@@ -237,16 +243,72 @@ public class WordReferenceFrenchParser : IWordReferenceParser
             return null;
         }
 
+        // The word takes the gender of its primary meaning, and only if that meaning is a
+        // noun: "devoir" is first a verb, so it gets no article even though it is also "le devoir"
+        var primaryNoun = ReadNounTag(entries[0].PartOfSpeech);
+
         return new Word
         {
             Headword = headword,
             Transcription = GetTranscription(document),
             PartOfSpeech = entries[0].PartOfSpeech,
+            Gender = primaryNoun?.Gender,
+            IsPluralOnly = primaryNoun?.IsPluralOnly ?? false,
             Language = Language.French,
             Senses = senses,
             Examples = entries.SelectMany(entry => entry.BuildExamples()).ToList()
         };
     }
+
+    /// <summary>
+    /// Noun tags as WordReference writes them: "nm", "nf", "nmf" (either sex), "nmpl" and
+    /// "nfpl" (plural only), "nm ou nf inv" (either gender), optionally after "loc" for a
+    /// multi-word noun.
+    /// </summary>
+    private static readonly Regex NounTagPattern = new(
+        @"^(?:loc\s+)?n(?<gender>mf|m|f)?(?<plural>pl)?(?:\s|,|$)",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    private static readonly Regex EitherGenderPattern = new(
+        @"(?:\bou\b|,)\s*n[mf]\b",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+    /// <summary>
+    /// Reads gender and number from a part-of-speech tag, or returns null when the tag is
+    /// not a noun. A noun whose tag carries no gender comes back with a null Gender.
+    /// </summary>
+    internal static NounTag? ReadNounTag(string? partOfSpeech)
+    {
+        if (string.IsNullOrWhiteSpace(partOfSpeech))
+        {
+            return null;
+        }
+
+        var value = partOfSpeech.Trim();
+        var match = NounTagPattern.Match(value);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        GrammaticalGender? gender = match.Groups["gender"].Value.ToLowerInvariant() switch
+        {
+            "m" => GrammaticalGender.Masculine,
+            "f" => GrammaticalGender.Feminine,
+            "mf" => GrammaticalGender.Common,
+            _ => null
+        };
+
+        // "nm ou nf inv": the first tag alone would say masculine
+        if (gender is not null && EitherGenderPattern.IsMatch(value))
+        {
+            gender = GrammaticalGender.Common;
+        }
+
+        return new NounTag(gender, IsPluralOnly: match.Groups["plural"].Success);
+    }
+
+    internal record NounTag(GrammaticalGender? Gender, bool IsPluralOnly);
 
     /// <summary>
     /// The page holds one table.WRD per section, each opening with its own
@@ -452,7 +514,7 @@ public class WordReferenceFrenchParser : IWordReferenceParser
 
         if (value.StartsWith("adv")) return PartsOfSpeech.Adverb;
         if (value.StartsWith("adj") || value.StartsWith("loc adj")) return PartsOfSpeech.Adjective;
-        if (value.StartsWith("nm") || value.StartsWith("nf") || value.StartsWith("n ")) return PartsOfSpeech.Noun;
+        if (ReadNounTag(value) is not null) return PartsOfSpeech.Noun;
         if (value.StartsWith("v") || value.StartsWith("loc v")) return PartsOfSpeech.Verb;
         if (value.StartsWith("pron")) return PartsOfSpeech.Pronoun;
         if (value.StartsWith("prép") || value.StartsWith("prep")) return PartsOfSpeech.Preposition;

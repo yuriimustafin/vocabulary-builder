@@ -83,22 +83,59 @@ public class WordReferenceConjugationParserTests
     }
 
     [Test]
-    public void ShouldNotRepeatAFormThatRecursAcrossTenses()
+    public void ShouldKeepEveryCellEvenWhenAFormRecurs()
     {
-        // "prends" is both 1st and 2nd person singular present
-        var duplicates = _forms
-            .GroupBy(f => f.Form)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key);
+        // "prends" is both 1st and 2nd person singular present; dropping the second would
+        // leave a hole where "tu" belongs when the table is shown
+        var present = _forms
+            .Where(f => f.Mood == "indicatif" && f.Tense == "présent")
+            .Select(f => (f.Person, f.Form))
+            .ToList();
 
-        duplicates.Should().BeEmpty();
+        present.Should().Equal(
+            ("je", "prends"),
+            ("tu", "prends"),
+            ("il, elle, on", "prend"),
+            ("nous", "prenons"),
+            ("vous", "prenez"),
+            ("ils, elles", "prennent"));
     }
 
     [Test]
-    public void ShouldFindAPlausibleNumberOfForms()
+    public void ShouldReadEveryTableOnThePage()
     {
-        // A French verb has dozens of distinct forms across all moods
-        _forms.Count.Should().BeGreaterThan(30);
+        // 15 six-person tables and 2 imperatives with three persons each, plus 2 participles
+        _forms.Count.Should().Be(15 * 6 + 2 * 3 + 2);
+    }
+
+    [Test]
+    public void ShouldReadTheParticiples()
+    {
+        _forms.Should().ContainSingle(f => f.Mood == "participe" && f.Tense == "présent")
+            .Which.Form.Should().Be("prenant");
+
+        _forms.Should().ContainSingle(f => f.Mood == "participe" && f.Tense == "passé")
+            .Which.Form.Should().Be("pris");
+    }
+
+    [Test]
+    public void ShouldNotKeepTheInfinitiveOrThePronominalVerbAsForms()
+    {
+        _forms.Should().NotContain(f => f.Form == "prendre" || f.Form.StartsWith("se prendre"));
+    }
+
+    [Test]
+    public void ShouldCleanTheImperative()
+    {
+        var imperative = _forms.Where(f => f.Mood == "impératif" && f.Tense == "présent").ToList();
+
+        // The persons the imperative lacks are marked with a dash on the page
+        imperative.Should().NotContain(f => f.Form == "–" || f.Form == "-");
+        // "prends !" is the form "prends"; "(tu)" is the person "tu"
+        imperative.Select(f => (f.Person, f.Form)).Should().Equal(
+            ("tu", "prends"),
+            ("nous", "prenons"),
+            ("vous", "prenez"));
     }
 
     [Test]

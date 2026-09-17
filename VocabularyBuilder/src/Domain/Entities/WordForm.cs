@@ -1,4 +1,4 @@
-using VocabularyBuilder.Domain.Enums;
+﻿using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Domain.Samples.Entities;
 
@@ -8,7 +8,9 @@ namespace VocabularyBuilder.Domain.Samples.Entities;
 /// encounter with "prendre".
 /// </summary>
 /// <remarks>
-/// Deliberately not uniquely indexed on Form: a single French form regularly
+/// One row per cell of the source table, so a form that recurs is stored each time
+/// ("prends" for both "je" and "tu") and the table can be shown as it was.
+/// Deliberately not uniquely indexed on Form either: a single French form regularly
 /// belongs to several lemmas ("suis" to both etre and suivre), and losing
 /// either link would make encounter counting wrong.
 /// </remarks>

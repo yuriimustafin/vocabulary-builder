@@ -9,6 +9,8 @@ public record CreateWordCommand : IRequest<int>
 {
     public string Headword { get; init; } = string.Empty;    public Language Language { get; init; } = Language.English;    public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
+    public GrammaticalGender? Gender { get; init; }
+    public bool IsPluralOnly { get; init; }
     public int? Frequency { get; init; }
     public List<string>? Examples { get; init; }
     
@@ -45,6 +47,8 @@ public class CreateWordCommandHandler : IRequestHandler<CreateWordCommand, int>
             Language = request.Language,
             Transcription = request.Transcription,
             PartOfSpeech = request.PartOfSpeech,
+            Gender = request.Gender,
+            IsPluralOnly = request.Gender.HasValue && request.IsPluralOnly,
             Frequency = frequency,
             Examples = request.Examples
         };
