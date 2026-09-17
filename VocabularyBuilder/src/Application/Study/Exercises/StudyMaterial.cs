@@ -1,4 +1,5 @@
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Study.Exercises;
@@ -19,6 +20,12 @@ public record StudyMaterial
     public string? PartOfSpeech { get; init; }
 
     public string? Transcription { get; init; }
+
+    /// <summary>
+    /// The article the word is learned with, when it is a French noun of known gender.
+    /// Kept apart from <see cref="Headword"/>, which answers are marked against.
+    /// </summary>
+    public NounArticleDto? Article { get; init; }
 
     /// <summary>Short definition used as the stimulus or the answer, depending on direction.</summary>
     public string? Meaning { get; init; }

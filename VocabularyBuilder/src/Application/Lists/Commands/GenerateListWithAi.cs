@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Lists.Queries;
@@ -44,7 +44,7 @@ public class GenerateListWithAiCommandHandler : IRequestHandler<GenerateListWith
         var (minItems, maxItems) = GetItemRange(request.QuantityRange);
         
         // Build the prompt for GPT
-        var gptPrompt = BuildGptPrompt(request.Prompt, minItems, maxItems);
+        var gptPrompt = BuildGptPrompt(request.Prompt, minItems, maxItems, request.Language);
         
         // Call GPT to generate items
         var gptResponse = await _gptClient.SendMessageAsync(gptPrompt);
@@ -93,24 +93,49 @@ public class GenerateListWithAiCommandHandler : IRequestHandler<GenerateListWith
         };
     }
     
-    private static string BuildGptPrompt(string userPrompt, int minItems, int maxItems)
+    private static string BuildGptPrompt(string userPrompt, int minItems, int maxItems, Language language)
     {
         var itemCount = maxItems == minItems ? maxItems.ToString() : $"{minItems}-{maxItems}";
+        var languageName = GetLanguageName(language);
+        var exams = GetExams(language);
         
         return $@"Generate {itemCount} items for: ""{userPrompt}"".
 
 Instructions:
 1. Return ONLY a valid JSON array of strings (no additional text, explanations, or markdown)
 2. Each item should be a single word or phrase
-3. Items should be common and actually in use in everyday English
-4. Focus on vocabulary that demonstrates good language skills in tests like CELPIP/IELTS
+3. Items should be common and actually in use in everyday {languageName}
+4. Focus on vocabulary that demonstrates good language skills in tests like {exams}
 5. Include practical phrases/words suitable for writing and speaking test sections
 6. Items can be somewhat typical for these tests (even slightly cliche), but must be genuinely useful
 7. Do not include numbering, bullets, or other formatting in the items themselves
 8. Ensure items are diverse and non-repetitive
+9. Every item must be written in {languageName}
 
 Example format: [""item1"", ""item2"", ""item3""]
 
 Generate the list now:";
+    }
+
+    private static string GetLanguageName(Language language)
+    {
+        return language switch
+        {
+            Language.French => "French",
+            _ => "English"
+        };
+    }
+
+    /// <summary>
+    /// Proficiency tests the generated vocabulary should suit. Both sets are the
+    /// ones that matter for Canadian immigration.
+    /// </summary>
+    private static string GetExams(Language language)
+    {
+        return language switch
+        {
+            Language.French => "TEF Canada/TCF Canada",
+            _ => "CELPIP/IELTS"
+        };
     }
 }

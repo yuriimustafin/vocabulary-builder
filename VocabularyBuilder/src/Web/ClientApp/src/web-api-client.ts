@@ -1775,7 +1775,7 @@ export class NewWordsClient {
         return Promise.resolve<ImportWordsFromDictionaryResult>(null as any);
     }
 
-    newWords_SaveWord(headword: string | undefined, language: Language | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, frequency: number | null | undefined, examples: string[] | null | undefined, source: WordEncounterSource | undefined, sourceIdentifier: string | null | undefined, context: string | null | undefined, notes: string | null | undefined): Promise<number> {
+    newWords_SaveWord(headword: string | undefined, language: Language | undefined, transcription: string | null | undefined, partOfSpeech: string | null | undefined, gender: GrammaticalGender | null | undefined, isPluralOnly: boolean | undefined, frequency: number | null | undefined, examples: string[] | null | undefined, source: WordEncounterSource | undefined, sourceIdentifier: string | null | undefined, context: string | null | undefined, notes: string | null | undefined): Promise<number> {
         let url_ = this.baseUrl + "/api/NewWords?";
         if (headword === null)
             throw new Error("The parameter 'headword' cannot be null.");
@@ -1789,6 +1789,12 @@ export class NewWordsClient {
             url_ += "Transcription=" + encodeURIComponent("" + transcription) + "&";
         if (partOfSpeech !== undefined && partOfSpeech !== null)
             url_ += "PartOfSpeech=" + encodeURIComponent("" + partOfSpeech) + "&";
+        if (gender !== undefined && gender !== null)
+            url_ += "Gender=" + encodeURIComponent("" + gender) + "&";
+        if (isPluralOnly === null)
+            throw new Error("The parameter 'isPluralOnly' cannot be null.");
+        else if (isPluralOnly !== undefined)
+            url_ += "IsPluralOnly=" + encodeURIComponent("" + isPluralOnly) + "&";
         if (frequency !== undefined && frequency !== null)
             url_ += "Frequency=" + encodeURIComponent("" + frequency) + "&";
         if (examples !== undefined && examples !== null)
@@ -1938,8 +1944,12 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    newWords_GenerateText(command: CreateTextForAudioCommand): Promise<string> {
-        let url_ = this.baseUrl + "/api/NewWords/audio-text";
+    newWords_GenerateText(lang: string | undefined, command: CreateTextForAudioCommand): Promise<string> {
+        let url_ = this.baseUrl + "/api/NewWords/audio-text?";
+        if (lang === null)
+            throw new Error("The parameter 'lang' cannot be null.");
+        else if (lang !== undefined)
+            url_ += "lang=" + encodeURIComponent("" + lang) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = JSON.stringify(command);
@@ -3147,6 +3157,7 @@ export class ExercisePayload implements IExercisePayload {
     hintAvailable?: boolean;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
+    article?: NounArticleDto | undefined;
     options?: string[] | undefined;
     tiles?: string[] | undefined;
     letterMask?: string | undefined;
@@ -3172,6 +3183,7 @@ export class ExercisePayload implements IExercisePayload {
             this.hintAvailable = _data["hintAvailable"];
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
+            this.article = _data["article"] ? NounArticleDto.fromJS(_data["article"]) : <any>undefined;
             if (Array.isArray(_data["options"])) {
                 this.options = [] as any;
                 for (let item of _data["options"])
@@ -3205,6 +3217,7 @@ export class ExercisePayload implements IExercisePayload {
         data["hintAvailable"] = this.hintAvailable;
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
+        data["article"] = this.article ? this.article.toJSON() : <any>undefined;
         if (Array.isArray(this.options)) {
             data["options"] = [];
             for (let item of this.options)
@@ -3231,6 +3244,7 @@ export interface IExercisePayload {
     hintAvailable?: boolean;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
+    article?: NounArticleDto | undefined;
     options?: string[] | undefined;
     tiles?: string[] | undefined;
     letterMask?: string | undefined;
@@ -3250,6 +3264,58 @@ export enum ExerciseType {
 export enum GradingMode {
     SelfReported = 0,
     Automatic = 1,
+}
+
+export class NounArticleDto implements INounArticleDto {
+    definite?: string;
+    indefinite?: string;
+    gender?: string;
+    isElided?: boolean;
+    isPlural?: boolean;
+
+    constructor(data?: INounArticleDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.definite = _data["definite"];
+            this.indefinite = _data["indefinite"];
+            this.gender = _data["gender"];
+            this.isElided = _data["isElided"];
+            this.isPlural = _data["isPlural"];
+        }
+    }
+
+    static fromJS(data: any): NounArticleDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new NounArticleDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["definite"] = this.definite;
+        data["indefinite"] = this.indefinite;
+        data["gender"] = this.gender;
+        data["isElided"] = this.isElided;
+        data["isPlural"] = this.isPlural;
+        return data;
+    }
+}
+
+export interface INounArticleDto {
+    definite?: string;
+    indefinite?: string;
+    gender?: string;
+    isElided?: boolean;
+    isPlural?: boolean;
 }
 
 export class StudyStatsDto implements IStudyStatsDto {
@@ -3446,6 +3512,7 @@ export interface IFollowUpDto {
 export class ReviewFeedbackDto implements IReviewFeedbackDto {
     correct?: boolean;
     headword?: string;
+    article?: NounArticleDto | undefined;
     meaning?: string | undefined;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
@@ -3465,6 +3532,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
         if (_data) {
             this.correct = _data["correct"];
             this.headword = _data["headword"];
+            this.article = _data["article"] ? NounArticleDto.fromJS(_data["article"]) : <any>undefined;
             this.meaning = _data["meaning"];
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
@@ -3484,6 +3552,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
         data = typeof data === 'object' ? data : {};
         data["correct"] = this.correct;
         data["headword"] = this.headword;
+        data["article"] = this.article ? this.article.toJSON() : <any>undefined;
         data["meaning"] = this.meaning;
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
@@ -3496,6 +3565,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
 export interface IReviewFeedbackDto {
     correct?: boolean;
     headword?: string;
+    article?: NounArticleDto | undefined;
     meaning?: string | undefined;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
@@ -3929,6 +3999,9 @@ export class WordDto implements IWordDto {
     examples?: string[];
     language?: Language;
     status?: WordStatus;
+    gender?: GrammaticalGender | undefined;
+    isPluralOnly?: boolean;
+    article?: NounArticleDto | undefined;
 
     constructor(data?: IWordDto) {
         if (data) {
@@ -3954,6 +4027,9 @@ export class WordDto implements IWordDto {
             }
             this.language = _data["language"];
             this.status = _data["status"];
+            this.gender = _data["gender"];
+            this.isPluralOnly = _data["isPluralOnly"];
+            this.article = _data["article"] ? NounArticleDto.fromJS(_data["article"]) : <any>undefined;
         }
     }
 
@@ -3979,6 +4055,9 @@ export class WordDto implements IWordDto {
         }
         data["language"] = this.language;
         data["status"] = this.status;
+        data["gender"] = this.gender;
+        data["isPluralOnly"] = this.isPluralOnly;
+        data["article"] = this.article ? this.article.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -3993,6 +4072,9 @@ export interface IWordDto {
     examples?: string[];
     language?: Language;
     status?: WordStatus;
+    gender?: GrammaticalGender | undefined;
+    isPluralOnly?: boolean;
+    article?: NounArticleDto | undefined;
 }
 
 export enum WordStatus {
@@ -4003,11 +4085,19 @@ export enum WordStatus {
     Known = 4,
 }
 
+export enum GrammaticalGender {
+    Masculine = 1,
+    Feminine = 2,
+    Common = 3,
+}
+
 export class CreateWordCommand implements ICreateWordCommand {
     headword?: string;
     language?: Language;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
+    gender?: GrammaticalGender | undefined;
+    isPluralOnly?: boolean;
     frequency?: number | undefined;
     examples?: string[] | undefined;
     source?: WordEncounterSource;
@@ -4030,6 +4120,8 @@ export class CreateWordCommand implements ICreateWordCommand {
             this.language = _data["language"];
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
+            this.gender = _data["gender"];
+            this.isPluralOnly = _data["isPluralOnly"];
             this.frequency = _data["frequency"];
             if (Array.isArray(_data["examples"])) {
                 this.examples = [] as any;
@@ -4056,6 +4148,8 @@ export class CreateWordCommand implements ICreateWordCommand {
         data["language"] = this.language;
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
+        data["gender"] = this.gender;
+        data["isPluralOnly"] = this.isPluralOnly;
         data["frequency"] = this.frequency;
         if (Array.isArray(this.examples)) {
             data["examples"] = [];
@@ -4075,6 +4169,8 @@ export interface ICreateWordCommand {
     language?: Language;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
+    gender?: GrammaticalGender | undefined;
+    isPluralOnly?: boolean;
     frequency?: number | undefined;
     examples?: string[] | undefined;
     source?: WordEncounterSource;
@@ -4096,6 +4192,8 @@ export class UpdateWordCommand implements IUpdateWordCommand {
     headword?: string;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
+    gender?: GrammaticalGender | undefined;
+    isPluralOnly?: boolean;
     frequency?: number | undefined;
     examples?: string[] | undefined;
 
@@ -4114,6 +4212,8 @@ export class UpdateWordCommand implements IUpdateWordCommand {
             this.headword = _data["headword"];
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
+            this.gender = _data["gender"];
+            this.isPluralOnly = _data["isPluralOnly"];
             this.frequency = _data["frequency"];
             if (Array.isArray(_data["examples"])) {
                 this.examples = [] as any;
@@ -4136,6 +4236,8 @@ export class UpdateWordCommand implements IUpdateWordCommand {
         data["headword"] = this.headword;
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
+        data["gender"] = this.gender;
+        data["isPluralOnly"] = this.isPluralOnly;
         data["frequency"] = this.frequency;
         if (Array.isArray(this.examples)) {
             data["examples"] = [];
@@ -4151,6 +4253,8 @@ export interface IUpdateWordCommand {
     headword?: string;
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
+    gender?: GrammaticalGender | undefined;
+    isPluralOnly?: boolean;
     frequency?: number | undefined;
     examples?: string[] | undefined;
 }
@@ -4380,11 +4484,14 @@ export enum DictionarySourceType {
     MerriamWebster = 1,
     Cambridge = 2,
     Gpt = 3,
+    WordReference = 4,
+    WordReferenceConjugation = 5,
     Other = 99,
 }
 
 export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
     words?: string[];
+    language?: Language;
 
     constructor(data?: ICreateTextForAudioCommand) {
         if (data) {
@@ -4402,6 +4509,7 @@ export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
                 for (let item of _data["words"])
                     this.words!.push(item);
             }
+            this.language = _data["language"];
         }
     }
 
@@ -4419,12 +4527,14 @@ export class CreateTextForAudioCommand implements ICreateTextForAudioCommand {
             for (let item of this.words)
                 data["words"].push(item);
         }
+        data["language"] = this.language;
         return data;
     }
 }
 
 export interface ICreateTextForAudioCommand {
     words?: string[];
+    language?: Language;
 }
 
 export class SwaggerException extends Error {

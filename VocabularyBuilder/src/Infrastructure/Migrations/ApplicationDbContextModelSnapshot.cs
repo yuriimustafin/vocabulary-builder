@@ -502,6 +502,12 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("Gender")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPluralOnly")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTimeOffset>("LastModified")
                         .HasColumnType("TEXT");
 
@@ -680,12 +686,18 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<int?>("Frequency")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int?>("Gender")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Headword")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("IsMarkedForStudy")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsPluralOnly")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Language")
@@ -796,6 +808,56 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .HasFilter("[SourceIdentifier] IS NOT NULL");
 
                     b.ToTable("WordEncounters");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordForm", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Form")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Language")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Mood")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Person")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tense")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("WordId");
+
+                    b.HasIndex("Form", "Language");
+
+                    b.ToTable("WordForms");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", b =>
@@ -1044,6 +1106,17 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                 {
                     b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
                         .WithMany("WordEncounters")
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Word");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordForm", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany()
                         .HasForeignKey("WordId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();

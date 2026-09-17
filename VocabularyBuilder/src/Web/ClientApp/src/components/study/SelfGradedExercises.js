@@ -7,6 +7,7 @@ export function WordToMeaningRevealExercise(props) {
     <RevealExercise
       {...props}
       prompt={props.exercise.prompt}
+      promptIsWord
       promptClassName="display-6 fw-bold"
       support={props.exercise.transcription && (
         <div className="text-muted">/{props.exercise.transcription}/</div>
@@ -25,6 +26,7 @@ export function ContextToWordRecallExercise(props) {
     <RevealExercise
       {...props}
       prompt={props.exercise.prompt}
+      answerIsWord
       promptClassName="fs-4 lh-base"
       support={<p className="text-muted small mt-2">Which word fills the gap?</p>}
     />
@@ -37,6 +39,7 @@ export function MeaningToWordRecallExercise(props) {
     <RevealExercise
       {...props}
       prompt={props.exercise.prompt}
+      answerIsWord
       promptClassName="fs-4 lh-base"
       support={<p className="text-muted small mt-2">Which word means this?</p>}
     />
@@ -52,6 +55,7 @@ export function MeaningToWordPartialLettersExercise(props) {
     <RevealExercise
       {...props}
       prompt={props.exercise.prompt}
+      answerIsWord
       promptClassName="fs-5 lh-base"
       support={(
         <div className="mt-3">

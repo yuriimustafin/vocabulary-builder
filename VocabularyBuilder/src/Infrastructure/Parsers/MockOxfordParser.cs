@@ -1,6 +1,7 @@
-using AngleSharp;
+﻿using AngleSharp;
 using AngleSharp.Html.Parser;
 using VocabularyBuilder.Application.Parsers;
+using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Infrastructure.Parsers;
@@ -12,6 +13,8 @@ public class MockOxfordParser : IWordReferenceParser
 {
     private readonly string _mockDataPath;
     private readonly OxfordParser _realParser;
+
+    public DictionarySourceType SourceType => DictionarySourceType.Oxford;
 
     public MockOxfordParser(string? mockDataPath = null)
     {
@@ -65,6 +68,7 @@ public class MockOxfordParser : IWordReferenceParser
                     results.Add(new WordParseResult
                     {
                         Word = word,
+                        SearchedTerm = searchedWord,
                         SourceHtml = mockHtml,
                         SourceUrl = $"mock://oxford/{GetWordKey(searchedWord)}"
                     });
@@ -76,6 +80,7 @@ public class MockOxfordParser : IWordReferenceParser
                 results.Add(new WordParseResult
                 {
                     Word = CreateDefaultWord(searchedWord),
+                    SearchedTerm = searchedWord,
                     SourceHtml = "<html><body>Mock data not found</body></html>",
                     SourceUrl = $"mock://oxford/{GetWordKey(searchedWord)}"
                 });

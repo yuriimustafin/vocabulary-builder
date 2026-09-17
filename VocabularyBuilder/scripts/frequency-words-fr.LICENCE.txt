@@ -1,0 +1,38 @@
+frequency-words-fr.txt is derived from Lexique 3.83, a lexical database of French.
+
+Source
+------
+Lexique 3.83 (Lexique383.tsv), by Boris New, Christophe Pallier, Marc Brysbaert
+and Ludovic Ferrand.
+
+lexique.org has lapsed and its domain is now parked, so the archive has to be
+fetched from the Wayback Machine:
+
+    http://web.archive.org/web/20240330115437id_/http://www.lexique.org/databases/Lexique383/Lexique383.zip
+
+Documentation and the project's own README are mirrored at
+https://github.com/chrplr/openlexicon/tree/master/datasets-info/Lexique383
+
+Citation
+--------
+New, B., Pallier, C., Brysbaert, M., & Ferrand, L. (2004). Lexique 2: A New
+French Lexical Database. Behavior Research Methods, Instruments, & Computers,
+36(3), 516-524.
+
+New, B., Brysbaert, M., Veronis, J., & Pallier, C. (2007). The Use of Film
+Subtitles to Estimate Word Frequencies. Applied Psycholinguistics, 28(4),
+661-677.
+
+Licence
+-------
+Lexique 3.83 is released under Creative Commons Attribution-ShareAlike 4.0
+International (CC BY-SA 4.0): https://creativecommons.org/licenses/by-sa/4.0/
+
+frequency-words-fr.txt is an adaptation of that database and is therefore
+distributed under the same CC BY-SA 4.0 licence.
+
+How it was generated
+--------------------
+    node scripts/convert-lexique-to-frequency.js Lexique383.tsv scripts/frequency-words-fr.txt
+
+See convert-lexique-to-frequency.js for the lemma-grouping and frequency rules.

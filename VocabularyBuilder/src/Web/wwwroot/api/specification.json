@@ -1679,6 +1679,27 @@
             "x-position": 4
           },
           {
+            "name": "Gender",
+            "in": "query",
+            "schema": {
+              "nullable": true,
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/GrammaticalGender"
+                }
+              ]
+            },
+            "x-position": 5
+          },
+          {
+            "name": "IsPluralOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "x-position": 6
+          },
+          {
             "name": "Frequency",
             "in": "query",
             "schema": {
@@ -1686,7 +1707,7 @@
               "format": "int32",
               "nullable": true
             },
-            "x-position": 5
+            "x-position": 7
           },
           {
             "name": "Examples",
@@ -1700,7 +1721,7 @@
                 "type": "string"
               }
             },
-            "x-position": 6
+            "x-position": 8
           },
           {
             "name": "Source",
@@ -1708,7 +1729,7 @@
             "schema": {
               "$ref": "#/components/schemas/WordEncounterSource"
             },
-            "x-position": 7
+            "x-position": 9
           },
           {
             "name": "SourceIdentifier",
@@ -1717,7 +1738,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 8
+            "x-position": 10
           },
           {
             "name": "Context",
@@ -1726,7 +1747,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 9
+            "x-position": 11
           },
           {
             "name": "Notes",
@@ -1735,7 +1756,7 @@
               "type": "string",
               "nullable": true
             },
-            "x-position": 10
+            "x-position": 12
           }
         ],
         "responses": {
@@ -1866,6 +1887,17 @@
           "NewWords"
         ],
         "operationId": "NewWords_GenerateText",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "default": "en"
+            },
+            "x-position": 2
+          }
+        ],
         "requestBody": {
           "x-name": "command",
           "content": {
@@ -2488,6 +2520,14 @@
             "type": "string",
             "nullable": true
           },
+          "article": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NounArticleDto"
+              }
+            ]
+          },
           "options": {
             "type": "array",
             "nullable": true,
@@ -2545,6 +2585,27 @@
           0,
           1
         ]
+      },
+      "NounArticleDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "definite": {
+            "type": "string"
+          },
+          "indefinite": {
+            "type": "string"
+          },
+          "gender": {
+            "type": "string"
+          },
+          "isElided": {
+            "type": "boolean"
+          },
+          "isPlural": {
+            "type": "boolean"
+          }
+        }
       },
       "StudyStatsDto": {
         "type": "object",
@@ -2671,6 +2732,14 @@
           },
           "headword": {
             "type": "string"
+          },
+          "article": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NounArticleDto"
+              }
+            ]
           },
           "meaning": {
             "type": "string",
@@ -2933,6 +3002,25 @@
           },
           "status": {
             "$ref": "#/components/schemas/WordStatus"
+          },
+          "gender": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GrammaticalGender"
+              }
+            ]
+          },
+          "isPluralOnly": {
+            "type": "boolean"
+          },
+          "article": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NounArticleDto"
+              }
+            ]
           }
         }
       },
@@ -2954,6 +3042,20 @@
           4
         ]
       },
+      "GrammaticalGender": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Masculine",
+          "Feminine",
+          "Common"
+        ],
+        "enum": [
+          1,
+          2,
+          3
+        ]
+      },
       "CreateWordCommand": {
         "type": "object",
         "additionalProperties": false,
@@ -2971,6 +3073,17 @@
           "partOfSpeech": {
             "type": "string",
             "nullable": true
+          },
+          "gender": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GrammaticalGender"
+              }
+            ]
+          },
+          "isPluralOnly": {
+            "type": "boolean"
           },
           "frequency": {
             "type": "integer",
@@ -3037,6 +3150,17 @@
           "partOfSpeech": {
             "type": "string",
             "nullable": true
+          },
+          "gender": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/GrammaticalGender"
+              }
+            ]
+          },
+          "isPluralOnly": {
+            "type": "boolean"
           },
           "frequency": {
             "type": "integer",
@@ -3137,6 +3261,8 @@
           "MerriamWebster",
           "Cambridge",
           "Gpt",
+          "WordReference",
+          "WordReferenceConjugation",
           "Other"
         ],
         "enum": [
@@ -3144,6 +3270,8 @@
           1,
           2,
           3,
+          4,
+          5,
           99
         ]
       },
@@ -3156,6 +3284,9 @@
             "items": {
               "type": "string"
             }
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
           }
         }
       }

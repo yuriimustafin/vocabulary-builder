@@ -1,4 +1,5 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Application.Study.Scheduling;
 using VocabularyBuilder.Domain.Entities.Study;
@@ -63,6 +64,7 @@ public class ReviewFeedbackDto
     public bool Correct { get; init; }
 
     public string Headword { get; init; } = string.Empty;
+    public NounArticleDto? Article { get; init; }
     public string? Meaning { get; init; }
     public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
@@ -260,6 +262,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         {
             Correct = correct,
             Headword = material.Headword,
+            Article = material.Article,
             Meaning = material.Meaning,
             Transcription = material.Transcription,
             PartOfSpeech = material.PartOfSpeech,
@@ -335,6 +338,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             {
                 Exercise = _catalog.Get(step.Type).Build(
                     material, new ExerciseBuildContext(distractors, step.RevealedLetters))
+                    with { Article = material.Article }
             });
         }
 

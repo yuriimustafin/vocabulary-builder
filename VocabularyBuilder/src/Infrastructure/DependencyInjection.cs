@@ -23,6 +23,7 @@ public static class DependencyInjection
         var aiApiKey = configuration["OpenAI:ApiKey"] ?? "";
         var useMockMode = configuration.GetValue<bool>("OpenAI:UseMockMode");
         var useOxfordMock = configuration.GetValue<bool>("Oxford:UseMockMode");
+        var useWordReferenceMock = configuration.GetValue<bool>("WordReference:UseMockMode");
         var useInMemoryDb = configuration.GetValue<bool>("UseInMemoryDatabase");
 
         Guard.Against.Null(connectionString, message: "Connection string 'DefaultConnection' not found.");
@@ -75,22 +76,40 @@ public static class DependencyInjection
         services.AddAuthorization(options =>
             options.AddPolicy(Policies.CanPurge, policy => policy.RequireRole(Roles.Administrator)));
 
-        // Register individual parsers (mock or real based on configuration)
+        // Register individual parsers (mock or real based on configuration).
+        // WordParserFactory routes by each parser's SourceType, so every parser
+        // is registered against IWordReferenceParser and nothing else.
         if (useOxfordMock)
         {
             services.AddScoped<IWordReferenceParser, MockOxfordParser>();
         }
         else
         {
-            services.AddScoped<OxfordParser>();
             services.AddScoped<IWordReferenceParser, OxfordParser>();
         }
         
-        services.AddScoped<GptFrenchParser>();
+        services.AddScoped<IWordReferenceParser, GptFrenchParser>();
+
+        // WordReference is the French dictionary; GPT stays registered as a
+        // fallback for when it has no entry
+        services.Configure<WordReferenceOptions>(configuration.GetSection(WordReferenceOptions.SectionName));
+
+        if (useWordReferenceMock)
+        {
+            services.AddScoped<IWordReferencePageLoader>(_ => new MockWordReferencePageLoader());
+        }
+        else
+        {
+            services.AddScoped<IWordReferencePageLoader, HttpWordReferencePageLoader>();
+        }
+
+        services.AddScoped<IWordReferenceParser, WordReferenceFrenchParser>();
+        services.AddScoped<IConjugationParser, WordReferenceConjugationParser>();
         
         // Register parser factory for language-based routing
         services.AddScoped<IWordParserFactory, WordParserFactory>();
         
+        services.Configure<AnkiExportOptions>(configuration.GetSection(AnkiExportOptions.SectionName));
         services.AddScoped<IWordsExporter, AnkiClozeCsvExporter>();
         services.AddScoped<IBookImportParser, BookImportParser>();
 

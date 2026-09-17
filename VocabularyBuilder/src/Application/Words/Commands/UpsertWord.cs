@@ -1,4 +1,4 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -9,6 +9,11 @@ public record UpsertWordCommand : IRequest<int>
 {
     public string Headword { get; init; } = string.Empty;    public Language Language { get; init; } = Language.English;    public string? Transcription { get; init; }
     public string? PartOfSpeech { get; init; }
+
+    /// <summary>Gender of the primary meaning, when it is a noun.</summary>
+    public GrammaticalGender? Gender { get; init; }
+
+    public bool IsPluralOnly { get; init; }
     public int? Frequency { get; init; }
     public List<string>? Examples { get; init; }
     public List<Sense>? Senses { get; init; }
@@ -21,6 +26,9 @@ public record UpsertWordCommand : IRequest<int>
     
     // Dictionary sources for caching (optional)
     public List<WordDictionarySource>? DictionarySources { get; init; }
+
+    // Inflected forms, e.g. a verb's conjugation (optional)
+    public List<WordForm>? Forms { get; init; }
 }
 
 public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
@@ -57,6 +65,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 Language = request.Language,
                 Transcription = request.Transcription,
                 PartOfSpeech = request.PartOfSpeech,
+                Gender = request.Gender,
+                IsPluralOnly = request.IsPluralOnly,
                 Frequency = frequency,
                 Examples = request.Examples,
                 Senses = request.Senses
@@ -76,6 +86,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 await _context.SaveChangesAsync(cancellationToken);
             }
             
+            await SaveWordForms(newWord.Id, request, cancellationToken);
+            
             // Create the encounter record
             await CreateWordEncounter(newWord.Id, request, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
@@ -87,6 +99,14 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             // Update existing word (only if new information is provided)
             existingWord.Transcription = request.Transcription ?? existingWord.Transcription;
             existingWord.PartOfSpeech = request.PartOfSpeech ?? existingWord.PartOfSpeech;
+
+            // Gender and number travel together: a request that knows the gender is
+            // authoritative for both, one that does not leaves them as they were
+            if (request.Gender.HasValue)
+            {
+                existingWord.Gender = request.Gender;
+                existingWord.IsPluralOnly = request.IsPluralOnly;
+            }
             
             // Set frequency: use provided value, or look up if not provided and not already set
             if (request.Frequency.HasValue)
@@ -139,12 +159,48 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 }
             }
             
+            await SaveWordForms(existingWord.Id, request, cancellationToken);
+            
             // Create new encounter record (idempotency check based on SourceIdentifier)
             await CreateWordEncounter(existingWord.Id, request, cancellationToken);
             
             await _context.SaveChangesAsync(cancellationToken);
             
             return existingWord.Id;
+        }
+    }
+
+    /// <summary>
+    /// Record the word's inflected forms, adding only cells not already stored so that
+    /// re-importing a word does not duplicate its conjugation. A cell is the form together
+    /// with where it sits: "prends" is stored for both "je" and "tu".
+    /// </summary>
+    private async Task SaveWordForms(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
+    {
+        if (request.Forms == null || !request.Forms.Any())
+        {
+            return;
+        }
+
+        var existingForms = await _context.WordForms
+            .Where(wf => wf.WordId == wordId)
+            .Select(wf => new { wf.Mood, wf.Tense, wf.Person, wf.Form })
+            .ToListAsync(cancellationToken);
+
+        var known = existingForms
+            .Select(wf => (wf.Mood, wf.Tense, wf.Person, wf.Form))
+            .ToHashSet();
+
+        foreach (var form in request.Forms)
+        {
+            if (string.IsNullOrWhiteSpace(form.Form) || !known.Add((form.Mood, form.Tense, form.Person, form.Form)))
+            {
+                continue;
+            }
+
+            form.WordId = wordId;
+            form.Language = request.Language;
+            _context.WordForms.Add(form);
         }
     }
 

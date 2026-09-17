@@ -8,6 +8,7 @@ using VocabularyBuilder.Application.ImportWords.Commands;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Web.Endpoints;
 
@@ -16,16 +17,13 @@ namespace VocabularyBuilder.Web.Endpoints;
 // Temporarily this controller will be used for fiddling and debugging the developing system.
 public class NewWordsController : ControllerBase
 {
-    private readonly IWordReferenceParser _wordReferenceParser;
     private readonly IWordsExporter _wordsExporter;
     private readonly ISender _sender;
     
     public NewWordsController(
-        IWordReferenceParser wordReferenceParser, 
         IWordsExporter wordsExporter, 
         ISender sender)
     {
-        this._wordReferenceParser = wordReferenceParser;
         _wordsExporter = wordsExporter;
         _sender = sender;
     }
@@ -56,7 +54,7 @@ public class NewWordsController : ControllerBase
         bool areUrls = wordsForParsing.Any(w => w.StartsWith("https://", StringComparison.OrdinalIgnoreCase));
 
         // Determine source type: use explicit if provided, otherwise infer from language
-        var dictSourceType = sourceType ?? (language == Language.French ? DictionarySourceType.Gpt : DictionarySourceType.Oxford);
+        var dictSourceType = sourceType ?? language.GetDefaultSourceType();
 
         // Determine parseImmediately: use explicit if provided, otherwise auto-detect from URLs
         bool shouldParseImmediately = parseImmediately ?? areUrls;
@@ -119,9 +117,11 @@ public class NewWordsController : ControllerBase
 
 
     [HttpPost("audio-text")]
-    public async Task<string> GenerateText([FromBody] CreateTextForAudioCommand command)
+    public async Task<string> GenerateText([FromBody] CreateTextForAudioCommand command, [FromQuery] string lang = "en")
     {
-        return await _sender.Send(command);
+        // Override the language from the query string, as the other endpoints do
+        var commandWithLanguage = command with { Language = ParseLanguage(lang) };
+        return await _sender.Send(commandWithLanguage);
     }
 
     private static string ComputeListHash(string content)

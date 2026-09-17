@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using NUnit.Framework;
 using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Domain.Entities.Study;
@@ -36,6 +36,34 @@ public class StudyMaterialResolverTests
         GeneratedDefinition = definition,
         GeneratedContextSentence = sentence
     };
+
+    [Test]
+    public void AFrenchNounCarriesItsArticle()
+    {
+        var word = Word(headword: "arbre");
+        word.Language = Language.French;
+        word.Gender = GrammaticalGender.Masculine;
+
+        var material = Resolver().Resolve(word, generated: null);
+
+        // Kept apart from the headword, which answers are marked against
+        material.Headword.Should().Be("arbre");
+        material.Article!.Definite.Should().Be("l'");
+        material.Article.Indefinite.Should().Be("un");
+        material.Article.Gender.Should().Be("masculine");
+        material.Article.IsElided.Should().BeTrue();
+    }
+
+    [Test]
+    public void AWordWithoutAGenderHasNoArticle()
+    {
+        var english = Word(headword: "tree");
+        var frenchVerb = Word(headword: "prendre");
+        frenchVerb.Language = Language.French;
+
+        Resolver().Resolve(english, generated: null).Article.Should().BeNull();
+        Resolver().Resolve(frenchVerb, generated: null).Article.Should().BeNull();
+    }
 
     [Test]
     public void DictionaryDataIsUsedInPreferenceToGeneratedContent()

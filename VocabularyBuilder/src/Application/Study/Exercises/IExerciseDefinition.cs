@@ -1,4 +1,5 @@
-using VocabularyBuilder.Domain.Enums;
+﻿using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Application.Common.Models;
 
 namespace VocabularyBuilder.Application.Study.Exercises;
 
@@ -31,6 +32,12 @@ public record ExercisePayload
     public string? Transcription { get; init; }
 
     public string? PartOfSpeech { get; init; }
+
+    /// <summary>
+    /// Article for the word being studied, shown beside it wherever the word itself is
+    /// on screen. Never part of an answer - the headword alone is what gets marked.
+    /// </summary>
+    public NounArticleDto? Article { get; init; }
 
     /// <summary>Choices for a multiple-choice exercise, already shuffled.</summary>
     public IReadOnlyList<string>? Options { get; init; }

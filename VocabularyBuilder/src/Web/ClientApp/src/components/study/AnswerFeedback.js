@@ -1,5 +1,6 @@
 import React from 'react';
 import { Alert, Button } from 'reactstrap';
+import { NounArticle } from '../NounArticle';
 
 /**
  * What happened after an automatically graded answer.
@@ -38,7 +39,10 @@ export function AnswerFeedback({ feedback, onContinue, continuing }) {
         <strong>{correct ? 'Correct' : 'Not quite'}</strong>
       </Alert>
 
-      <div className="fs-3 fw-bold" data-testid="feedback-headword">{feedback.headword}</div>
+      <div className="fs-3 fw-bold">
+        <NounArticle article={feedback.article} />
+        <span data-testid="feedback-headword">{feedback.headword}</span>
+      </div>
 
       {feedback.transcription && <div className="text-muted">/{feedback.transcription}/</div>}
       {feedback.partOfSpeech && (

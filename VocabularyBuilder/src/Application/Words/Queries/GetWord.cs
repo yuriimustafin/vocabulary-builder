@@ -1,4 +1,5 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Application.Words.Queries;
@@ -34,7 +35,10 @@ public class GetWordQueryHandler : IRequestHandler<GetWordQuery, WordDto?>
             EncounterCount = word.WordEncounters?.Count ?? 0,
             Examples = word.Examples?.ToList() ?? new List<string>(),
             Status = word.Status,
-            Language = word.Language
+            Language = word.Language,
+            Gender = word.Gender,
+            IsPluralOnly = word.IsPluralOnly,
+            Article = NounArticleDto.From(word.GetArticle())
         };
     }
 }

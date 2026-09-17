@@ -2,6 +2,15 @@ import React, { Component } from 'react';
 import { Button, Modal, ModalHeader, ModalBody, ModalFooter, Form, FormGroup, Label, Input, Table } from 'reactstrap';
 import { Link } from 'react-router-dom';
 import { WordsClient } from '../web-api-client.ts';
+import { IndefiniteArticleHint, NounArticle } from './NounArticle';
+import { WordForms } from './WordForms';
+
+// Mirrors VocabularyBuilder.Domain.Enums.GrammaticalGender, which serialises as a number.
+const GRAMMATICAL_GENDERS = [
+  { value: 1, label: 'Masculine (le / un)' },
+  { value: 2, label: 'Feminine (la / une)' },
+  { value: 3, label: 'Either (le/la, un/une)' }
+];
 
 export class Words extends Component {
   static displayName = Words.name;
@@ -33,6 +42,8 @@ export class Words extends Component {
         headword: '',
         transcription: '',
         partOfSpeech: '',
+        gender: '',
+        isPluralOnly: false,
         frequency: '',
         examples: ''
       },
@@ -185,6 +196,8 @@ export class Words extends Component {
         headword: '',
         transcription: '',
         partOfSpeech: '',
+        gender: '',
+        isPluralOnly: false,
         frequency: '',
         examples: ''
       },
@@ -233,6 +246,13 @@ export class Words extends Component {
     }));
   }
 
+  handlePluralOnlyChange = (e) => {
+    const { checked } = e.target;
+    this.setState(prevState => ({
+      formData: { ...prevState.formData, isPluralOnly: checked }
+    }));
+  }
+
   handleEdit = (word) => {
     this.setState({
       modal: true,
@@ -242,6 +262,8 @@ export class Words extends Component {
         headword: word.headword || '',
         transcription: word.transcription || '',
         partOfSpeech: word.partOfSpeech || '',
+        gender: word.gender ? String(word.gender) : '',
+        isPluralOnly: !!word.isPluralOnly,
         frequency: word.frequency || '',
         examples: word.examples ? word.examples.join('\n') : ''
       }
@@ -263,6 +285,9 @@ export class Words extends Component {
         headword: formData.headword,
         transcription: formData.transcription || null,
         partOfSpeech: formData.partOfSpeech || null,
+        // Always sent: an update replaces the stored gender, so leaving it out would clear it
+        gender: formData.gender ? parseInt(formData.gender) : null,
+        isPluralOnly: !!formData.gender && formData.isPluralOnly,
         frequency: formData.frequency ? parseInt(formData.frequency) : null,
         examples: examplesArray.length > 0 ? examplesArray : null
       };
@@ -381,8 +406,9 @@ export class Words extends Component {
             ].map(status => (
               <FormGroup check key={status.value}>
                 <Label check>
-                  <Input 
-                    type="checkbox" 
+                  <Input
+                    type="checkbox"
+                    value={status.value}
                     checked={selectedStatuses.includes(status.value)}
                     onChange={() => this.handleStatusFilterChange(status.value)}
                   />
@@ -424,6 +450,7 @@ export class Words extends Component {
             <h6>Sort By</h6>
             <Input
               type="select"
+              id="sortBy"
               value={this.state.sortBy || ''}
               onChange={(e) => this.handleSortChange(e.target.value || null)}
             >
@@ -514,7 +541,7 @@ export class Words extends Component {
                     onChange={() => this.toggleSelectWord(word.id)}
                   />
                 </td>
-                <td>{word.headword}</td>
+                <td><NounArticle article={word.article} />{word.headword}</td>
                 <td>{word.partOfSpeech || '-'}</td>
                 <td>{word.frequency || '-'}</td>
                 <td>
@@ -685,6 +712,33 @@ export class Words extends Component {
                   placeholder="e.g., noun, verb, adjective"
                 />
               </FormGroup>
+              {(localStorage.getItem('language') || 'en') === 'fr' && (
+                <FormGroup>
+                  <Label for="gender">Gender</Label>
+                  <Input
+                    type="select"
+                    name="gender"
+                    id="gender"
+                    value={formData.gender}
+                    onChange={this.handleInputChange}
+                  >
+                    <option value="">Not a noun / unknown</option>
+                    {GRAMMATICAL_GENDERS.map(g => (
+                      <option key={g.value} value={g.value}>{g.label}</option>
+                    ))}
+                  </Input>
+                  <FormGroup check className="mt-2">
+                    <Input
+                      type="checkbox"
+                      id="isPluralOnly"
+                      checked={formData.isPluralOnly}
+                      disabled={!formData.gender}
+                      onChange={this.handlePluralOnlyChange}
+                    />
+                    <Label check for="isPluralOnly">Only used in the plural (les gens, les vacances)</Label>
+                  </FormGroup>
+                </FormGroup>
+              )}
               <FormGroup>
                 <Label for="frequency">Frequency</Label>
                 <Input
@@ -783,7 +837,11 @@ export class Words extends Component {
             )}
             {!loadingDetails && wordDetails && (
               <div>
-                <h3>{wordDetails.headword}</h3>
+                <h3 data-testid="details-headword">
+                  <NounArticle article={wordDetails.article} />
+                  {wordDetails.headword}
+                  <IndefiniteArticleHint article={wordDetails.article} headword={wordDetails.headword} />
+                </h3>
                 {wordDetails.transcription && (
                   <p className="text-muted">{wordDetails.transcription}</p>
                 )}
@@ -806,10 +864,13 @@ export class Words extends Component {
                       className="d-inline-block ms-2"
                       style={{ width: 'auto' }}
                     >
+                      {/* Must match WordStatus: leaving out Next Export shifted every
+                          label, so picking "Exported" here actually set Next Export */}
                       <option value="0">New</option>
-                      <option value="1">Exported</option>
-                      <option value="2">Learned</option>
-                      <option value="3">Known</option>
+                      <option value="1">Next Export</option>
+                      <option value="2">Exported</option>
+                      <option value="3">Learned</option>
+                      <option value="4">Known</option>
                     </Input>
                   </div>
                 </div>
@@ -820,6 +881,11 @@ export class Words extends Component {
                     {wordDetails.senses.map((sense, index) => (
                       <div key={index} className="mb-3 p-3 border rounded">
                         <strong>{index + 1}. {sense.partOfSpeech}</strong>
+                        {sense.article && (
+                          <span className="ms-2" data-testid="sense-article">
+                            <NounArticle article={sense.article} />{wordDetails.headword}
+                          </span>
+                        )}
                         <p className="mb-2">{sense.definition}</p>
                         {sense.examples && sense.examples.length > 0 && (
                           <div className="ms-3">
@@ -846,6 +912,8 @@ export class Words extends Component {
                     </ul>
                   </>
                 )}
+
+                <WordForms forms={wordDetails.forms} />
 
                 {wordDetails.encounters && wordDetails.encounters.length > 0 && (
                   <>

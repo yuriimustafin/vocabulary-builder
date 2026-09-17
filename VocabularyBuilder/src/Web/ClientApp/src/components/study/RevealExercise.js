@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { Button } from 'reactstrap';
 import { GradeBar } from './GradeBar';
+import { NounArticle } from '../NounArticle';
 
 /**
  * Every self-graded exercise has the same shape: a prompt, an answer the learner asks to
@@ -32,13 +33,17 @@ export class RevealExercise extends Component {
   render() {
     const {
       exercise, prompt, promptClassName, support,
-      revealed, onReveal, onGrade, submitting
+      revealed, onReveal, onGrade, submitting,
+      promptIsWord, answerIsWord
     } = this.props;
     const { hintShown } = this.state;
 
     return (
       <div data-testid="reveal-exercise">
-        <div className={promptClassName} data-testid="exercise-prompt">{prompt}</div>
+        <div className={promptClassName}>
+          {promptIsWord && <NounArticle article={exercise.article} />}
+          <span data-testid="exercise-prompt">{prompt}</span>
+        </div>
 
         {support}
 
@@ -52,7 +57,10 @@ export class RevealExercise extends Component {
 
         {revealed ? (
           <div className="mt-4">
-            <div className="fs-4 fw-semibold text-success" data-testid="exercise-answer">{exercise.answer}</div>
+            <div className="fs-4 fw-semibold text-success">
+              {answerIsWord && <NounArticle article={exercise.article} />}
+              <span data-testid="exercise-answer">{exercise.answer}</span>
+            </div>
             {exercise.transcription && <div className="text-muted">/{exercise.transcription}/</div>}
             {exercise.contextSentence && (
               <p className="text-muted fst-italic mt-2" data-testid="answer-context">{exercise.contextSentence}</p>

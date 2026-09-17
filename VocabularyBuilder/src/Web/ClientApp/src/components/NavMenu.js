@@ -64,6 +64,20 @@ export class NavMenu extends Component {
                             <NavItem>
                                 <NavLink tag={Link} className="text-dark" to="/study">Study</NavLink>
                             </NavItem>
+                            {/*
+                              These three pages were reachable only by typing their URL:
+                              they are routed in AppRoutes and fully built, but nothing
+                              linked to them.
+                            */}
+                            <NavItem>
+                                <NavLink tag={Link} className="text-dark" to="/bulk-import">Bulk Import</NavLink>
+                            </NavItem>
+                            <NavItem>
+                                <NavLink tag={Link} className="text-dark" to="/kindle-import">Kindle Import</NavLink>
+                            </NavItem>
+                            <NavItem>
+                                <NavLink tag={Link} className="text-dark" to="/export-words">Export</NavLink>
+                            </NavItem>
                             <NavItem>
                                 <NavLink tag={Link} className="text-dark" to="/counter">Counter</NavLink>
                             </NavItem>

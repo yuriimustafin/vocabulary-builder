@@ -1,4 +1,5 @@
-using VocabularyBuilder.Domain.Entities.Study;
+﻿using VocabularyBuilder.Domain.Entities.Study;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Application.Study.Exercises;
@@ -27,6 +28,7 @@ public class StudyMaterialResolver : IStudyMaterialResolver
             Language = word.Language,
             PartOfSpeech = word.PartOfSpeech,
             Transcription = word.Transcription,
+            Article = NounArticleDto.From(word.GetArticle()),
             Meaning = DictionaryMeaning(word) ?? Trimmed(generated?.GeneratedDefinition),
             ContextSentence = DictionaryContextSentence(word) ?? UsableGeneratedSentence(word, generated)
         };

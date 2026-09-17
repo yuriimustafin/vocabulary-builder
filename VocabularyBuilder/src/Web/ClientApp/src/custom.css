@@ -16,3 +16,29 @@ code {
   background-color: #1b6ec2;
   border-color: #1861ac;
 }
+
+/*
+ * Articles are coloured by the gender of their noun: blue masculine, red feminine,
+ * purple for nouns that take either. All three hold AA contrast on white. The colour
+ * matters most on "l'" and "les", which hide the gender in the text.
+ * The Anki export uses the same values.
+ */
+.noun-article {
+  font-weight: 600;
+}
+
+.noun-article-masculine {
+  color: #1565c0;
+}
+
+.noun-article-feminine {
+  color: #c62828;
+}
+
+.noun-article-common {
+  color: #6a1b9a;
+}
+
+.word-forms-table td {
+  padding: 0.1rem 0.4rem 0.1rem 0;
+}

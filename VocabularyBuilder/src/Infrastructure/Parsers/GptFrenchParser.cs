@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -17,6 +17,8 @@ namespace VocabularyBuilder.Infrastructure.Parsers;
 public class GptFrenchParser : IWordReferenceParser
 {
     private readonly IGptClient _gptClient;
+
+    public DictionarySourceType SourceType => DictionarySourceType.Gpt;
     
     private const string SystemPrompt = @"You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.
 
@@ -25,6 +27,8 @@ Return JSON in this exact format:
   ""lemma"": ""base form of the word"",
   ""ipa"": ""IPA pronunciation"",
   ""partOfSpeech"": ""noun/verb/adjective/etc"",
+  ""gender"": ""masculine, feminine or both - for nouns only, otherwise null"",
+  ""pluralOnly"": ""true only for nouns used only in the plural, such as gens or vacances"",
   ""senses"": [
     {
       ""definition"": ""English translation/definition"",
@@ -74,6 +78,7 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
                     results.Add(new WordParseResult
                     {
                         Word = word,
+                        SearchedTerm = searchedWord,
                         SourceHtml = response, // Store the raw GPT response as "HTML"
                         SourceUrl = $"gpt://french/{searchedWord}"
                     });
@@ -131,16 +136,27 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
             }
 
             // Convert to Word entity
+            var partOfSpeech = ParsePartOfSpeech(gptResponse.PartOfSpeech);
+
+            // Gender only means something for a noun; a model asked about a verb may
+            // still volunteer one
+            var gender = partOfSpeech == PartsOfSpeech.Noun ? ParseGender(gptResponse.Gender) : null;
+            var isPluralOnly = gender is not null && IsTrue(gptResponse.PluralOnly);
+
             var word = new Word
             {
                 Headword = gptResponse.Lemma ?? searchedWord ?? "unknown",
                 Transcription = gptResponse.Ipa,
                 PartOfSpeech = gptResponse.PartOfSpeech,
+                Gender = gender,
+                IsPluralOnly = isPluralOnly,
                 Language = Language.French,
                 Senses = gptResponse.Senses?.Select(s => new Sense
                 {
                     Definition = s.Definition,
-                    PartOfSpeech = ParsePartOfSpeech(gptResponse.PartOfSpeech),
+                    PartOfSpeech = partOfSpeech,
+                    Gender = gender,
+                    IsPluralOnly = isPluralOnly,
                     Examples = s.Examples?.Select(e => $"{e.French} ({e.English})").ToList() ?? new List<string>()
                 }).ToList() ?? new List<Sense>(),
                 Examples = gptResponse.Senses?
@@ -204,11 +220,35 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
     }
 
     // DTOs for deserializing GPT response
+    private static GrammaticalGender? ParseGender(string? gender)
+    {
+        return gender?.Trim().ToLowerInvariant() switch
+        {
+            "masculine" or "masculin" or "m" => GrammaticalGender.Masculine,
+            "feminine" or "féminin" or "f" => GrammaticalGender.Feminine,
+            "both" or "common" or "mf" => GrammaticalGender.Common,
+            _ => null
+        };
+    }
+
+    /// <summary>Models return a JSON boolean or the string "true" about equally often.</summary>
+    private static bool IsTrue(JsonElement? value)
+    {
+        return value?.ValueKind switch
+        {
+            JsonValueKind.True => true,
+            JsonValueKind.String => bool.TryParse(value.Value.GetString(), out var parsed) && parsed,
+            _ => false
+        };
+    }
+
     private class GptWordResponse
     {
         public string? Lemma { get; set; }
         public string? Ipa { get; set; }
         public string? PartOfSpeech { get; set; }
+        public string? Gender { get; set; }
+        public JsonElement? PluralOnly { get; set; }
         public List<GptSense>? Senses { get; set; }
     }
 

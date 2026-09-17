@@ -39,6 +39,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Pre-recorded pages for the mock parsers. The Web SDK treats .html as web
+         content and does not copy it to the output, so the mock parsers cannot
+         find these without an explicit rule. -->
+    <Content Include="MockData\**\*.html" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <!-- Don't publish the SPA source files, but do show them in the project files list -->
     <Content Remove="$(SpaRoot)**" />
     <None Remove="$(SpaRoot)**" />

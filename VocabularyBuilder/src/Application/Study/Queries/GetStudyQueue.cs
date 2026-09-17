@@ -1,4 +1,5 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Domain.Entities.Study;
@@ -320,7 +321,8 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         var escalated = rung > card.CurrentRung;
 
         var exercise = _catalog.Get(type).Build(
-            material, new ExerciseBuildContext(distractors, AllowHint: !escalated));
+            material, new ExerciseBuildContext(distractors, AllowHint: !escalated))
+            with { Article = material.Article };
 
         return new RenderedCard(card, word.Headword, rung, exercise);
     }

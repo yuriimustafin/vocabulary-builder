@@ -260,8 +260,11 @@ test2`;
     await expect(page.locator('.alert').first()).toBeVisible();
   });
 
-  test.skip('should handle French words import', async ({ page }) => {
-    // Skipped: Import hangs with parseImmediately for French words (similar to English text import issue)
+  test('should handle French words import', async ({ page }) => {
+    // Previously skipped because the import failed for French: WordParserFactory
+    // took a concrete OxfordParser, which is not registered when Oxford runs in
+    // mock mode, so resolving any parser threw. Parsers now route by SourceType
+    // and French words are served from MockData/wordreference.
     // Switch to French language if language selector exists
     const langSelector = page.locator('select#language, button:has-text("EN")');
     if (await langSelector.first().isVisible({ timeout: 2000 }).catch(() => false)) {
@@ -281,7 +284,7 @@ parlernul`;
     // Submit
     await page.click('button:has-text("Import")');
     
-    // Wait for result (GPT processing may take longer)
+    // Wait for result (recorded pages are served locally, so this is quick)
     await page.locator('.alert-success, .alert-info').first().waitFor({ 
       timeout: 60000 
     });
