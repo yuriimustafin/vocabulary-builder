@@ -32,6 +32,13 @@ public class Word : BaseAuditableEntity
     public Guid? SyncId { get; set; }
     
     /// <summary>
+    /// User-set flag queueing this word for the next study session, independent of
+    /// <see cref="Status"/> (which belongs to the export pipeline).
+    /// Cleared automatically once the word is introduced.
+    /// </summary>
+    public bool IsMarkedForStudy { get; set; }
+
+    /// <summary>
     /// Collection of all encounters/additions of this word from various sources
     /// </summary>
     public ICollection<WordEncounter> WordEncounters { get; set; } = new List<WordEncounter>();

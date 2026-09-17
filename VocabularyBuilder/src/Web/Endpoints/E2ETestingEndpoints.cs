@@ -1,4 +1,4 @@
-using VocabularyBuilder.Infrastructure.Data;
+﻿using VocabularyBuilder.Infrastructure.Data;
 using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -62,6 +62,9 @@ public class E2ETestingEndpoints : EndpointGroupBase
                 command.CommandText = @"
                     PRAGMA foreign_keys = OFF;
                     
+                    DELETE FROM ReviewLogs;
+                    DELETE FROM ReviewCards;
+                    DELETE FROM WordStudyContents;
                     DELETE FROM ImportedBookWords;
                     DELETE FROM FrequencyWords;
                     DELETE FROM WordDictionarySources;
@@ -87,6 +90,12 @@ public class E2ETestingEndpoints : EndpointGroupBase
             
             // Clear the change tracker to prevent auto-save on scope dispose
             context.ChangeTracker.Clear();
+
+            // A test that moved the clock must not leave it moved for the next one.
+            if (scope.ServiceProvider.GetRequiredService<TimeProvider>() is Services.TestTimeProvider clock)
+            {
+                clock.Reset();
+            }
             
             // Don't re-seed - tests don't need seed data and it causes transaction conflicts
 
