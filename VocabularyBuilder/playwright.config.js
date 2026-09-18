@@ -9,7 +9,11 @@ module.exports = defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // One worker, always. Every spec shares a single in-memory database and resets it in
+  // beforeEach, so specs running side by side clear each other's data mid-test: a parallel
+  // run fails a dozen tests, and a different dozen each time. CI already ran with one
+  // worker; this makes a local run behave the same, at the cost of a few minutes.
+  workers: 1,
   reporter: 'html',
   use: {
     baseURL: process.env.BASE_URL || 'https://localhost:44447',  // React dev server (proxies /api to backend)

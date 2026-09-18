@@ -68,6 +68,7 @@ public class E2ETestingEndpoints : EndpointGroupBase
                     DELETE FROM ImportedBookWords;
                     DELETE FROM FrequencyWords;
                     DELETE FROM WordDictionarySources;
+                    DELETE FROM WordForms;
                     DELETE FROM WordEncounters;
                     DELETE FROM Words;
                     DELETE FROM VocabularyListItems;
