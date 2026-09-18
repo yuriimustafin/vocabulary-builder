@@ -30,10 +30,21 @@ expected; commit them. The existing import pages do not use the generated client
 dotnet build VocabularyBuilder/VocabularyBuilder.sln
 ```
 
-The launch profiles all serve on `https://localhost:5001` and differ only by environment:
-`VocabularyBuilder.Web` and `API` are Development, `Production` is Production, and `E2E` is
-E2ETest. In Debug the React app is served by the SPA proxy on `https://localhost:44447`,
-which the backend starts itself.
+The launch profiles all serve on `https://localhost:5001` and `http://localhost:5000`, and
+differ only by environment: `VocabularyBuilder.Web` and `API` are Development, `Production` is
+Production, and `E2E` is E2ETest. In Debug the React app is served by the SPA proxy on
+`https://localhost:44447`, which the backend starts itself.
+
+**Call the API on `https://localhost:5001`, with `-k`.** `UseHttpsRedirection` answers port
+5000 with a 307 to 5001, so a POST to the http port looks like a failure unless curl is told
+to follow it, and the development certificate is self-signed so curl rejects it without `-k`:
+
+```bash
+curl -k -X POST "https://localhost:5001/api/fr/words/fill-dictionary"
+```
+
+Any other port in this file - 5199 below, 3100 for the React dev server - exists only because
+the command right there sets it. Nothing serves on those by default.
 
 To drive the app from a terminal without the SPA proxy, run the API on its own and start the
 React dev server beside it, pointing its proxy at the API:
@@ -252,7 +263,7 @@ resolves to the same string every time, and a model that answers `aller` today a
 it the tier is a silent no-op and every conjugation falls through to the model:
 
 ```bash
-curl -X POST "http://localhost:5199/api/NewWords/import-frequency?lang=fr" --get --data-urlencode "filePath=<absolute path to scripts/frequency-words-fr.txt>"
+curl -k -X POST "https://localhost:5001/api/NewWords/import-frequency?lang=fr" --get --data-urlencode "filePath=<absolute path to scripts/frequency-words-fr.txt>"
 ```
 
 46,945 lemmas and 128,888 forms, about thirty seconds. The endpoint reads a path on the
