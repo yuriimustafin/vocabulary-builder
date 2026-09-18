@@ -126,6 +126,19 @@ generated for SQLite, and the SQL Server model differs from it in column types a
 for `Migrate()` to refuse with `PendingModelChangesWarning`. Keep the harness on the same
 provider the application uses. There is no Docker requirement any more.
 
+**Setting the `UseMockMode` flags from a `WebApplicationFactory` does not work**, and fails
+silently. `AddInfrastructureServices` reads them with `configuration.GetValue` at the moment
+it registers the services, which happens while `Program.cs` runs — before any configuration
+the factory contributes is merged in. The flags end up true and the real clients are already
+registered. `CustomWebApplicationFactory` therefore replaces `IGptClient`,
+`IWordReferencePageLoader` and the Oxford parser in `ConfigureTestServices`, which runs late
+enough to win.
+
+This is the kind of mistake that passes: a test suite wired to the real clients still goes
+green as long as it never touches one. `TestHostTests` asserts what the host resolved, so the
+next time it silently reverts something fails immediately rather than in six months on
+someone's API bill.
+
 ### End-to-end
 
 ```bash
