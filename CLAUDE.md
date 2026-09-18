@@ -97,6 +97,41 @@ Development can be run against the Test database without touching the network or
 ASPNETCORE_ENVIRONMENT=Development OpenAI__UseMockMode=true WordReference__UseMockMode=true dotnet run --project VocabularyBuilder/src/Web/Web.csproj --no-launch-profile
 ```
 
+That works because environment variables are read by `WebApplication.CreateBuilder` before
+any service is registered, which is the only window in which these settings can be changed.
+
+### These settings are read once, at startup
+
+`AddInfrastructureServices` reads them with `configuration.GetValue` and picks the
+implementation there and then. The value is captured, not consulted again, so **changing any
+of them after startup moves nothing** — not through `IConfiguration`, not through a reload
+token, not through an `IOptionsMonitor` added later. To make one of them switchable at
+runtime, the registration has to change too: register both implementations and choose between
+them inside the consumer, or put the flag behind `IOptionsSnapshot` and have the *service*
+read it per request.
+
+| Setting | How it is read | Changeable after startup |
+| --- | --- | --- |
+| `ConnectionStrings:DefaultConnection` | `GetConnectionString` at registration | no |
+| `OpenAI:ApiKey` | indexer at registration | no |
+| `OpenAI:UseMockMode` | `GetValue` at registration | no |
+| `Oxford:UseMockMode` | `GetValue` at registration | no |
+| `WordReference:UseMockMode` | `GetValue` at registration | no |
+| `UseInMemoryDatabase` | `GetValue` at registration | no |
+| `Study` | `.Get<StudyOptions>()`, registered as a singleton instance | no |
+| `WordReference` (the rest) | `Configure<WordReferenceOptions>` | yes, through `IOptions` |
+| `Anki` | `Configure<AnkiExportOptions>` | yes, through `IOptions` |
+
+The `WordReference` section is read **both** ways, which is the trap worth knowing about.
+`WordReferenceOptions` carries a `UseMockMode` property that binds from configuration and
+that **nothing reads** — the only reader of that key is the `GetValue` at registration. Set it
+through the options object and it will hold the value you gave it while the page loader
+chosen at startup carries on making real requests. Delete the property or wire it up; do not
+trust it.
+
+The same rule is what makes these flags useless from a `WebApplicationFactory`, described
+under Tests.
+
 `MockGptClient` serves recorded responses from `MockData/gpt` keyed by prompt, and builds
 answers for the prompts that cannot be recorded — study content, and the two import prompts —
 by matching a marker the prompt carries (`STUDY_CONTENT_V1`, `NOTES_VOCABULARY_V1`,
