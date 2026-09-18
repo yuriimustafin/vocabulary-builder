@@ -1507,6 +1507,47 @@
         }
       }
     },
+    "/api/{lang}/words/fill-dictionary": {
+      "post": {
+        "tags": [
+          "Words"
+        ],
+        "operationId": "PostApiWordsFillDictionary",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FillMissingDictionaryDataResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/{lang}/words/for-export": {
       "get": {
         "tags": [
@@ -3360,6 +3401,30 @@
           "notFoundWords": {
             "type": "integer",
             "format": "int32"
+          }
+        }
+      },
+      "FillMissingDictionaryDataResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "considered": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "filled": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "notFound": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "filledWords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

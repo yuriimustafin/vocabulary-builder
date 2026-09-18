@@ -1,8 +1,11 @@
+using Moq;
+using MediatR;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NUnit.Framework;
 using VocabularyBuilder.Application.Study;
 using VocabularyBuilder.Application.Study.Enrichment;
+using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
@@ -38,8 +41,23 @@ public class EnrichWordStudyContentTests
         return $$"""{"definition":"a generated definition","sentence":"A line using {{word}} once."}""";
     }
 
+    /// <summary>
+    /// The dictionary fill is a separate command and is exercised on its own. Here it reports
+    /// that the word already had what it needed, which is what these tests arrange anyway.
+    /// </summary>
+    private static ISender NoDictionaryFill()
+    {
+        var sender = new Mock<ISender>();
+
+        sender
+            .Setup(s => s.Send(It.IsAny<FillWordFromDictionaryCommand>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(DictionaryFillOutcome.AlreadyFilled);
+
+        return sender.Object;
+    }
+
     private EnrichWordStudyContentCommandHandler Handler() =>
-        new(_db.Context, _gpt, new StudyMaterialResolver(), _options, _clock);
+        new(_db.Context, _gpt, new StudyMaterialResolver(), _options, _clock, NoDictionaryFill());
 
     private async Task<Word> AddWord(string headword = "ubiquitous", IList<Sense>? senses = null, IList<string>? examples = null)
     {

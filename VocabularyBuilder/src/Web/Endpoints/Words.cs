@@ -26,6 +26,7 @@ public class Words : EndpointGroupBase
         group.MapPut("/{id}/mark-for-study", MarkForStudy);
         group.MapDelete("/{id}", DeleteWord);
         group.MapPost("/update-frequencies", UpdateWordFrequencies);
+        group.MapPost("/fill-dictionary", FillMissingDictionaryData);
         group.MapGet("/for-export", GetWordsForExport);
         group.MapPost("/export", ExportWords);
     }
@@ -94,6 +95,17 @@ public class Words : EndpointGroupBase
     public async Task<UpdateWordFrequenciesResult> UpdateWordFrequencies(ISender sender, string lang)
     {
         return await sender.Send(new UpdateWordFrequenciesCommand());
+    }
+
+    /// <summary>
+    /// Looks up every word still waiting on a dictionary, so that words already in the
+    /// vocabulary gain their gender - and with it their article - without waiting to come
+    /// round in a study session.
+    /// </summary>
+    public async Task<FillMissingDictionaryDataResult> FillMissingDictionaryData(
+        ISender sender, string lang, int? limit = null)
+    {
+        return await sender.Send(new FillMissingDictionaryDataCommand(ParseLanguage(lang), limit));
     }
 
     public async Task<IResult> GetWordsForExport(ISender sender, string lang, int[]? statuses = null)

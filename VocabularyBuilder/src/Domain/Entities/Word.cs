@@ -94,6 +94,27 @@ public class Word : BaseAuditableEntity
             ? FrenchArticles.For(Headword, sense.Gender, sense.IsPluralOnly, Transcription)
             : null;
 
+    /// <summary>
+    /// Whether the word is still missing something only a dictionary supplies.
+    /// </summary>
+    /// <remarks>
+    /// Gender is asked about separately from the rest: a word can pick up a definition from
+    /// a model and still have no gender, and without one <see cref="FrenchArticles"/> will
+    /// not guess an article, so the noun is shown bare. Only nouns are considered for it,
+    /// read from the part of speech as the dictionary writes it ("nf", "nm").
+    /// </remarks>
+    public bool IsMissingDictionaryData()
+    {
+        if (string.IsNullOrWhiteSpace(PartOfSpeech) || Senses is null || !Senses.Any())
+        {
+            return true;
+        }
+
+        var isNoun = PartOfSpeech.Trim().StartsWith("n", StringComparison.OrdinalIgnoreCase);
+
+        return Language == Language.French && isNoun && Gender is null;
+    }
+
     public string GetHeadword()
     {
         var prefix = (Language == Language.English

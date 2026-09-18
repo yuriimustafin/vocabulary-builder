@@ -1,4 +1,4 @@
-﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Application.Study.Exercises;
@@ -313,6 +313,20 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
             // meaning yet.
             _enrichmentQueue.Enqueue(word.Id);
             return null;
+        }
+
+        // Studiable, but possibly still missing what only the dictionary holds - a French
+        // noun with a generated definition but no gender is shown without its article. Asked
+        // for here, after the word is known to be renderable, so a word with nothing to show
+        // is not counted as waiting twice. The session carries on meanwhile; the article
+        // appears once the fill lands.
+        //
+        // A word already given up on is left alone. Nothing the dictionary does not have is
+        // going to appear on the next session either, and a word that cannot be filled would
+        // otherwise be asked about on every session for ever.
+        if (word.IsMissingDictionaryData() && generated?.Status != StudyContentStatus.Failed)
+        {
+            _enrichmentQueue.Enqueue(word.Id);
         }
 
         // A probe raised above the card's own rung was reached by long-gap escalation, and

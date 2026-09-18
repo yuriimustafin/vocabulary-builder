@@ -268,6 +268,31 @@ also snow — are left to the model, which at least sees the pronoun.
 `FrequencyWords` has a unique index on `(Headword, Language)`, so one row per form is
 guaranteed and the bundled Lexique data satisfies it.
 
+### A word has to be filled in before it reads properly
+
+An import stores a bare headword. Until something looks it up there is no gender, and
+`FrenchArticles` will not guess an article without one, so the noun is shown bare - which
+looks exactly like the article feature being broken.
+
+Export used to be the only thing that filled a word in, which was fine while exporting was
+the only thing that read one. Studying reads them too, and comes first. Three things fill a
+word now:
+
+- a study session, for each word it is about to show (`FillWordFromDictionaryCommand`, called
+  from the enrichment worker)
+- `POST /api/{lang}/words/fill-dictionary`, which sweeps every word still waiting - a session
+  never reaches a word answered today or scheduled months out
+- export, as before
+
+A word the dictionary cannot fill is **not** retried for ever: once its study content is
+`StudyContentStatus.Failed` the session stops asking. Anything enqueued unconditionally on a
+property that stays true - and "has no gender" stays true - turns into a request per word per
+session.
+
+Note that the enrichment worker fills gaps in *study content* (a definition, a sentence) from
+a model. Gender, part of speech and pronunciation come only from a dictionary. A word can
+therefore look complete on a card, with a definition and an example, and still have no article.
+
 ### What the imports do with a real model
 
 Measured on a 395-row LingQ export: 278 terms imported onto 242 headwords, and 117 set aside
