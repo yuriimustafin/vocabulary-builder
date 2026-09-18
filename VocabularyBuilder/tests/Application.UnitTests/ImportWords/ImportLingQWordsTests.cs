@@ -50,9 +50,15 @@ public class ImportLingQWordsTests
             .ReturnsAsync(resolution);
     }
 
-    private Task<VocabularyImportResult> Import(string csv, string? listName = null) =>
+    private Task<VocabularyImportResult> Import(string csv, string? listName = null, string? tag = null) =>
         _handler.Handle(
-            new ImportLingQWordsCommand { FileContent = csv, Language = Language.French, ListName = listName },
+            new ImportLingQWordsCommand
+            {
+                FileContent = csv,
+                Language = Language.French,
+                ListName = listName,
+                Tag = tag
+            },
             CancellationToken.None);
 
     [Test]
@@ -144,6 +150,36 @@ public class ImportLingQWordsTests
 
         again.Should().Be(first);
         grown.Should().NotBe(first);
+    }
+
+    [Test]
+    public async Task ShouldPassTheTagOnToEveryWord()
+    {
+        ResolvesEverything();
+
+        await Import(Header + "\nune main,,,,,,,,,\n", tag: "preply");
+
+        _saved!.Tags.Should().Equal("preply");
+    }
+
+    [Test]
+    public async Task ShouldSplitSeveralTagsGivenInOneField()
+    {
+        ResolvesEverything();
+
+        await Import(Header + "\nune main,,,,,,,,,\n", tag: "preply, travel");
+
+        _saved!.Tags.Should().Equal("preply", "travel");
+    }
+
+    [Test]
+    public async Task ShouldPassNoTagsWhenTheFieldIsEmpty()
+    {
+        ResolvesEverything();
+
+        await Import(Header + "\nune main,,,,,,,,,\n", tag: "   ");
+
+        _saved!.Tags.Should().BeEmpty();
     }
 
     [Test]

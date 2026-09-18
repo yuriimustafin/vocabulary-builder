@@ -34,6 +34,13 @@ public class Word : BaseAuditableEntity
     public bool IsPluralOnly { get; set; }
     public IList<Sense>? Senses { get; set; }
     public IList<string>? Examples { get; set; }
+
+    /// <summary>
+    /// Free-form labels the word was collected under - the lesson, the book, the export it
+    /// came from. Added to rather than replaced: a word met again under a second tag keeps
+    /// the first, so the tags accumulate into a record of where it has been seen.
+    /// </summary>
+    public IList<string>? Tags { get; set; }
     public int? Frequency { get; set; }
     public WordStatus Status { get; set; } = WordStatus.New;
     

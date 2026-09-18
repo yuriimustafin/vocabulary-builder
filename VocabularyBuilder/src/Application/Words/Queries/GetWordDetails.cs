@@ -57,6 +57,7 @@ public class GetWordDetailsQueryHandler : IRequestHandler<GetWordDetailsQuery, W
             Status = word.Status,
             Language = word.Language,
             Examples = word.Examples?.ToList() ?? new List<string>(),
+            Tags = word.Tags?.ToList() ?? new List<string>(),
             Senses = word.Senses?.OrderBy(s => s.Id).Select(s => new SenseDto
             {
                 Definition = s.Definition,
@@ -94,6 +95,10 @@ public class WordDetailsDto
     public WordStatus Status { get; set; }
     public Language Language { get; set; }
     public List<string> Examples { get; set; } = new();
+
+    /// <summary>Labels the word has been collected under.</summary>
+    public List<string> Tags { get; set; } = new();
+
     public List<SenseDto> Senses { get; set; } = new();
 
     /// <summary>Inflected forms, in the order the source listed them. Empty for most non-verbs.</summary>

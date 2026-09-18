@@ -22,9 +22,13 @@ async function seedFrequencyData(request) {
   expect(response.ok()).toBeTruthy();
 }
 
-async function uploadExport(page, rows, { importName } = {}) {
+async function uploadExport(page, rows, { importName, tag } = {}) {
   if (importName) {
     await page.fill('input[name="listName"]', importName);
+  }
+
+  if (tag) {
+    await page.fill('input[name="tag"]', tag);
   }
 
   await page.setInputFiles('#lingqFileInput', {
@@ -39,6 +43,11 @@ async function uploadExport(page, rows, { importName } = {}) {
 
 async function frenchWords(page) {
   return getWordsFromDb(page, { lang: 'fr', pageSize: 1000 });
+}
+
+async function tagsFor(page, headword) {
+  const word = (await frenchWords(page)).find(w => w.headword === headword);
+  return word ? word.tags || [] : null;
 }
 
 async function encountersFor(page, headword) {
@@ -167,6 +176,49 @@ test.describe('French imports', () => {
       expect((await frenchWords(page)).filter(w => w.headword === 'oiseau')).toHaveLength(1);
     });
 
+    test('should tag every word the import brings in', async ({ page }) => {
+      await uploadExport(
+        page,
+        'un oiseau,,preply,,,,en,a bird,,\nune conférence,,preply,,,,en,conference,,\n',
+        { tag: 'preply' }
+      );
+
+      expect(await tagsFor(page, 'oiseau')).toEqual(['preply']);
+      expect(await tagsFor(page, 'conférence')).toEqual(['preply']);
+    });
+
+    test('should split several tags given in one field', async ({ page }) => {
+      await uploadExport(page, 'un oiseau,,preply,,,,en,a bird,,\n', { tag: 'preply, travel' });
+
+      expect(await tagsFor(page, 'oiseau')).toEqual(['preply', 'travel']);
+    });
+
+    /**
+     * The behaviour tags exist for: a word met again under a new label keeps the old one.
+     */
+    test('should add to the tags a word already has', async ({ page }) => {
+      await uploadExport(page, 'un oiseau,,preply,,,,en,a bird,,\n', {
+        importName: 'first',
+        tag: 'preply'
+      });
+
+      await page.reload();
+      await page.waitForSelector('#root', { timeout: 60000 });
+
+      await uploadExport(page, 'un oiseau,,preply,,,,en,a bird,,\n', {
+        importName: 'second',
+        tag: 'travel'
+      });
+
+      expect(await tagsFor(page, 'oiseau')).toEqual(['preply', 'travel']);
+    });
+
+    test('should leave a word untagged when no tag is given', async ({ page }) => {
+      await uploadExport(page, 'un oiseau,,preply,,,,en,a bird,,\n');
+
+      expect(await tagsFor(page, 'oiseau')).toEqual([]);
+    });
+
     /**
      * An imported word is filled in from the dictionary later, so nothing arrives carrying
      * the learner's own translation.
@@ -227,6 +279,16 @@ test.describe('French imports', () => {
       await expect(warning).toContainText('Quelle heure est-il');
 
       expect((await frenchWords(page)).map(w => w.headword)).toContain('serpent');
+    });
+
+    test('should tag words taken from the notes', async ({ page }) => {
+      await page.fill('input[name="tag"]', 'lesson 12');
+      await page.fill('textarea[name="notes"]', 'un serpent=snake');
+
+      await page.click('button:has-text("Import Vocabulary")');
+      await expect(page.locator('.alert-success')).toBeVisible({ timeout: 60000 });
+
+      expect(await tagsFor(page, 'serpent')).toEqual(['lesson 12']);
     });
 
     test('should clear the notes after a successful import', async ({ page }) => {

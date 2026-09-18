@@ -1900,7 +1900,7 @@ export class NewWordsClient {
         return Promise.resolve<number>(null as any);
     }
 
-    newWords_ImportLingQ(lang: string | undefined, listName: string | null | undefined, contentType: string | null | undefined, contentDisposition: string | null | undefined, headers: any[] | null | undefined, length: number | undefined, name: string | null | undefined, fileName: string | null | undefined): Promise<VocabularyImportResult> {
+    newWords_ImportLingQ(lang: string | undefined, listName: string | null | undefined, tag: string | null | undefined, contentType: string | null | undefined, contentDisposition: string | null | undefined, headers: any[] | null | undefined, length: number | undefined, name: string | null | undefined, fileName: string | null | undefined): Promise<VocabularyImportResult> {
         let url_ = this.baseUrl + "/api/NewWords/import-lingq?";
         if (lang === null)
             throw new Error("The parameter 'lang' cannot be null.");
@@ -1908,6 +1908,8 @@ export class NewWordsClient {
             url_ += "lang=" + encodeURIComponent("" + lang) + "&";
         if (listName !== undefined && listName !== null)
             url_ += "listName=" + encodeURIComponent("" + listName) + "&";
+        if (tag !== undefined && tag !== null)
+            url_ += "tag=" + encodeURIComponent("" + tag) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         const content_ = new FormData();
@@ -1958,7 +1960,7 @@ export class NewWordsClient {
         return Promise.resolve<VocabularyImportResult>(null as any);
     }
 
-    newWords_ImportNotes(lang: string | undefined, listName: string | null | undefined): Promise<VocabularyImportResult> {
+    newWords_ImportNotes(lang: string | undefined, listName: string | null | undefined, tag: string | null | undefined): Promise<VocabularyImportResult> {
         let url_ = this.baseUrl + "/api/NewWords/import-notes?";
         if (lang === null)
             throw new Error("The parameter 'lang' cannot be null.");
@@ -1966,6 +1968,8 @@ export class NewWordsClient {
             url_ += "lang=" + encodeURIComponent("" + lang) + "&";
         if (listName !== undefined && listName !== null)
             url_ += "listName=" + encodeURIComponent("" + listName) + "&";
+        if (tag !== undefined && tag !== null)
+            url_ += "tag=" + encodeURIComponent("" + tag) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {
@@ -4096,6 +4100,7 @@ export class WordDto implements IWordDto {
     frequency?: number | undefined;
     encounterCount?: number;
     examples?: string[];
+    tags?: string[];
     language?: Language;
     status?: WordStatus;
     gender?: GrammaticalGender | undefined;
@@ -4123,6 +4128,11 @@ export class WordDto implements IWordDto {
                 this.examples = [] as any;
                 for (let item of _data["examples"])
                     this.examples!.push(item);
+            }
+            if (Array.isArray(_data["tags"])) {
+                this.tags = [] as any;
+                for (let item of _data["tags"])
+                    this.tags!.push(item);
             }
             this.language = _data["language"];
             this.status = _data["status"];
@@ -4152,6 +4162,11 @@ export class WordDto implements IWordDto {
             for (let item of this.examples)
                 data["examples"].push(item);
         }
+        if (Array.isArray(this.tags)) {
+            data["tags"] = [];
+            for (let item of this.tags)
+                data["tags"].push(item);
+        }
         data["language"] = this.language;
         data["status"] = this.status;
         data["gender"] = this.gender;
@@ -4169,6 +4184,7 @@ export interface IWordDto {
     frequency?: number | undefined;
     encounterCount?: number;
     examples?: string[];
+    tags?: string[];
     language?: Language;
     status?: WordStatus;
     gender?: GrammaticalGender | undefined;

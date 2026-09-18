@@ -21,6 +21,7 @@ export class NotesImport extends Component {
     this.state = {
       notes: '',
       listName: '',
+      tag: '',
       loading: false,
       result: null,
       error: null
@@ -34,7 +35,7 @@ export class NotesImport extends Component {
   handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { notes, listName } = this.state;
+    const { notes, listName, tag } = this.state;
 
     if (!notes.trim()) {
       this.setState({ error: 'Please paste your lesson notes' });
@@ -48,6 +49,9 @@ export class NotesImport extends Component {
       const params = new URLSearchParams({ lang });
       if (listName) {
         params.append('listName', listName);
+      }
+      if (tag) {
+        params.append('tag', tag);
       }
 
       const response = await fetch(`/api/NewWords/import-notes?${params.toString()}`, {
@@ -76,11 +80,11 @@ export class NotesImport extends Component {
   }
 
   handleClear = () => {
-    this.setState({ notes: '', listName: '', result: null, error: null });
+    this.setState({ notes: '', listName: '', tag: '', result: null, error: null });
   }
 
   render() {
-    const { notes, listName, loading, result, error } = this.state;
+    const { notes, listName, tag, loading, result, error } = this.state;
 
     return (
       <div>
@@ -131,6 +135,23 @@ export class NotesImport extends Component {
             />
             <small className="form-text text-muted">
               Naming the lesson keeps a second paste of the same notes from counting twice
+            </small>
+          </FormGroup>
+
+          <FormGroup>
+            <Label for="tag">Tag (Optional)</Label>
+            <Input
+              type="text"
+              name="tag"
+              id="tag"
+              value={tag}
+              onChange={this.handleInputChange}
+              placeholder="e.g., preply, travel"
+              disabled={loading}
+            />
+            <small className="form-text text-muted">
+              Applied to every word imported. Separate several with commas; a word that
+              already has tags keeps them.
             </small>
           </FormGroup>
 

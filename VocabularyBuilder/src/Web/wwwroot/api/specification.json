@@ -1865,6 +1865,15 @@
               "nullable": true
             },
             "x-position": 2
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
           }
         ],
         "requestBody": {
@@ -1940,6 +1949,15 @@
               "nullable": true
             },
             "x-position": 2
+          },
+          {
+            "name": "tag",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 3
           }
         ],
         "responses": {
@@ -3107,6 +3125,12 @@
             "format": "int32"
           },
           "examples": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "tags": {
             "type": "array",
             "items": {
               "type": "string"

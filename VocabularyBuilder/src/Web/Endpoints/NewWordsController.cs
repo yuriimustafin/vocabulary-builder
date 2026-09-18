@@ -101,7 +101,8 @@ public class NewWordsController : ControllerBase
     public async Task<ActionResult<VocabularyImportResult>> ImportLingQ(
         [FromForm] IFormFile file,
         [FromQuery] string lang = "fr",
-        [FromQuery] string? listName = null)
+        [FromQuery] string? listName = null,
+        [FromQuery] string? tag = null)
     {
         if (file == null || file.Length == 0)
         {
@@ -118,7 +119,8 @@ public class NewWordsController : ControllerBase
         {
             FileContent = fileContent,
             Language = ParseLanguage(lang),
-            ListName = listName
+            ListName = listName,
+            Tag = tag
         });
 
         return Ok(result);
@@ -127,7 +129,8 @@ public class NewWordsController : ControllerBase
     [HttpPost("import-notes")]
     public async Task<ActionResult<VocabularyImportResult>> ImportNotes(
         [FromQuery] string lang = "fr",
-        [FromQuery] string? listName = null)
+        [FromQuery] string? listName = null,
+        [FromQuery] string? tag = null)
     {
         string notes;
         using (var reader = new StreamReader(Request.Body, Encoding.UTF8))
@@ -144,7 +147,8 @@ public class NewWordsController : ControllerBase
         {
             Notes = notes,
             Language = ParseLanguage(lang),
-            ListName = listName
+            ListName = listName,
+            Tag = tag
         });
 
         return Ok(result);

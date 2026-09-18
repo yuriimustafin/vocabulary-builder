@@ -50,6 +50,9 @@ public record SaveVocabularyTermsCommand : IRequest<SaveVocabularyTermsResult>
     public required string SourceIdentifierBase { get; init; }
 
     public string? Context { get; init; }
+
+    /// <summary>Labels applied to every word this import touches.</summary>
+    public List<string>? Tags { get; init; }
 }
 
 public class SaveVocabularyTermsCommandHandler
@@ -96,7 +99,8 @@ public class SaveVocabularyTermsCommandHandler
                 Source = request.Source,
                 SourceIdentifier = prefix + term.SourceTerm,
                 Context = request.Context,
-                Notes = term.Notes
+                Notes = term.Notes,
+                Tags = request.Tags
             }, cancellationToken);
         }
 

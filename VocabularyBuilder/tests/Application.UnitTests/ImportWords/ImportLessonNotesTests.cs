@@ -46,9 +46,15 @@ public class ImportLessonNotesTests
             .ReturnsAsync(items);
     }
 
-    private Task<VocabularyImportResult> Import(string notes, string? listName = null) =>
+    private Task<VocabularyImportResult> Import(string notes, string? listName = null, string? tag = null) =>
         _handler.Handle(
-            new ImportLessonNotesCommand { Notes = notes, Language = Language.French, ListName = listName },
+            new ImportLessonNotesCommand
+            {
+                Notes = notes,
+                Language = Language.French,
+                ListName = listName,
+                Tag = tag
+            },
             CancellationToken.None);
 
     [Test]
@@ -129,6 +135,26 @@ public class ImportLessonNotesTests
         result.TermsRead.Should().Be(0);
         result.TermsImported.Should().Be(0);
         _saved.Should().BeNull();
+    }
+
+    [Test]
+    public async Task ShouldPassTheTagOnToEveryWord()
+    {
+        Extracts("un pas", "un serpent");
+
+        await Import("un pas=step", tag: "lesson 12");
+
+        _saved!.Tags.Should().Equal("lesson 12");
+    }
+
+    [Test]
+    public async Task ShouldPassNoTagsWhenNoneIsGiven()
+    {
+        Extracts("un pas");
+
+        await Import("un pas=step");
+
+        _saved!.Tags.Should().BeEmpty();
     }
 
     [Test]

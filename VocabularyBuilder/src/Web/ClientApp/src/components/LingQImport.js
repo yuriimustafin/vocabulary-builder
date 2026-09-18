@@ -10,6 +10,7 @@ export class LingQImport extends Component {
     this.state = {
       selectedFile: null,
       listName: '',
+      tag: '',
       loading: false,
       result: null,
       error: null
@@ -27,7 +28,7 @@ export class LingQImport extends Component {
   handleSubmit = async (e) => {
     e.preventDefault();
 
-    const { selectedFile, listName } = this.state;
+    const { selectedFile, listName, tag } = this.state;
 
     if (!selectedFile) {
       this.setState({ error: 'Please choose your LingQ export file' });
@@ -44,6 +45,9 @@ export class LingQImport extends Component {
       const params = new URLSearchParams({ lang });
       if (listName) {
         params.append('listName', listName);
+      }
+      if (tag) {
+        params.append('tag', tag);
       }
 
       const response = await fetch(`/api/NewWords/import-lingq?${params.toString()}`, {
@@ -73,12 +77,12 @@ export class LingQImport extends Component {
   }
 
   handleClear = () => {
-    this.setState({ selectedFile: null, listName: '', result: null, error: null });
+    this.setState({ selectedFile: null, listName: '', tag: '', result: null, error: null });
     document.getElementById('lingqFileInput').value = '';
   }
 
   render() {
-    const { selectedFile, listName, loading, result, error } = this.state;
+    const { selectedFile, listName, tag, loading, result, error } = this.state;
 
     return (
       <div>
@@ -123,6 +127,23 @@ export class LingQImport extends Component {
             />
             <small className="form-text text-muted">
               Naming the import lets a later, longer export add only its new terms
+            </small>
+          </FormGroup>
+
+          <FormGroup>
+            <Label for="tag">Tag (Optional)</Label>
+            <Input
+              type="text"
+              name="tag"
+              id="tag"
+              value={tag}
+              onChange={this.handleInputChange}
+              placeholder="e.g., preply, travel"
+              disabled={loading}
+            />
+            <small className="form-text text-muted">
+              Applied to every word imported. Separate several with commas; a word that
+              already has tags keeps them.
             </small>
           </FormGroup>
 

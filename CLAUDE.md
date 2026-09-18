@@ -119,22 +119,6 @@ dotnet test VocabularyBuilder/VocabularyBuilder.sln
 | `Infrastructure.IntegrationTests` | Parsers against recorded WordReference pages. |
 | `Application.FunctionalTests` | Whole handlers through MediatR against a real database. |
 
-`Web.AcceptanceTests` is two SpecFlow login scenarios driven by Playwright for .NET. They
-do **not** start anything: they expect the app already serving on `https://localhost:44447`,
-so `dotnet test` across the solution reports them as failures on an idle machine. They also
-need their own browser, which is separate from the one the Node suite uses:
-
-```bash
-powershell -ExecutionPolicy Bypass -File VocabularyBuilder/tests/Web.AcceptanceTests/bin/Debug/net9.0/playwright.ps1 install chromium
-```
-
-Start the app with the `E2E` profile first, then run them. Even then only
-`UserCannotLogInWithInvalidCredentials` passes: the valid-credentials scenario needs a seeded
-user, and the `E2E` profile calls `InitialiseDatabaseSchemaOnlyAsync`, which skips seeding on
-purpose to avoid transaction trouble with the singleton SQLite connection. So that one
-scenario cannot pass as things stand — it needs either a seeded E2ETest database or a user
-created by the test. Pre-existing, and untouched here.
-
 `Application.FunctionalTests` runs on in-memory SQLite (`SqliteTestDatabase`). It used to
 raise a SQL Server container and **every test failed before it started**: EF compares the
 model it builds for the provider in use against the snapshot in `Migrations`, that snapshot is
@@ -189,6 +173,13 @@ WordReference page cached under its own source type.
 
 All of them read the language from `localStorage.language`, which the nav's flag menu sets.
 With English selected, a French import runs as English and the French rules never apply.
+
+The LingQ and notes pages also take a **Tag**, applied to every word that import brings in.
+Several can be given at once separated by commas, and tags accumulate: a word met again under
+a second tag keeps the first, so they build up a record of everywhere the word has turned up.
+They live on `Word.Tags`, stored the way `Examples` is — an EF primitive collection in a JSON
+column, no join table. `Domain/Helpers/WordTags` does the parsing and the case-insensitive
+merge.
 
 The LingQ and notes imports share one pipeline: terms are resolved to headwords by
 `ResolveVocabularyTermsQuery`, then written by `SaveVocabularyTermsCommand`. Neither takes

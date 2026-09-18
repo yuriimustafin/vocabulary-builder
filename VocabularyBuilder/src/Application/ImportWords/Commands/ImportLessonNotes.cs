@@ -3,6 +3,7 @@ using System.Text;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.ImportWords.Queries;
 using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
@@ -27,6 +28,12 @@ public record ImportLessonNotesCommand : IRequest<VocabularyImportResult>
     /// one, a hash of the notes is used.
     /// </summary>
     public string? ListName { get; init; }
+
+    /// <summary>
+    /// Applied to every word the import brings in. Several can be given at once, separated
+    /// by commas, and a word that already carries tags keeps them.
+    /// </summary>
+    public string? Tag { get; init; }
 }
 
 public class ImportLessonNotesCommandHandler
@@ -74,7 +81,8 @@ public class ImportLessonNotesCommandHandler
             SourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName)
                 ? request.ListName!
                 : ComputeHash(request.Notes),
-            Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Lesson notes"
+            Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Lesson notes",
+            Tags = WordTags.Parse(request.Tag)
         }, cancellationToken);
 
         result.TermsImported = terms.Count;

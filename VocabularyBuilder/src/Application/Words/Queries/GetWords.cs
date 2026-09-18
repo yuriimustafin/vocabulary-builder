@@ -102,6 +102,7 @@ public class GetWordsQueryHandler : IRequestHandler<GetWordsQuery, PaginatedList
             Frequency = w.Frequency,
             EncounterCount = w.WordEncounters?.Count ?? 0,
             Examples = w.Examples?.ToList() ?? new List<string>(),
+            Tags = w.Tags?.ToList() ?? new List<string>(),
             Status = w.Status,
             Language = w.Language,
             Gender = w.Gender,
@@ -122,6 +123,9 @@ public class WordDto
     public int? Frequency { get; set; }
     public int EncounterCount { get; set; }
     public List<string> Examples { get; set; } = new();
+
+    /// <summary>Labels the word has been collected under.</summary>
+    public List<string> Tags { get; set; } = new();
     public Language Language { get; set; }
     public WordStatus Status { get; set; }
     public GrammaticalGender? Gender { get; set; }

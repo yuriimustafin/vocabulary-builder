@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using VocabularyBuilder.Application.ImportWords.Queries;
 using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
@@ -45,6 +46,12 @@ public record ImportLingQWordsCommand : IRequest<VocabularyImportResult>
     /// adds only its new rows.
     /// </summary>
     public string? ListName { get; init; }
+
+    /// <summary>
+    /// Applied to every word the import brings in. Several can be given at once, separated
+    /// by commas, and a word that already carries tags keeps them.
+    /// </summary>
+    public string? Tag { get; init; }
 }
 
 public class ImportLingQWordsCommandHandler
@@ -100,7 +107,8 @@ public class ImportLingQWordsCommandHandler
             SourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName)
                 ? request.ListName!
                 : ComputeHash(request.FileContent),
-            Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "LingQ import"
+            Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "LingQ import",
+            Tags = WordTags.Parse(request.Tag)
         }, cancellationToken);
 
         result.TermsImported = terms.Count;
