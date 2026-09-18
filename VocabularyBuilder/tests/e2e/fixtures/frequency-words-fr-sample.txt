@@ -1,0 +1,11 @@
+finir/58412 -> finis,finissez,finissons,finit,fini,finie
+chanter/41203 -> chante,chantes,chantons,chantez,chantent,chanté
+aller/999277 -> allez,allons,vais,vas,vont,allé,allait
+partir/120544 -> pars,part,partons,partez,partent,parti
+être/3223650 -> es,êtes,étais,était,sommes,sont,suis,sera,fut
+avoir/2891004 -> ai,avons,avez,ont,avait,eu
+est/3223650
+a/2891004
+randonnée/4120
+conférence/9803
+oiseau/15602

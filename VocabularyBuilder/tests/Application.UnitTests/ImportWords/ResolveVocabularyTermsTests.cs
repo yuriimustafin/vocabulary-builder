@@ -1,4 +1,5 @@
 using FluentAssertions;
+using MediatR;
 using Moq;
 using NUnit.Framework;
 using VocabularyBuilder.Application.Ai;
@@ -10,13 +11,28 @@ namespace VocabularyBuilder.Application.UnitTests.ImportWords;
 public class ResolveVocabularyTermsTests
 {
     private Mock<IVocabularyAnalyzer> _analyzer = null!;
+    private Mock<ISender> _sender = null!;
     private ResolveVocabularyTermsQueryHandler _handler = null!;
 
     [SetUp]
     public void SetUp()
     {
         _analyzer = new Mock<IVocabularyAnalyzer>();
-        _handler = new ResolveVocabularyTermsQueryHandler(_analyzer.Object);
+        _sender = new Mock<ISender>();
+        _handler = new ResolveVocabularyTermsQueryHandler(_analyzer.Object, _sender.Object);
+
+        // No frequency data unless a test supplies some
+        FrequencyDataHas();
+    }
+
+    /// <summary>The frequency-data tier answers with these form/lemma pairs and nothing else.</summary>
+    private void FrequencyDataHas(params (string Form, string Lemma)[] pairs)
+    {
+        var lemmas = pairs.ToDictionary(p => p.Form, p => p.Lemma, StringComparer.OrdinalIgnoreCase);
+
+        _sender
+            .Setup(s => s.Send(It.IsAny<LookupInflectedFormsQuery>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyDictionary<string, string>)lemmas);
     }
 
     private Task<VocabularyTermResolution> Resolve(params string[] terms) =>
@@ -140,6 +156,82 @@ public class ResolveVocabularyTermsTests
         _analyzer.Verify(
             a => a.ResolveLemmasAsync(It.Is<IReadOnlyList<string>>(t => t.Count == 1), It.IsAny<Language>(), It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    /// <summary>
+    /// The whole point of the frequency tier: a conjugation it can reduce costs no request,
+    /// and - unlike a model - gives the same answer on every import.
+    /// </summary>
+    [Test]
+    public async Task ShouldReduceAConjugationFromFrequencyDataWithoutCallingTheAnalyzer()
+    {
+        FrequencyDataHas(("allez", "aller"));
+
+        var result = await Resolve("Vous allez");
+
+        result.Resolved.Should().ContainSingle();
+        result.Resolved[0].SourceTerm.Should().Be("Vous allez");
+        result.Resolved[0].Lemma.Should().Be("aller");
+
+        _analyzer.Verify(
+            a => a.ResolveLemmasAsync(It.IsAny<IReadOnlyList<string>>(), It.IsAny<Language>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    /// <summary>
+    /// Every person of a verb has to land on the infinitive, which is what turns six rows
+    /// of a conjugation table into one word met six times.
+    /// </summary>
+    [Test]
+    public async Task ShouldBringEveryPersonOfAVerbToOneHeadword()
+    {
+        FrequencyDataHas(("sommes", "être"), ("êtes", "être"), ("suis", "être"));
+
+        var result = await Resolve("Nous sommes", "Vous êtes", "Je suis");
+
+        result.Resolved.Should().HaveCount(3);
+        result.Resolved.Select(r => r.Lemma).Distinct().Should().ContainSingle().Which.Should().Be("être");
+    }
+
+    /// <summary>
+    /// A form the frequency data cannot settle - "est" is also east, "neige" is also snow -
+    /// falls through to the model, which can see the pronoun in front of it.
+    /// </summary>
+    [Test]
+    public async Task ShouldFallBackToTheAnalyzerForAFormFrequencyDataCannotSettle()
+    {
+        FrequencyDataHas(("allez", "aller"));
+        AnalyzerReturns(new AnalyzedTerm("il neige", "neiger", null));
+
+        var result = await Resolve("Vous allez", "il neige");
+
+        result.Resolved.Select(r => r.Lemma).Should().BeEquivalentTo(new[] { "aller", "neiger" });
+
+        // Only the form the frequency data missed is paid for
+        _analyzer.Verify(
+            a => a.ResolveLemmasAsync(
+                It.Is<IReadOnlyList<string>>(t => t.Count == 1 && t[0] == "il neige"),
+                It.IsAny<Language>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    /// <summary>
+    /// The frequency table would reduce "ciseaux" to "ciseau" - scissors to chisel - so a
+    /// compound must never be offered to it, only a form a pronoun proved to be a verb.
+    /// </summary>
+    [Test]
+    public async Task ShouldNotOfferACompoundToTheFrequencyTier()
+    {
+        AnalyzerReturns(new AnalyzedTerm("cheveux noirs", "cheveux", null));
+
+        var result = await Resolve("les cheveux noirs");
+
+        result.Resolved[0].Lemma.Should().Be("cheveux");
+
+        _sender.Verify(
+            s => s.Send(It.IsAny<LookupInflectedFormsQuery>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     /// <summary>

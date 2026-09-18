@@ -27,12 +27,18 @@ public enum TermVerdict
 /// The term with its article stripped and its punctuation cleaned, which is what a model
 /// should be asked about. Set for <see cref="TermVerdict.NeedsAnalysis"/>.
 /// </param>
+/// <param name="InflectedForm">
+/// The single word a conjugated verb inflects - "allez" out of "vous allez". Set only when
+/// a subject pronoun proved what follows it is a verb, which is what makes it safe to look
+/// up in an inflection table; null for everything else.
+/// </param>
 /// <param name="Reason">Why a term was set aside, for the import report.</param>
 public record FrenchTermAnalysis(
     string SourceTerm,
     TermVerdict Verdict,
     string? Lemma = null,
     string? Candidate = null,
+    string? InflectedForm = null,
     string? Reason = null);
 
 /// <summary>
@@ -125,6 +131,7 @@ public static class FrenchTermNormalizer
                     original,
                     TermVerdict.NeedsAnalysis,
                     Candidate: Join(words),
+                    InflectedForm: rest[0],
                     Reason: "Conjugated verb"),
                 _ => new FrenchTermAnalysis(original, TermVerdict.NotVocabulary, Reason: "Clause")
             };

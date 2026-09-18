@@ -23,10 +23,19 @@ public class VocabularyTermResolution
 /// by, setting aside the ones that are not vocabulary items.
 /// </summary>
 /// <remarks>
-/// Rules first, model second. <see cref="FrenchTermNormalizer"/> settles the two
-/// unambiguous cases - a noun behind its article, and prose - without a request; only what
-/// is left over is sent for analysis. On a typical exported list that is a small minority
-/// of the rows, which is what keeps a few hundred terms down to a handful of model calls.
+/// Three tiers, cheapest and steadiest first, so that a model is asked only what nothing
+/// else can answer:
+///
+/// 1. <see cref="FrenchTermNormalizer"/> settles the two cases that are unambiguous in
+///    writing - a noun behind its article, and prose.
+/// 2. <see cref="LookupInflectedFormsQuery"/> reduces conjugated verbs against the imported
+///    frequency data. Free, and - more importantly - it cannot drift between imports the
+///    way a model's answer can, which is what keeps encounter counts adding up.
+/// 3. Whatever is left goes to the model: compounds, and the verb forms the frequency data
+///    cannot tell apart from a noun of the same spelling.
+///
+/// On a typical exported list the first two tiers settle most of the rows, which is what
+/// keeps a few hundred terms down to a handful of model calls.
 /// </remarks>
 public record ResolveVocabularyTermsQuery : IRequest<VocabularyTermResolution>
 {
@@ -38,10 +47,12 @@ public class ResolveVocabularyTermsQueryHandler
     : IRequestHandler<ResolveVocabularyTermsQuery, VocabularyTermResolution>
 {
     private readonly IVocabularyAnalyzer _analyzer;
+    private readonly ISender _sender;
 
-    public ResolveVocabularyTermsQueryHandler(IVocabularyAnalyzer analyzer)
+    public ResolveVocabularyTermsQueryHandler(IVocabularyAnalyzer analyzer, ISender sender)
     {
         _analyzer = analyzer;
+        _sender = sender;
     }
 
     public async Task<VocabularyTermResolution> Handle(
@@ -80,6 +91,13 @@ public class ResolveVocabularyTermsQueryHandler
         }
 
         var needAnalysis = analyses.Where(a => a.Verdict == TermVerdict.NeedsAnalysis).ToList();
+
+        if (needAnalysis.Count == 0)
+        {
+            return result;
+        }
+
+        needAnalysis = await ResolveFromFrequencyData(needAnalysis, request, result, cancellationToken);
 
         if (needAnalysis.Count == 0)
         {
@@ -127,5 +145,55 @@ public class ResolveVocabularyTermsQueryHandler
         }
 
         return result;
+    }
+
+    /// <summary>
+    /// Settles the conjugated verbs the frequency data can reduce on its own, and returns
+    /// the terms still needing a model.
+    /// </summary>
+    private async Task<List<FrenchTermAnalysis>> ResolveFromFrequencyData(
+        List<FrenchTermAnalysis> needAnalysis,
+        ResolveVocabularyTermsQuery request,
+        VocabularyTermResolution result,
+        CancellationToken cancellationToken)
+    {
+        // Only the forms a pronoun proved to be verbs are looked up; the same table would
+        // reduce plural nouns wrongly, which LookupInflectedFormsQuery explains
+        var forms = needAnalysis
+            .Where(a => a.InflectedForm != null)
+            .Select(a => a.InflectedForm!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (forms.Count == 0)
+        {
+            return needAnalysis;
+        }
+
+        var lemmas = await _sender.Send(new LookupInflectedFormsQuery
+        {
+            Forms = forms,
+            Language = request.Language
+        }, cancellationToken);
+
+        if (lemmas.Count == 0)
+        {
+            return needAnalysis;
+        }
+
+        var unresolved = new List<FrenchTermAnalysis>();
+
+        foreach (var analysis in needAnalysis)
+        {
+            if (analysis.InflectedForm != null && lemmas.TryGetValue(analysis.InflectedForm, out var lemma))
+            {
+                result.Resolved.Add(new ResolvedTerm(analysis.SourceTerm, lemma));
+                continue;
+            }
+
+            unresolved.Add(analysis);
+        }
+
+        return unresolved;
     }
 }
