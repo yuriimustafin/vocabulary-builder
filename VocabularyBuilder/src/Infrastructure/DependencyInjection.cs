@@ -48,7 +48,8 @@ public static class DependencyInjection
             {
                 var connection = sp.GetRequiredService<Microsoft.Data.Sqlite.SqliteConnection>();
                 options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
-                options.UseSqlite(connection);
+                // Split the collection includes; see the file-based registration below
+                options.UseSqlite(connection, x => x.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
             });
         }
         else
@@ -57,8 +58,14 @@ public static class DependencyInjection
             services.AddDbContext<ApplicationDbContext>((sp, options) =>
             {
                 options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
-                options.UseSqlite(connectionString,
-                    x => x.MigrationsAssembly("VocabularyBuilder.Infrastructure"));
+                // A query pulling in two collections at once - the study queue takes a
+                // word's senses and its encounters together - multiplies its rows by both
+                // unless they are fetched separately. EF warns about it on every such query
+                // until the behaviour is stated, and one round trip per collection is the
+                // cheaper half of that trade against a local file
+                options.UseSqlite(connectionString, x => x
+                    .MigrationsAssembly("VocabularyBuilder.Infrastructure")
+                    .UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
             });
         }
 
