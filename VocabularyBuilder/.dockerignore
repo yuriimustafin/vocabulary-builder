@@ -1,0 +1,23 @@
+# Build output and caches - the image builds these itself, and copying them in both
+# slows the build and risks baking a stale binary into the image.
+**/bin/
+**/obj/
+**/node_modules/
+**/build/
+**/.vs/
+**/TestResults/
+**/playwright-report/
+**/test-results/
+
+# Databases. These are the live data; they must come from the volume, never the image.
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/db-backups/
+
+# Secrets. appsettings.Development.json holds a real API key and is gitignored anyway.
+**/appsettings.Development.json
+**/.env
+
+.git/
+.github/

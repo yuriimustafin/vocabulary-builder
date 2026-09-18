@@ -1,0 +1,52 @@
+# Production compose for the VPS. Copied to the deployment directory rather than run from
+# inside the repo checkout, so that pulling the repo never changes how the running stack is
+# configured. See docs/VPS_DEPLOYMENT.md.
+services:
+  web:
+    build:
+      context: ./app
+    image: vocabulary-builder:latest
+    container_name: vocabulary-builder
+    restart: unless-stopped
+
+    # Bound to the loopback address on purpose. Docker writes its own iptables rules and does
+    # not consult ufw, so a plain "8080:8080" would publish this to the internet whatever the
+    # firewall says. The reverse proxy reaches it on the same host.
+    ports:
+      - "127.0.0.1:8087:8080"
+
+    env_file:
+      - ./.env
+
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+
+      # The database lives in the volume, never in the image layer
+      ConnectionStrings__DefaultConnection: "Data Source=/data/VocabularyBuilder.db"
+
+      # A fresh volume has no database at all, so the container creates one on first start
+      # and applies any migration added since the last deploy
+      ApplyMigrationsOnStartup: "true"
+
+      # TLS is terminated in front of this container: read the forwarded scheme, and do not
+      # redirect or send HSTS a second time
+      BehindReverseProxy: "true"
+
+    volumes:
+      - vocabulary_data:/data
+
+    security_opt:
+      - no-new-privileges:true
+
+    # Without this a container that misbehaves can fill the disk with its own logs
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  vocabulary_data:
+    # Pinned, so the data does not depend on the directory compose happens to run from
+    name: vocabulary_builder_data
