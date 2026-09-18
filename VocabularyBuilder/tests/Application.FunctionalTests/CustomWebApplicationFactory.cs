@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -24,6 +25,19 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // Nothing here may reach the network. Without this the host resolves the real
+        // dictionary and model clients from appsettings.json and a test that touches either
+        // one makes an outbound request with a placeholder API key.
+        builder.ConfigureAppConfiguration(configuration =>
+        {
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["OpenAI:UseMockMode"] = "true",
+                ["Oxford:UseMockMode"] = "true",
+                ["WordReference:UseMockMode"] = "true"
+            });
+        });
+
         builder.ConfigureTestServices(services =>
         {
             services
