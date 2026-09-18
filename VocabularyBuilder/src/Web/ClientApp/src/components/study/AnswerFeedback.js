@@ -1,6 +1,7 @@
 import React from 'react';
 import { Alert, Button } from 'reactstrap';
 import { NounArticle } from '../NounArticle';
+import { BilingualText } from './BilingualText';
 
 /**
  * What happened after an automatically graded answer.
@@ -26,7 +27,7 @@ function describeChoice(chosen) {
   return chosen.headword ? `That is the meaning of ${chosen.headword}` : null;
 }
 
-export function AnswerFeedback({ feedback, onContinue, continuing }) {
+export function AnswerFeedback({ feedback, onContinue, continuing, language }) {
   const { correct, chosen } = feedback;
 
   return (
@@ -49,15 +50,21 @@ export function AnswerFeedback({ feedback, onContinue, continuing }) {
         <div className="text-muted small fst-italic">{feedback.partOfSpeech}</div>
       )}
 
-      {feedback.meaning && (
-        <div className="fs-5 mt-2" data-testid="feedback-meaning">{feedback.meaning}</div>
-      )}
+      <BilingualText
+        className="fs-5 mt-2"
+        language={language}
+        learned={feedback.meaningGloss}
+        native={feedback.meaning}
+        nativeTestId="feedback-meaning"
+      />
 
-      {feedback.contextSentence && (
-        <p className="text-muted fst-italic mt-2" data-testid="feedback-context">
-          {feedback.contextSentence}
-        </p>
-      )}
+      <BilingualText
+        className="text-muted fst-italic mt-2"
+        language={language}
+        learned={feedback.contextSentence}
+        native={feedback.contextSentenceTranslation}
+        learnedTestId="feedback-context"
+      />
 
       {chosen && (
         <div className="border-start border-3 border-danger ps-3 mt-4" data-testid="feedback-chosen">

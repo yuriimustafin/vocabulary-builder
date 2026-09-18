@@ -36,6 +36,12 @@ public class Word : BaseAuditableEntity
     public IList<string>? Examples { get; set; }
 
     /// <summary>
+    /// Translations of <see cref="Examples"/>, paired by position. See the same field on
+    /// <see cref="Sense"/> for why they are kept apart.
+    /// </summary>
+    public IList<string>? ExampleTranslations { get; set; }
+
+    /// <summary>
     /// Free-form labels the word was collected under - the lesson, the book, the export it
     /// came from. Added to rather than replaced: a word met again under a second tag keeps
     /// the first, so the tags accumulate into a record of where it has been seen.

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from 'reactstrap';
 import { NounArticle } from '../NounArticle';
+import { BilingualText } from './BilingualText';
 
 /**
  * A word being met for the first time.
@@ -9,7 +10,7 @@ import { NounArticle } from '../NounArticle';
  * how well they recalled it would have no honest answer - the word simply goes on the
  * first learning step, and the real test comes a minute later.
  */
-export function IntroductionCard({ exercise, onAcknowledge, onAlreadyKnown, submitting }) {
+export function IntroductionCard({ exercise, onAcknowledge, onAlreadyKnown, submitting, language }) {
   return (
     <div data-testid="introduction-card">
       <div className="display-6 fw-bold">
@@ -20,13 +21,21 @@ export function IntroductionCard({ exercise, onAcknowledge, onAlreadyKnown, subm
       {exercise.transcription && <div className="text-muted">/{exercise.transcription}/</div>}
       {exercise.partOfSpeech && <div className="text-muted small fst-italic">{exercise.partOfSpeech}</div>}
 
-      <div className="fs-5 mt-3" data-testid="introduction-meaning">{exercise.answer}</div>
+      <BilingualText
+        className="fs-5 mt-3"
+        language={language}
+        learned={exercise.meaningGloss}
+        native={exercise.answer}
+        nativeTestId="introduction-meaning"
+      />
 
-      {exercise.contextSentence && (
-        <p className="text-muted fst-italic mt-2" data-testid="introduction-context">
-          {exercise.contextSentence}
-        </p>
-      )}
+      <BilingualText
+        className="text-muted fst-italic mt-2"
+        language={language}
+        learned={exercise.contextSentence}
+        native={exercise.contextSentenceTranslation}
+        learnedTestId="introduction-context"
+      />
 
       <div className="d-flex gap-2 flex-wrap mt-4">
         <Button

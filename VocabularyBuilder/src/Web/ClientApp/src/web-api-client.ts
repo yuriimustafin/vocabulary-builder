@@ -1688,6 +1688,44 @@ export class WordsClient {
         return Promise.resolve<FillMissingDictionaryDataResult>(null as any);
     }
 
+    postApiWordsReparseCached(lang: string): Promise<ReparseCachedSensesResult> {
+        let url_ = this.baseUrl + "/api/{lang}/words/reparse-cached";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "POST",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processPostApiWordsReparseCached(_response);
+        });
+    }
+
+    protected processPostApiWordsReparseCached(response: Response): Promise<ReparseCachedSensesResult> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = ReparseCachedSensesResult.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<ReparseCachedSensesResult>(null as any);
+    }
+
     getApiWordsForExport(lang: string, statuses: number[] | null | undefined): Promise<void> {
         let url_ = this.baseUrl + "/api/{lang}/words/for-export?";
         if (lang === undefined || lang === null)
@@ -3305,6 +3343,8 @@ export class ExercisePayload implements IExercisePayload {
     tiles?: string[] | undefined;
     letterMask?: string | undefined;
     contextSentence?: string | undefined;
+    meaningGloss?: string | undefined;
+    contextSentenceTranslation?: string | undefined;
 
     constructor(data?: IExercisePayload) {
         if (data) {
@@ -3339,6 +3379,8 @@ export class ExercisePayload implements IExercisePayload {
             }
             this.letterMask = _data["letterMask"];
             this.contextSentence = _data["contextSentence"];
+            this.meaningGloss = _data["meaningGloss"];
+            this.contextSentenceTranslation = _data["contextSentenceTranslation"];
         }
     }
 
@@ -3373,6 +3415,8 @@ export class ExercisePayload implements IExercisePayload {
         }
         data["letterMask"] = this.letterMask;
         data["contextSentence"] = this.contextSentence;
+        data["meaningGloss"] = this.meaningGloss;
+        data["contextSentenceTranslation"] = this.contextSentenceTranslation;
         return data;
     }
 }
@@ -3392,6 +3436,8 @@ export interface IExercisePayload {
     tiles?: string[] | undefined;
     letterMask?: string | undefined;
     contextSentence?: string | undefined;
+    meaningGloss?: string | undefined;
+    contextSentenceTranslation?: string | undefined;
 }
 
 export enum ExerciseType {
@@ -3660,6 +3706,8 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     contextSentence?: string | undefined;
+    meaningGloss?: string | undefined;
+    contextSentenceTranslation?: string | undefined;
     chosen?: ChosenAnswerDto | undefined;
 
     constructor(data?: IReviewFeedbackDto) {
@@ -3680,6 +3728,8 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
             this.transcription = _data["transcription"];
             this.partOfSpeech = _data["partOfSpeech"];
             this.contextSentence = _data["contextSentence"];
+            this.meaningGloss = _data["meaningGloss"];
+            this.contextSentenceTranslation = _data["contextSentenceTranslation"];
             this.chosen = _data["chosen"] ? ChosenAnswerDto.fromJS(_data["chosen"]) : <any>undefined;
         }
     }
@@ -3700,6 +3750,8 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
         data["transcription"] = this.transcription;
         data["partOfSpeech"] = this.partOfSpeech;
         data["contextSentence"] = this.contextSentence;
+        data["meaningGloss"] = this.meaningGloss;
+        data["contextSentenceTranslation"] = this.contextSentenceTranslation;
         data["chosen"] = this.chosen ? this.chosen.toJSON() : <any>undefined;
         return data;
     }
@@ -3713,6 +3765,8 @@ export interface IReviewFeedbackDto {
     transcription?: string | undefined;
     partOfSpeech?: string | undefined;
     contextSentence?: string | undefined;
+    meaningGloss?: string | undefined;
+    contextSentenceTranslation?: string | undefined;
     chosen?: ChosenAnswerDto | undefined;
 }
 
@@ -4594,6 +4648,62 @@ export interface IFillMissingDictionaryDataResult {
     filled?: number;
     notFound?: number;
     filledWords?: string[];
+}
+
+export class ReparseCachedSensesResult implements IReparseCachedSensesResult {
+    considered?: number;
+    reparsed?: number;
+    unreadable?: number;
+    reparsedWords?: string[];
+
+    constructor(data?: IReparseCachedSensesResult) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.considered = _data["considered"];
+            this.reparsed = _data["reparsed"];
+            this.unreadable = _data["unreadable"];
+            if (Array.isArray(_data["reparsedWords"])) {
+                this.reparsedWords = [] as any;
+                for (let item of _data["reparsedWords"])
+                    this.reparsedWords!.push(item);
+            }
+        }
+    }
+
+    static fromJS(data: any): ReparseCachedSensesResult {
+        data = typeof data === 'object' ? data : {};
+        let result = new ReparseCachedSensesResult();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["considered"] = this.considered;
+        data["reparsed"] = this.reparsed;
+        data["unreadable"] = this.unreadable;
+        if (Array.isArray(this.reparsedWords)) {
+            data["reparsedWords"] = [];
+            for (let item of this.reparsedWords)
+                data["reparsedWords"].push(item);
+        }
+        return data;
+    }
+}
+
+export interface IReparseCachedSensesResult {
+    considered?: number;
+    reparsed?: number;
+    unreadable?: number;
+    reparsedWords?: string[];
 }
 
 export class ExportWordsCommand implements IExportWordsCommand {

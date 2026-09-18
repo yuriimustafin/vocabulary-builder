@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Study.Exercises.Definitions;
@@ -28,7 +28,9 @@ public class MeaningToWordPartialLettersExerciseDefinition : SelfGradedExerciseD
         Answer = material.Headword,
         LetterMask = Mask(material.Headword, context.RevealedLetters),
         PartOfSpeech = material.PartOfSpeech,
-        ContextSentence = material.ContextSentence
+        ContextSentence = material.ContextSentence,
+        ContextSentenceTranslation = material.ContextSentenceTranslation,
+        MeaningGloss = material.MeaningGloss
     };
 
     /// <summary>

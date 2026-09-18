@@ -1548,6 +1548,37 @@
         }
       }
     },
+    "/api/{lang}/words/reparse-cached": {
+      "post": {
+        "tags": [
+          "Words"
+        ],
+        "operationId": "PostApiWordsReparseCached",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReparseCachedSensesResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/{lang}/words/for-export": {
       "get": {
         "tags": [
@@ -2723,6 +2754,14 @@
           "contextSentence": {
             "type": "string",
             "nullable": true
+          },
+          "meaningGloss": {
+            "type": "string",
+            "nullable": true
+          },
+          "contextSentenceTranslation": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -2928,6 +2967,14 @@
             "nullable": true
           },
           "contextSentence": {
+            "type": "string",
+            "nullable": true
+          },
+          "meaningGloss": {
+            "type": "string",
+            "nullable": true
+          },
+          "contextSentenceTranslation": {
             "type": "string",
             "nullable": true
           },
@@ -3421,6 +3468,30 @@
             "format": "int32"
           },
           "filledWords": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "ReparseCachedSensesResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "considered": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reparsed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unreadable": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reparsedWords": {
             "type": "array",
             "items": {
               "type": "string"

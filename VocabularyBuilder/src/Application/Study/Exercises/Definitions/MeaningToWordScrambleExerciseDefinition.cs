@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Study.Exercises.Definitions;
@@ -57,7 +57,9 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
             Prompt = material.Meaning!,
             Tiles = tiles,
             PartOfSpeech = material.PartOfSpeech,
-            ContextSentence = material.ContextSentence
+            ContextSentence = material.ContextSentence,
+        ContextSentenceTranslation = material.ContextSentenceTranslation,
+        MeaningGloss = material.MeaningGloss
         };
     }
 

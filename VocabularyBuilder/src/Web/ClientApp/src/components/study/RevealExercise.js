@@ -2,6 +2,7 @@ import React, { Component } from 'react';
 import { Button } from 'reactstrap';
 import { GradeBar } from './GradeBar';
 import { NounArticle } from '../NounArticle';
+import { BilingualText } from './BilingualText';
 
 /**
  * Every self-graded exercise has the same shape: a prompt, an answer the learner asks to
@@ -34,7 +35,7 @@ export class RevealExercise extends Component {
     const {
       exercise, prompt, promptClassName, support,
       revealed, onReveal, onGrade, submitting,
-      promptIsWord, answerIsWord
+      promptIsWord, answerIsWord, language
     } = this.props;
     const { hintShown } = this.state;
 
@@ -62,9 +63,21 @@ export class RevealExercise extends Component {
               <span data-testid="exercise-answer">{exercise.answer}</span>
             </div>
             {exercise.transcription && <div className="text-muted">/{exercise.transcription}/</div>}
-            {exercise.contextSentence && (
-              <p className="text-muted fst-italic mt-2" data-testid="answer-context">{exercise.contextSentence}</p>
+            {/* The gloss names which sense the answer is; only shown once the answer is */}
+            {!answerIsWord && exercise.meaningGloss && (
+              <BilingualText
+                className="text-muted mt-1"
+                language={language}
+                learned={exercise.meaningGloss}
+              />
             )}
+            <BilingualText
+              className="text-muted fst-italic mt-2"
+              language={language}
+              learned={exercise.contextSentence}
+              native={exercise.contextSentenceTranslation}
+              learnedTestId="answer-context"
+            />
             <p className="text-muted small mt-3 mb-2">How well did you recall it?</p>
             <GradeBar onGrade={onGrade} disabled={submitting} />
           </div>

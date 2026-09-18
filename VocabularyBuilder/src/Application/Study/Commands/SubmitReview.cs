@@ -70,6 +70,12 @@ public class ReviewFeedbackDto
     public string? PartOfSpeech { get; init; }
     public string? ContextSentence { get; init; }
 
+    /// <summary>Which sense the meaning is, in the language being learned.</summary>
+    public string? MeaningGloss { get; init; }
+
+    /// <summary>What the context sentence says, in the learner's language.</summary>
+    public string? ContextSentenceTranslation { get; init; }
+
     /// <summary>What was picked instead, when the answer was wrong.</summary>
     public ChosenAnswerDto? Chosen { get; init; }
 }
@@ -267,6 +273,8 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             Transcription = material.Transcription,
             PartOfSpeech = material.PartOfSpeech,
             ContextSentence = material.ContextSentence,
+            MeaningGloss = material.MeaningGloss,
+            ContextSentenceTranslation = material.ContextSentenceTranslation,
             Chosen = correct ? null : await DescribeChoice(card, request, cancellationToken)
         };
     }

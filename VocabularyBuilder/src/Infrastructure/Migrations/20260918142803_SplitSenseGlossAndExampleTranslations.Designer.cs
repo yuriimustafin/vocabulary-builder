@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using VocabularyBuilder.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using VocabularyBuilder.Infrastructure.Data;
 namespace VocabularyBuilder.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260918142803_SplitSenseGlossAndExampleTranslations")]
+    partial class SplitSenseGlossAndExampleTranslations
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "9.0.4");
@@ -183,7 +186,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.HasIndex("Headword", "Language")
                         .IsUnique();
 
-                    b.ToTable("FrequencyWords", (string)null);
+                    b.ToTable("FrequencyWords");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewCard", b =>
@@ -252,7 +255,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("State", "DueAtUtc");
 
-                    b.ToTable("ReviewCards", (string)null);
+                    b.ToTable("ReviewCards");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewLog", b =>
@@ -310,7 +313,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("ReviewCardId", "ReviewedAtUtc");
 
-                    b.ToTable("ReviewLogs", (string)null);
+                    b.ToTable("ReviewLogs");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.WordStudyContent", b =>
@@ -364,7 +367,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("Status", "ClaimedAtUtc");
 
-                    b.ToTable("WordStudyContents", (string)null);
+                    b.ToTable("WordStudyContents");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.BookInfo", b =>
@@ -393,7 +396,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("BookInfo", (string)null);
+                    b.ToTable("BookInfo");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.Chapter", b =>
@@ -422,7 +425,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Chapter", (string)null);
+                    b.ToTable("Chapter");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.ImportedBook.ImportedBookWord", b =>
@@ -479,7 +482,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("Headword", "Language");
 
-                    b.ToTable("ImportedBookWords", (string)null);
+                    b.ToTable("ImportedBookWords");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Sense", b =>
@@ -530,7 +533,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.ToTable("Sense", (string)null);
+                    b.ToTable("Sense");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoItem", b =>
@@ -575,7 +578,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("ListId");
 
-                    b.ToTable("TodoItems", (string)null);
+                    b.ToTable("TodoItems");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
@@ -603,7 +606,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("TodoLists", (string)null);
+                    b.ToTable("TodoLists");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.VocabularyList", b =>
@@ -636,7 +639,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("VocabularyLists", (string)null);
+                    b.ToTable("VocabularyLists");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.VocabularyListItem", b =>
@@ -671,7 +674,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("ListId");
 
-                    b.ToTable("VocabularyListItems", (string)null);
+                    b.ToTable("VocabularyListItems");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Word", b =>
@@ -738,7 +741,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.HasIndex("Headword", "Language")
                         .IsUnique();
 
-                    b.ToTable("Words", (string)null);
+                    b.ToTable("Words");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordDictionarySource", b =>
@@ -777,7 +780,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.HasIndex("WordId", "SourceType")
                         .IsUnique();
 
-                    b.ToTable("WordDictionarySources", (string)null);
+                    b.ToTable("WordDictionarySources");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordEncounter", b =>
@@ -819,7 +822,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsUnique()
                         .HasFilter("[SourceIdentifier] IS NOT NULL");
 
-                    b.ToTable("WordEncounters", (string)null);
+                    b.ToTable("WordEncounters");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordForm", b =>
@@ -869,7 +872,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("Form", "Language");
 
-                    b.ToTable("WordForms", (string)null);
+                    b.ToTable("WordForms");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", b =>
@@ -1082,7 +1085,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                             b1.HasKey("TodoListId");
 
-                            b1.ToTable("TodoLists", (string)null);
+                            b1.ToTable("TodoLists");
 
                             b1.WithOwner()
                                 .HasForeignKey("TodoListId");

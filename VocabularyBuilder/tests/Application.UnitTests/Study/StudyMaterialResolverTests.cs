@@ -37,6 +37,143 @@ public class StudyMaterialResolverTests
         GeneratedContextSentence = sentence
     };
 
+    private static Sense GlossedSense(
+        string definition, string? gloss, IList<string>? examples = null, IList<string>? translations = null) => new()
+    {
+        Definition = definition,
+        Gloss = gloss,
+        Examples = examples ?? new List<string>(),
+        ExampleTranslations = translations
+    };
+
+    /// <summary>
+    /// The gloss says which sense the meaning is, so it has to come from the sense that
+    /// supplied the meaning - not from whichever sense happens to be first.
+    /// </summary>
+    [Test]
+    public void ShouldTakeTheGlossFromTheSenseThatGaveTheMeaning()
+    {
+        var word = Word(senses: new List<Sense>
+        {
+            GlossedSense("", "ignored, this one says nothing"),
+            GlossedSense("good evening", "pour dire bonjour en soirée"),
+            GlossedSense("another meaning", "un autre sens")
+        });
+
+        var material = Resolver().Resolve(word, null);
+
+        material.Meaning.Should().Be("good evening");
+        material.MeaningGloss.Should().Be("pour dire bonjour en soirée");
+    }
+
+    /// <summary>
+    /// The meaning is what gets compared against other meanings, so nothing may be wrapped
+    /// around it - the gloss travels beside it, not in front of it.
+    /// </summary>
+    [Test]
+    public void ShouldLeaveTheMeaningWithNothingWrappedAroundIt()
+    {
+        var word = Word(senses: new List<Sense>
+        {
+            GlossedSense("good evening, hello", "pour dire bonjour en soirée")
+        });
+
+        Resolver().Resolve(word, null).Meaning.Should().Be("good evening, hello");
+    }
+
+    [Test]
+    public void ShouldHaveNoGlossWhenTheSourceGaveNone()
+    {
+        var word = Word(senses: new List<Sense> { GlossedSense("a long walk", null) });
+
+        Resolver().Resolve(word, null).MeaningGloss.Should().BeNull();
+    }
+
+    /// <summary>
+    /// A generated definition is not a dictionary sense and has nothing to gloss it.
+    /// </summary>
+    [Test]
+    public void ShouldHaveNoGlossForAGeneratedMeaning()
+    {
+        var material = Resolver().Resolve(Word(), Generated(definition: "a generated meaning"));
+
+        material.Meaning.Should().Be("a generated meaning");
+        material.MeaningGloss.Should().BeNull();
+    }
+
+    [Test]
+    public void ShouldTakeTheTranslationOfTheSentenceItChose()
+    {
+        var word = Word(headword: "bonsoir", senses: new List<Sense>
+        {
+            GlossedSense(
+                "good evening",
+                "pour dire bonjour en soirée",
+                new List<string> { "Rien à voir ici.", "Bonsoir à tous et bienvenue !" },
+                new List<string> { "Nothing to do with it.", "Good evening everyone and welcome!" })
+        });
+
+        var material = Resolver().Resolve(word, null);
+
+        // The first sentence has no headword in it, so the second is the one used - and its
+        // translation has to be the second one too
+        material.ContextSentence.Should().Be("Bonsoir à tous et bienvenue !");
+        material.ContextSentenceTranslation.Should().Be("Good evening everyone and welcome!");
+    }
+
+    /// <summary>
+    /// A cloze blanks the sentence, so the sentence must be the sentence and nothing else.
+    /// </summary>
+    [Test]
+    public void ShouldKeepTheTranslationOutOfTheSentence()
+    {
+        var word = Word(headword: "bonsoir", senses: new List<Sense>
+        {
+            GlossedSense(
+                "good evening",
+                null,
+                new List<string> { "Bonsoir à tous !" },
+                new List<string> { "Good evening everyone!" })
+        });
+
+        Resolver().Resolve(word, null).ContextSentence.Should().NotContain("Good evening");
+    }
+
+    [Test]
+    public void ShouldUseTheSentenceAloneWhenNobodyTranslatedIt()
+    {
+        var word = Word(headword: "bonsoir", senses: new List<Sense>
+        {
+            GlossedSense("good evening", null, new List<string> { "Bonsoir à tous !" })
+        });
+
+        var material = Resolver().Resolve(word, null);
+
+        material.ContextSentence.Should().Be("Bonsoir à tous !");
+        material.ContextSentenceTranslation.Should().BeNull();
+    }
+
+    /// <summary>
+    /// A translation list shorter than the sentences it belongs to must not throw.
+    /// </summary>
+    [Test]
+    public void ShouldCopeWithFewerTranslationsThanSentences()
+    {
+        var word = Word(headword: "bonsoir", senses: new List<Sense>
+        {
+            GlossedSense(
+                "good evening",
+                null,
+                new List<string> { "Rien ici.", "Bonsoir à tous !" },
+                new List<string> { "Nothing here." })
+        });
+
+        var material = Resolver().Resolve(word, null);
+
+        material.ContextSentence.Should().Be("Bonsoir à tous !");
+        material.ContextSentenceTranslation.Should().BeNull();
+    }
+
     [Test]
     public void AFrenchNounCarriesItsArticle()
     {

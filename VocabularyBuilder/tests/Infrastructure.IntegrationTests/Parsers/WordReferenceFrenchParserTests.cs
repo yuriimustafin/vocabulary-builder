@@ -67,16 +67,41 @@ public class WordReferenceFrenchParserTests
         word!.Senses.Should().HaveCount(12);
     }
 
+    /// <summary>
+    /// The gloss says which sense is meant and the translations say what it means. They are
+    /// kept apart so that whatever shows them decides how, and so that anything comparing one
+    /// meaning against another gets the meaning and nothing wrapped around it.
+    /// </summary>
     [Test]
-    public async Task ShouldCombineTheFrenchGlossWithItsEnglishTranslations()
+    public async Task ShouldKeepTheFrenchGlossApartFromItsEnglishTranslations()
     {
         var word = await CreateParser().GetWordFromCachedHtml(_html);
 
         var first = word!.Senses!.First();
-        first.Definition.Should().StartWith("(saisir)");
+
+        first.Gloss.Should().Be("saisir");
         first.Definition.Should().Contain("take");
         first.Definition.Should().Contain("grasp");
+        first.Definition.Should().NotContain("saisir");
+        first.Definition.Should().NotStartWith("(");
         first.PartOfSpeech.Should().Be(PartsOfSpeech.Verb);
+    }
+
+    /// <summary>
+    /// An example is stored as it was written, with its translation beside it by position -
+    /// not appended to it in brackets, which a cloze exercise would then have to blank around.
+    /// </summary>
+    [Test]
+    public async Task ShouldKeepAnExampleApartFromItsTranslation()
+    {
+        var word = await CreateParser().GetWordFromCachedHtml(_html);
+
+        var sense = word!.Senses!.First(s => s.Examples.Any());
+
+        sense.Examples.Should().NotBeEmpty();
+        sense.Examples.Should().OnlyContain(e => !e.Contains('('));
+        sense.ExampleTranslations.Should().NotBeNull();
+        sense.ExampleTranslations!.Count.Should().Be(sense.Examples.Count);
     }
 
     [Test]
@@ -97,12 +122,21 @@ public class WordReferenceFrenchParserTests
     {
         var word = await CreateParser().GetWordFromCachedHtml(_html);
 
-        var examples = word!.Senses!.SelectMany(s => s.Examples).ToList();
+        // Paired by position rather than by being written into one string
+        var pairs = word!.Senses!
+            .SelectMany(sense => sense.Examples.Select((example, index) => new
+            {
+                French = example,
+                English = sense.ExampleTranslations is not null && index < sense.ExampleTranslations.Count
+                    ? sense.ExampleTranslations[index]
+                    : null
+            }))
+            .ToList();
 
-        examples.Should().NotBeEmpty();
-        examples.Should().Contain(e =>
-            e.Contains("N'oublie pas de prendre tes papiers.")
-            && e.Contains("(Don't forget to take your papers.)"));
+        pairs.Should().NotBeEmpty();
+        pairs.Should().Contain(p =>
+            p.French == "N'oublie pas de prendre tes papiers."
+            && p.English == "Don't forget to take your papers.");
     }
 
     [Test]

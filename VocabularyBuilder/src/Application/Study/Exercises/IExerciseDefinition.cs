@@ -50,6 +50,15 @@ public record ExercisePayload
 
     /// <summary>Extra context shown alongside the answer once revealed.</summary>
     public string? ContextSentence { get; init; }
+
+    /// <summary>
+    /// Which sense the meaning is, in the language being learned. Carried so the card can
+    /// show it on its own line; it is never a prompt, an answer or a choice.
+    /// </summary>
+    public string? MeaningGloss { get; init; }
+
+    /// <summary>What <see cref="ContextSentence"/> says, in the learner's language.</summary>
+    public string? ContextSentenceTranslation { get; init; }
 }
 
 /// <summary>

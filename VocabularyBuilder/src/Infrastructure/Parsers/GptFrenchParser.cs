@@ -157,11 +157,19 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
                     PartOfSpeech = partOfSpeech,
                     Gender = gender,
                     IsPluralOnly = isPluralOnly,
-                    Examples = s.Examples?.Select(e => $"{e.French} ({e.English})").ToList() ?? new List<string>()
+                    // Kept apart, as the dictionary parser keeps them: a sentence written
+                    // with its own translation trailing after it ends up inside the gap of a
+                    // cloze exercise
+                    Examples = s.Examples?.Select(e => e.French ?? string.Empty).ToList() ?? new List<string>(),
+                    ExampleTranslations = s.Examples?.Select(e => e.English ?? string.Empty).ToList()
                 }).ToList() ?? new List<Sense>(),
                 Examples = gptResponse.Senses?
                     .SelectMany(s => s.Examples ?? new List<GptExample>())
-                    .Select(e => $"{e.French} ({e.English})")
+                    .Select(e => e.French ?? string.Empty)
+                    .ToList() ?? new List<string>(),
+                ExampleTranslations = gptResponse.Senses?
+                    .SelectMany(s => s.Examples ?? new List<GptExample>())
+                    .Select(e => e.English ?? string.Empty)
                     .ToList() ?? new List<string>()
             };
 

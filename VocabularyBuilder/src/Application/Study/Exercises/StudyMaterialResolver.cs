@@ -21,6 +21,11 @@ public class StudyMaterialResolver : IStudyMaterialResolver
 {
     public StudyMaterial Resolve(Word word, WordStudyContent? generated)
     {
+        // Taken as a pair: the gloss says which sense the meaning is, so it is only right
+        // beside the meaning it came from. A generated definition has no gloss at all
+        var sense = DictionarySense(word);
+        var example = DictionaryExample(word);
+
         return new StudyMaterial
         {
             WordId = word.Id,
@@ -29,8 +34,10 @@ public class StudyMaterialResolver : IStudyMaterialResolver
             PartOfSpeech = word.PartOfSpeech,
             Transcription = word.Transcription,
             Article = NounArticleDto.From(word.GetArticle()),
-            Meaning = DictionaryMeaning(word) ?? Trimmed(generated?.GeneratedDefinition),
-            ContextSentence = DictionaryContextSentence(word) ?? UsableGeneratedSentence(word, generated)
+            Meaning = Trimmed(sense?.Definition) ?? Trimmed(generated?.GeneratedDefinition),
+            MeaningGloss = sense is null ? null : Trimmed(sense.Gloss),
+            ContextSentence = example?.Sentence ?? UsableGeneratedSentence(word, generated),
+            ContextSentenceTranslation = example?.Translation
         };
     }
 
@@ -52,27 +59,51 @@ public class StudyMaterialResolver : IStudyMaterialResolver
         return gaps;
     }
 
-    private static string? DictionaryMeaning(Word word) =>
-        word.Senses?
-            .Select(s => Trimmed(s.Definition))
-            .FirstOrDefault(d => d is not null);
+    /// <summary>
+    /// The first sense that actually says something. Returned whole rather than as a string,
+    /// so its gloss travels with the definition it belongs to.
+    /// </summary>
+    private static Sense? DictionarySense(Word word) =>
+        word.Senses?.FirstOrDefault(s => !string.IsNullOrWhiteSpace(s.Definition));
 
     /// <summary>
     /// An example is only usable if the headword actually appears in it - otherwise there
     /// is nothing for a cloze exercise to blank out.
     /// </summary>
-    private static string? DictionaryContextSentence(Word word)
+    private static (string Sentence, string? Translation)? DictionaryExample(Word word)
     {
         var fromSenses = word.Senses?
             .Where(s => s.Examples is not null)
-            .SelectMany(s => s.Examples!)
-            ?? Enumerable.Empty<string>();
+            .SelectMany(s => Paired(s.Examples!, s.ExampleTranslations))
+            ?? Enumerable.Empty<(string, string?)>();
 
-        var fromWord = word.Examples ?? Enumerable.Empty<string>();
+        var fromWord = word.Examples is null
+            ? Enumerable.Empty<(string, string?)>()
+            : Paired(word.Examples, word.ExampleTranslations);
 
-        return fromSenses.Concat(fromWord)
-            .Select(Trimmed)
-            .FirstOrDefault(e => e is not null && HeadwordText.Contains(e, word.Headword));
+        foreach (var (sentence, translation) in fromSenses.Concat(fromWord))
+        {
+            var trimmed = Trimmed(sentence);
+
+            if (trimmed is not null && HeadwordText.Contains(trimmed, word.Headword))
+            {
+                return (trimmed, Trimmed(translation));
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Sentences beside their translations, by position. A sentence whose translation is
+    /// missing - or that has outlived the list it was stored with - simply comes back alone.
+    /// </summary>
+    private static IEnumerable<(string Sentence, string? Translation)> Paired(
+        IList<string> sentences, IList<string>? translations)
+    {
+        return sentences.Select((sentence, index) => (
+            sentence,
+            translations is not null && index < translations.Count ? translations[index] : null));
     }
 
     /// <summary>

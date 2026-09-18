@@ -27,6 +27,7 @@ public class Words : EndpointGroupBase
         group.MapDelete("/{id}", DeleteWord);
         group.MapPost("/update-frequencies", UpdateWordFrequencies);
         group.MapPost("/fill-dictionary", FillMissingDictionaryData);
+        group.MapPost("/reparse-cached", ReparseCachedSenses);
         group.MapGet("/for-export", GetWordsForExport);
         group.MapPost("/export", ExportWords);
     }
@@ -106,6 +107,15 @@ public class Words : EndpointGroupBase
         ISender sender, string lang, int? limit = null)
     {
         return await sender.Send(new FillMissingDictionaryDataCommand(ParseLanguage(lang), limit));
+    }
+
+    /// <summary>
+    /// Reads each word's cached dictionary page again, for when the parser has learned to
+    /// record something the stored senses were written without. Costs no request.
+    /// </summary>
+    public async Task<ReparseCachedSensesResult> ReparseCachedSenses(ISender sender, string lang)
+    {
+        return await sender.Send(new ReparseCachedSensesCommand(ParseLanguage(lang)));
     }
 
     public async Task<IResult> GetWordsForExport(ISender sender, string lang, int[]? statuses = null)

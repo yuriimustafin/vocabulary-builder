@@ -20,6 +20,13 @@ public interface IApplicationDbContext
 
     DbSet<WordForm> WordForms { get; }
 
+    /// <summary>
+    /// Meanings, reachable on their own so that replacing a word's senses can delete the
+    /// ones it had. The relationship is optional, so an orphaned sense would otherwise be
+    /// left behind with no word rather than removed.
+    /// </summary>
+    DbSet<Sense> Senses { get; }
+
     DbSet<FrequencyWord> FrequencyWords { get; }
 
     DbSet<ImportedBookWord> ImportedBookWords { get; }

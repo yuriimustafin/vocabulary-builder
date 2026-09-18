@@ -304,6 +304,27 @@ Note that the enrichment worker fills gaps in *study content* (a definition, a s
 a model. Gender, part of speech and pronunciation come only from a dictionary. A word can
 therefore look complete on a card, with a definition and an example, and still have no article.
 
+### A bilingual entry is stored as two plain fields
+
+WordReference gives a sense twice over: a French gloss saying *which* sense is meant, and the
+English translations saying what it means. They are stored apart - `Sense.Definition` and
+`Sense.Gloss` - and so are examples, as `Examples` beside `ExampleTranslations`, paired by
+position.
+
+Nothing in the database carries a flag or a bracket. The flags are drawn by
+`study/BilingualText.js`, and only where a whole card is on screen. That separation is what
+the split is for:
+
+- the meaning is what multiple choice compares one word against another with
+  (`DistractorSource`), so a gloss in front of it would turn every option into a two-line blob
+- a cloze blanks the context sentence, so a translation trailing after it would sit inside the
+  gap-fill - and give the answer away
+
+`ReparseCachedSensesCommand` (`POST /api/{lang}/words/reparse-cached`) reads each word's
+cached dictionary page again and replaces its senses with what the parser makes of them now.
+The page is already stored against the word, so this costs no request; it is what to run
+whenever the parser learns to keep apart something it used to run together.
+
 ### What the imports do with a real model
 
 Measured on a 395-row LingQ export: 278 terms imported onto 242 headwords, and 117 set aside

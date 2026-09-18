@@ -27,6 +27,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<WordForm> WordForms => Set<WordForm>();
 
+    public DbSet<Sense> Senses => Set<Sense>();
+
     public DbSet<FrequencyWord> FrequencyWords => Set<FrequencyWord>();
 
     public DbSet<ImportedBookWord> ImportedBookWords => Set<ImportedBookWord>();
