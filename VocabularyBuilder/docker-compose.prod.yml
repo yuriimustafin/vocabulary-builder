@@ -4,7 +4,9 @@
 services:
   web:
     build:
-      context: ./app
+      # The clone is at ./app and the solution - with the Dockerfile - is the
+      # VocabularyBuilder directory inside it. Correct as copied; nothing to edit by hand.
+      context: ./app/VocabularyBuilder
     image: vocabulary-builder:latest
     container_name: vocabulary-builder
     restart: unless-stopped

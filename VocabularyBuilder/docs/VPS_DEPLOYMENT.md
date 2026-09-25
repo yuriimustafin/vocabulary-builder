@@ -75,12 +75,8 @@ git clone git@github-vocabulary:yuriimustafin/vocabulary-builder.git app
 cp app/VocabularyBuilder/docker-compose.prod.yml docker-compose.yml
 ```
 
-The compose file builds from `./app`, so point its build context at the solution directory:
-
-```yaml
-    build:
-      context: ./app/VocabularyBuilder
-```
+It is ready to use as copied - its build context already points at `./app/VocabularyBuilder`,
+which is where the clone keeps the solution and the Dockerfile.
 
 ### 3. Write the secrets
 
