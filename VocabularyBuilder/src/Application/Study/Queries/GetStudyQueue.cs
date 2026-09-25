@@ -321,10 +321,12 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         // is not counted as waiting twice. The session carries on meanwhile; the article
         // appears once the fill lands.
         //
-        // A word already given up on is left alone. Nothing the dictionary does not have is
-        // going to appear on the next session either, and a word that cannot be filled would
-        // otherwise be asked about on every session for ever.
-        if (word.IsMissingDictionaryData() && generated?.Status != StudyContentStatus.Failed)
+        // Only a word enrichment has not finished with is asked for. Enrichment tries the
+        // dictionary before anything else, so a Ready or Failed row means it has already been
+        // tried; nothing the dictionary did not have is going to appear on the next session
+        // either, and a word that cannot be filled would otherwise be asked about on every
+        // session for ever. The fill-dictionary sweep is what retries those.
+        if (word.IsMissingDictionaryData() && (generated is null || generated.Status == StudyContentStatus.Pending))
         {
             _enrichmentQueue.Enqueue(word.Id);
         }

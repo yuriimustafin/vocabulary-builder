@@ -30,7 +30,13 @@ public record UpsertWordCommand : IRequest<int>
     public string? SourceIdentifier { get; init; }
     public string? Context { get; init; }
     public string? Notes { get; init; }
-    
+
+    /// <summary>
+    /// False when the upsert only fills the word in - a dictionary lookup is not a meeting
+    /// with the word, and must not count as one.
+    /// </summary>
+    public bool RecordEncounter { get; init; } = true;
+
     // Dictionary sources for caching (optional)
     public List<WordDictionarySource>? DictionarySources { get; init; }
 
@@ -221,6 +227,11 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
 
     private async Task CreateWordEncounter(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
     {
+        if (!request.RecordEncounter)
+        {
+            return;
+        }
+
         // Generate SourceIdentifier from today's date if not provided (for manual entries)
         var sourceIdentifier = request.SourceIdentifier ?? DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
         

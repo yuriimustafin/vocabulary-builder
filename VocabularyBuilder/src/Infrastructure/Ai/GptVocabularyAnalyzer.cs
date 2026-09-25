@@ -35,17 +35,17 @@ public class GptVocabularyAnalyzer : IVocabularyAnalyzer
 @"NOTES_VOCABULARY_V1
 You are helping a learner turn their lesson notes into vocabulary entries.
 
-The notes contain French vocabulary items, one or more per line. Read them and return
-every distinct French item.
+The notes contain {LANGUAGE} vocabulary items, one or more per line. Read them and return
+every distinct {LANGUAGE} item.
 
 Rules:
 - A line may pair the item with a translation, separated by =, =>, -, or :. Return only
-  the French side; discard the translation.
+  the {LANGUAGE} side; discard the translation.
 - A line may hold several separate items divided by commas. Return them separately.
   ""un chien, un chat"" is two items, but ""une pomme de terre"" is one.
 - Return the item as written in the notes, including its article. Do not translate,
   correct or expand anything.
-- Ignore headings, lesson names, dates, page numbers and any line with no French in it.
+- Ignore headings, lesson names, dates, page numbers and any line with no {LANGUAGE} in it.
 
 Return nothing but a JSON array of strings, for example:
 [""un point de vue"", ""migrer"", ""une oeuvre d'art""]
@@ -91,7 +91,7 @@ The terms:
             return Array.Empty<string>();
         }
 
-        var response = await _gptClient.SendMessageAsync(ExtractionPrompt + notes);
+        var response = await _gptClient.SendMessageAsync(ExtractionPrompt.Replace("{LANGUAGE}", language.ToString()) + notes);
 
         if (string.IsNullOrWhiteSpace(response))
         {

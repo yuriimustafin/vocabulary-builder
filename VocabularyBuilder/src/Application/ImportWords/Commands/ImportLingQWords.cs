@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using VocabularyBuilder.Application.ImportWords.Queries;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
@@ -41,7 +39,8 @@ public record ImportLingQWordsCommand : IRequest<VocabularyImportResult>
     public Language Language { get; init; } = Language.French;
 
     /// <summary>
-    /// Names the import for idempotency. Without one, a hash of the file is used, so
+    /// Names the import for idempotency. Without one, every LingQ import shares one name:
+    /// an export is the learner's whole saved vocabulary rather than one lesson's, so
     /// re-importing the same export adds no encounters while a later one that has grown
     /// adds only its new rows.
     /// </summary>
@@ -106,7 +105,7 @@ public class ImportLingQWordsCommandHandler
             Source = WordEncounterSource.LingQ,
             SourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName)
                 ? request.ListName!
-                : ComputeHash(request.FileContent),
+                : "lingq",
             Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "LingQ import",
             Tags = WordTags.Parse(request.Tag)
         }, cancellationToken);
@@ -117,12 +116,5 @@ public class ImportLingQWordsCommandHandler
         result.Lemmas = saved.Lemmas;
 
         return result;
-    }
-
-    private static string ComputeHash(string content)
-    {
-        using var sha256 = SHA256.Create();
-        var hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(content));
-        return "lingq-" + Convert.ToHexString(hashBytes)[..16];
     }
 }

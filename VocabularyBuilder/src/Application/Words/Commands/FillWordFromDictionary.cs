@@ -96,12 +96,9 @@ public class FillWordFromDictionaryCommandHandler
             Frequency = result.Word.Frequency,
             Examples = result.Word.Examples?.ToList(),
             Senses = result.Word.Senses?.ToList(),
-            Source = WordEncounterSource.Api,
-
-            // Names the fill rather than a meeting with the word: an encounter is a record of
-            // having met it, and looking a word up is not meeting it again
-            SourceIdentifier = $"dictionary-fill:{word.Id}",
-            Context = "Dictionary lookup",
+            // An encounter is a record of having met the word, and looking it up is not
+            // meeting it again
+            RecordEncounter = false,
             DictionarySources = result.DictionarySources.Any() ? result.DictionarySources : null,
             Forms = result.Forms.Any() ? result.Forms : null
         }, cancellationToken);

@@ -121,7 +121,7 @@ public class FillWordFromDictionaryTests : BaseTestFixture
 
         var encounters = await ListAsync<WordEncounter>();
 
-        encounters.Where(e => e.WordId == id).Should().HaveCount(1);
+        encounters.Where(e => e.WordId == id).Should().BeEmpty();
     }
 
     /// <summary>

@@ -128,7 +128,7 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         if (gaps == StudyMaterialGaps.None)
         {
-            return await NothingLeftToDo(content, cancellationToken);
+            return await NothingLeftToDo(word, content, cancellationToken);
         }
 
         if (content is not null && !TryClaim(content, now, out var refusal))
@@ -166,10 +166,36 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
     /// A word whose gaps have since been closed - usually because the dictionary data was
     /// filled in elsewhere - is marked done without spending a call.
     /// </summary>
-    private async Task<EnrichmentOutcome> NothingLeftToDo(WordStudyContent? content, CancellationToken cancellationToken)
+    /// <remarks>
+    /// A word the dictionary could not fill still gets a row, marked Ready. The study queue
+    /// asks for a word only while it has no row or a pending one, so the row is what records
+    /// that the dictionary has been tried - without it a word the dictionary does not carry
+    /// would be looked up again on every session.
+    /// </remarks>
+    private async Task<EnrichmentOutcome> NothingLeftToDo(
+        Word word, WordStudyContent? content, CancellationToken cancellationToken)
     {
         if (content is null)
         {
+            if (word.IsMissingDictionaryData())
+            {
+                _context.WordStudyContents.Add(new WordStudyContent
+                {
+                    WordId = word.Id,
+                    Status = StudyContentStatus.Ready,
+                    PromptVersion = StudyContentPrompt.Version
+                });
+
+                try
+                {
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException)
+                {
+                    // Another run recorded the word first, which serves just as well
+                }
+            }
+
             return EnrichmentOutcome.NothingMissing;
         }
 

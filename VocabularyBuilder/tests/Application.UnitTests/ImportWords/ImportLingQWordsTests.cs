@@ -131,11 +131,11 @@ public class ImportLingQWordsTests
     }
 
     /// <summary>
-    /// Without a name the file identifies itself, so re-importing the same export adds no
+    /// Without a name every export shares one, so re-importing the same export adds no
     /// encounters while a later export that has grown adds only its new rows.
     /// </summary>
     [Test]
-    public async Task ShouldIdentifyAnUnnamedImportByItsContent()
+    public async Task ShouldIdentifyEveryUnnamedImportAlike()
     {
         ResolvesEverything();
 
@@ -149,7 +149,7 @@ public class ImportLingQWordsTests
         var grown = _saved!.SourceIdentifierBase;
 
         again.Should().Be(first);
-        grown.Should().NotBe(first);
+        grown.Should().Be(first);
     }
 
     [Test]
