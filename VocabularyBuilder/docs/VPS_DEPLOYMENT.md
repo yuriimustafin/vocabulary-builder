@@ -100,9 +100,10 @@ the image. The same mechanism is what points the app at the volume: the connecti
 OpenAI__ApiKey=<key>
 
 # The administrator, created on first start. The password is only used to create the account
-# and is not re-applied afterwards. It has to satisfy Identity's rules - at least 6 characters
-# with an upper and a lower case letter, a digit and a symbol - or the container stops at
-# startup saying why.
+# and is not re-applied afterwards. It has to satisfy Identity's defaults, all of them: six
+# characters or more, an upper case letter, a lower case letter, a digit and a symbol. Miss
+# one and the container stops at startup, saying which - "Passwords must have at least one
+# non alphanumeric character" is a password with no symbol in it.
 Admin__Email=you@example.com
 Admin__Password=<password>
 
@@ -114,6 +115,12 @@ Registration__AllowedEmails=friend@example.com, colleague@example.com
 ```bash
 chmod 600 /srv/vocabulary-builder/.env
 ```
+
+> **No quotes, and mind the `#`.** Values in this file are taken literally: `Admin__Password="a b"`
+> keeps the quotation marks as part of the password. A `#` with a space before it starts a
+> comment, so `Admin__Password=Passw0rd #1` silently becomes `Passw0rd` - which then fails
+> Identity's rules for want of a symbol, and the log blames the password rather than the file.
+> Prefer a symbol that is not `#`, or put no space in front of it.
 
 The allowlist is read on each registration, so a changed list takes effect on
 `docker compose up -d` without a rebuild. Taking an address off it stops new registrations
