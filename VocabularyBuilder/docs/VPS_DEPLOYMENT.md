@@ -84,6 +84,18 @@ The compose file builds from `./app`, so point its build context at the solution
 
 ### 3. Write the secrets
 
+**Not in `appsettings.Production.json`.** That file is committed - only
+`appsettings.Development.json` is gitignored, which is why a key can sit in that one on a
+developer machine. A secret put in the Production file would be pushed to GitHub, and baked
+into the image on top of that, since the build copies the published output in.
+
+Secrets reach the container as environment variables instead. ASP.NET reads
+`appsettings.json`, then `appsettings.<Environment>.json`, then the environment - so an
+environment variable wins over both files, and nothing secret has to be written down inside
+the image. The same mechanism is what points the app at the volume: the connection string in
+`appsettings.Production.json` still says `VocabularyBuilder.Prod.db`, and the
+`ConnectionStrings__DefaultConnection` set in `docker-compose.yml` overrides it.
+
 `/srv/vocabulary-builder/.env`:
 
 ```env

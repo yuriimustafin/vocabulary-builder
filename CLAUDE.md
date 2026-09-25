@@ -99,9 +99,15 @@ like a mixture of the two, which is exactly as confusing as it sounds.
 
 ## Configuration and mock modes
 
-Secrets and switches live in `appsettings.<Environment>.json`. `appsettings.Development.json`
-is gitignored and **holds a live OpenAI key** — running in Development spends real money on
-every model call. The E2ETest settings turn everything off instead:
+Switches live in `appsettings.<Environment>.json`. **Secrets only ever go in
+`appsettings.Development.json`**, which is the one file of the set that is gitignored; it
+**holds a live OpenAI key**, so running in Development spends real money on every model call.
+`appsettings.json`, `appsettings.Production.json` and `appsettings.E2ETest.json` are all
+committed - a secret in any of them is a secret pushed to GitHub, and in a container image on
+top of that. Production reads its secrets from the environment instead (see
+`docs/VPS_DEPLOYMENT.md`), which wins over both files anyway.
+
+The E2ETest settings turn everything off instead:
 
 | Setting | Effect when true |
 | --- | --- |
