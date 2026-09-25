@@ -67,7 +67,9 @@ ENV ASPNETCORE_ENVIRONMENT=Production \
 
 EXPOSE 8080
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD ["dotnet", "--info"]
+# Asks the app whether it is actually serving. "dotnet --info" would pass while the app was
+# dead, which is worse than no health check at all - the status would read healthy.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+    CMD curl -fsS http://localhost:8080/health || exit 1
 
 ENTRYPOINT ["dotnet", "VocabularyBuilder.Web.dll"]
