@@ -10,6 +10,7 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
@@ -26,8 +27,21 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         _connection = connection;
     }
 
+    /// <summary>
+    /// The one address the registration tests may sign up with.
+    /// </summary>
+    public const string InvitedEmail = "invited@local";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        // The allowlist is read through IOptions on each registration, not captured while the
+        // services are registered, so unlike the UseMockMode flags it can be set from here
+        builder.ConfigureAppConfiguration((_, configuration) =>
+            configuration.AddInMemoryCollection(new Dictionary<string, string?>
+            {
+                ["Registration:AllowedEmails"] = InvitedEmail
+            }));
+
         builder.ConfigureTestServices(services =>
         {
             services

@@ -1,7 +1,9 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using VocabularyBuilder.Application.Ai;
+using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Infrastructure.Data;
+using VocabularyBuilder.Infrastructure.Identity;
 
 namespace VocabularyBuilder.Application.UnitTests.Study;
 
@@ -12,6 +14,12 @@ namespace VocabularyBuilder.Application.UnitTests.Study;
 /// </summary>
 public sealed class StudyTestContext : IDisposable
 {
+    /// <summary>
+    /// Whose data the tests are working with. Every word belongs to someone, and the context
+    /// sees only what belongs to its user.
+    /// </summary>
+    public const string UserId = "learner";
+
     private readonly SqliteConnection _connection;
 
     public StudyTestContext()
@@ -20,9 +28,14 @@ public sealed class StudyTestContext : IDisposable
         _connection.Open();
 
         Context = new ApplicationDbContext(
-            new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options);
+            new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(_connection).Options,
+            new TestUser(UserId));
 
         Context.Database.EnsureCreated();
+
+        // The owner has to exist for the foreign key every word carries
+        Context.Users.Add(new ApplicationUser { Id = UserId, UserName = "learner@example.com" });
+        Context.SaveChanges();
     }
 
     public ApplicationDbContext Context { get; }
@@ -33,6 +46,8 @@ public sealed class StudyTestContext : IDisposable
         _connection.Dispose();
     }
 }
+
+public record TestUser(string? Id) : IUser;
 
 /// <summary>
 /// Records what was asked of the model and replies with whatever the test wants, so

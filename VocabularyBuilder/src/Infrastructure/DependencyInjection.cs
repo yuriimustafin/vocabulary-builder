@@ -3,6 +3,9 @@ using VocabularyBuilder.Domain.Constants;
 using VocabularyBuilder.Infrastructure.Data;
 using VocabularyBuilder.Infrastructure.Data.Interceptors;
 using VocabularyBuilder.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
@@ -35,21 +38,22 @@ public static class DependencyInjection
         // Configure database context based on environment
         if (useInMemoryDb)
         {
-            // For E2E tests: Use in-memory SQLite database
-            // Keep a singleton connection open to prevent the database from being destroyed
-            services.AddSingleton<Microsoft.Data.Sqlite.SqliteConnection>(sp =>
-            {
-                var connection = new Microsoft.Data.Sqlite.SqliteConnection(connectionString);
-                connection.Open();
-                return connection;
-            });
+            // For E2E tests: an in-memory SQLite database, reached by every context through a
+            // connection of its own - see InMemoryDatabase for why they must not share one.
+            // Checked here, so a connection string that cannot be shared fails at startup
+            // rather than as an empty database on the first query.
+            InMemoryDatabase.EnsureShareable(connectionString);
+
+            services.AddSingleton(_ => new InMemoryDatabaseKeepAlive(connectionString));
 
             services.AddDbContext<ApplicationDbContext>((sp, options) =>
             {
-                var connection = sp.GetRequiredService<Microsoft.Data.Sqlite.SqliteConnection>();
+                // Opened before the first context connects, and held until the app stops
+                sp.GetRequiredService<InMemoryDatabaseKeepAlive>();
+
                 options.AddInterceptors(sp.GetServices<ISaveChangesInterceptor>());
                 // Split the collection includes; see the file-based registration below
-                options.UseSqlite(connection, x => x.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
+                options.UseSqlite(connectionString, x => x.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery));
             });
         }
         else
@@ -73,16 +77,10 @@ public static class DependencyInjection
 
         services.AddScoped<ApplicationDbContextInitialiser>();
 
-        services
-            .AddDefaultIdentity<ApplicationUser>()
-            .AddRoles<IdentityRole>()
-            .AddEntityFrameworkStores<ApplicationDbContext>();
+        AddIdentity(services, configuration);
 
         services.AddSingleton(TimeProvider.System);
         services.AddTransient<IIdentityService, IdentityService>();
-
-        services.AddAuthorization(options =>
-            options.AddPolicy(Policies.CanPurge, policy => policy.RequireRole(Roles.Administrator)));
 
         // Register individual parsers (mock or real based on configuration).
         // WordParserFactory routes by each parser's SourceType, so every parser
@@ -136,5 +134,60 @@ public static class DependencyInjection
         }
 
         return services;
+    }
+
+    /// <summary>
+    /// Users, sign-in and who may do what.
+    /// </summary>
+    /// <remarks>
+    /// Identity's own API endpoints do the signing in (mapped under /api/Users by the Web
+    /// project). They issue a cookie to the React app and a bearer token to anything else -
+    /// curl, a script - and both are accepted everywhere.
+    /// </remarks>
+    private static void AddIdentity(IServiceCollection services, IConfiguration configuration)
+    {
+        services
+            .AddIdentityApiEndpoints<ApplicationUser>(options =>
+            {
+                // Registration uses the email as the user name, and the administrator is
+                // looked up by it, so it has to identify one account
+                options.User.RequireUniqueEmail = true;
+            })
+            .AddRoles<IdentityRole>()
+            .AddEntityFrameworkStores<ApplicationDbContext>();
+
+        services.ConfigureApplicationCookie(options =>
+        {
+            // The React app is served from the same origin as the API, so the cookie never
+            // has to travel on a request another site started. Strict keeps it that way,
+            // which is what stands in for antiforgery tokens on the JSON endpoints.
+            options.Cookie.SameSite = SameSiteMode.Strict;
+            options.Cookie.HttpOnly = true;
+            options.ExpireTimeSpan = TimeSpan.FromDays(14);
+            options.SlidingExpiration = true;
+        });
+
+        // The keys that sign cookies and tokens. Left in the container they are lost with it
+        // on every deploy, signing everyone out, so a deployment points this at its volume.
+        var keysPath = configuration["DataProtection:KeysPath"];
+
+        if (!string.IsNullOrWhiteSpace(keysPath))
+        {
+            services.AddDataProtection().PersistKeysToFileSystem(new DirectoryInfo(keysPath));
+        }
+
+        services.Configure<AdministratorOptions>(configuration.GetSection(AdministratorOptions.SectionName));
+        services.Configure<RegistrationOptions>(configuration.GetSection(RegistrationOptions.SectionName));
+
+        services.AddAuthorization(options =>
+        {
+            // Every endpoint needs a signed-in user unless it opts out, so one added later is
+            // closed by default rather than open because someone forgot to close it
+            options.FallbackPolicy = new AuthorizationPolicyBuilder()
+                .RequireAuthenticatedUser()
+                .Build();
+
+            options.AddPolicy(Policies.CanPurge, policy => policy.RequireRole(Roles.Administrator));
+        });
     }
 }

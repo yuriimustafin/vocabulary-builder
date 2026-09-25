@@ -40,8 +40,17 @@ Production, and `E2E` is E2ETest. In Debug the React app is served by the SPA pr
 to follow it, and the development certificate is self-signed so curl rejects it without `-k`:
 
 ```bash
-curl -k -X POST "https://localhost:5001/api/fr/words/fill-dictionary"
+curl -k -X POST "https://localhost:5001/api/fr/words/fill-dictionary" -H "Authorization: Bearer $TOKEN"
 ```
+
+**Every endpoint needs a signed-in user** (see Users and ownership), so a bare curl gets `401`.
+Sign in for a bearer token first - leave `useCookies` off and the login answers with one:
+
+```bash
+TOKEN=$(curl -sk -X POST "https://localhost:5001/api/Users/login" -H "Content-Type: application/json" -d '{"email":"<email>","password":"<password>"}' | sed -E 's/.*"accessToken":"([^"]+)".*/\1/')
+```
+
+The token lasts an hour. The call acts as that user, and sees and changes only their words.
 
 Any other port in this file - 5199 below, 3100 for the React dev server - exists only because
 the command right there sets it. Nothing serves on those by default.
@@ -68,7 +77,7 @@ SQLite throughout. Three of them, chosen by environment:
 | --- | --- |
 | Development | `src/Web/VocabularyBuilder.Test.db` |
 | Production | `src/Web/VocabularyBuilder.Prod.db` |
-| E2ETest | in-memory, built with `EnsureCreated` |
+| E2ETest | in-memory and shared-cache, built with `EnsureCreated` - see End-to-end |
 
 **Migrations only run automatically in E2ETest.** `Program.cs` calls
 `InitialiseDatabaseSchemaOnlyAsync()` inside an `EnvironmentName == "E2ETest"` branch, so
@@ -132,6 +141,9 @@ read it per request.
 | `Study` | `.Get<StudyOptions>()`, registered as a singleton instance | no |
 | `WordReference` (the rest) | `Configure<WordReferenceOptions>` | yes, through `IOptions` |
 | `Anki` | `Configure<AnkiExportOptions>` | yes, through `IOptions` |
+| `DataProtection:KeysPath` | indexer at registration | no |
+| `Admin` | `Configure<AdministratorOptions>`, read by the bootstrap after `Build()` | on the next start |
+| `Registration` | `Configure<RegistrationOptions>`, `IOptionsSnapshot` per registration | yes |
 
 The `WordReference` section is read **both** ways, which is the trap worth knowing about.
 `WordReferenceOptions` carries a `UseMockMode` property that binds from configuration and
@@ -151,6 +163,74 @@ something the parser cannot read. Its lemma answers are a deterministic stand-in
 linguistics: it strips a pronoun and returns the rest, so `vous allez` becomes `allez` rather
 than `aller`. Anything asserting a real infinitive has to come from the frequency data
 instead.
+
+## Users and ownership
+
+Accounts are ASP.NET Core Identity's. `Web/Endpoints/Users.cs` maps Identity's own API under
+`/api/Users` - `/register`, `/login`, `/refresh`, `/manage/*` - and adds `/me` and `/logout`.
+The React app logs in with `?useCookies=true` and gets an HttpOnly, `SameSite=Strict` cookie;
+anything else leaves it off and gets a bearer token. Both are accepted everywhere. The Razor
+Identity UI is gone: it would have been a second way to register, past the allowlist.
+
+**Every endpoint needs a signed-in user unless it opts out.** That is the authorization
+fallback policy, so a new endpoint is closed without anyone remembering to close it. The
+opt-outs are the SPA fallback (the page that shows the login form) and the Identity endpoints
+that are meant to be public, which `Users.cs` opens in a final convention because
+`MapIdentityApi` gives them no metadata of its own. `/health` and the Swagger UI are
+middleware, not endpoints, and are not covered.
+
+**Registration is closed to anyone not on `Registration:AllowedEmails`** (comma separated),
+checked by an endpoint filter in front of `/register`. Every account can spend the OpenAI key.
+An empty list closes registration entirely.
+
+**The administrator comes from `Admin:Email` and `Admin:Password`**, created on startup by
+`InitialiseAdministratorAsync` if it does not exist, in every environment. The password is only
+used to create it. Frequency import is administrators only: the data is shared, and the
+endpoint reads whatever server path it is given.
+
+### Every word belongs to one user
+
+`Word`, `VocabularyList`, `ImportedBookWord` and `TodoList` implement `IOwnedEntity` and carry
+an `OwnerId`, a foreign key to `AspNetUsers` with cascade delete. Each user has **their own
+copy** of a word, dictionary data and generated study content included; `(OwnerId, Headword,
+Language)` is what is unique. Two users learning `maison` each fetch and pay for it once.
+`FrequencyWords` is the exception - reference data, shared.
+
+`ApplicationDbContext` does all of it, so handlers know nothing about users:
+
+- **Query filters** scope every owned root to `IUser.Id`, and every dependent through its
+  parent - encounters, forms, senses, review cards and logs, study content, list items. The
+  dependents need their own because several are queried directly: the study queue starts from
+  review cards, encounter counting from word forms. `Find` respects them too, so a handler
+  that looks up someone else's id gets "not found" exactly as for an id never used.
+- **`SaveChanges` fills in `OwnerId`** on every new owned entity from the current user, and
+  throws when there is none. An owner already set is kept; nothing that takes request input
+  sets one.
+
+It **fails closed**. A context with no user sees no owned rows and cannot save a new one. That
+is what a test or a background job gets by default, and it is the thing to remember when one
+comes back empty: the question is whose data it is running as.
+
+- **Background work has to say whose it is.** `StudyContentEnrichmentWorker` looks up the
+  word's owner (`IgnoreQueryFilters`) and calls `CurrentUser.ActAs` on its scope before
+  sending the command. Anything new that runs outside a request needs the same.
+- **`IgnoreQueryFilters()` reads every user's data.** It is for sweeps that genuinely span
+  users - the worker's requeue on startup - and nowhere near a request.
+- **A dependent created from an id in the request** is not covered by the filters: EF will
+  happily insert a list item pointing at someone else's list. Load the parent through the
+  filtered set first, as `CreateListItem` does - that is also what makes it a 404.
+
+### Data from before users existed
+
+Migration `AddUserOwnership` gives every existing row to a placeholder account
+(`LegacyOwner`, no password) - only when there is data, so a new database starts with no users.
+The first start with `Admin:Email` set **takes that account over** rather than creating a new
+one, so the old collection becomes the administrator's without a row being rewritten. Until
+then the log warns that the data belongs to no one who can sign in.
+
+So after `dotnet ef database update` on `Test.db` or `Prod.db`, add an `Admin` section to
+`appsettings.Development.json` (gitignored) or pass `Admin__Email` / `Admin__Password`, start
+once, and sign in as that user to see the words.
 
 ## Tests
 
@@ -185,6 +265,20 @@ green as long as it never touches one. `TestHostTests` asserts what the host res
 next time it silently reverts something fails immediately rather than in six months on
 someone's API bill.
 
+**Every functional test starts signed in** as `test@local` - `BaseTestFixture` does it after
+the reset - because with nobody signed in a handler sees nothing and saves nothing.
+`RunAsUserAsync` switches user and returns to the same account when asked for it again, and
+`RunAsAnonymous` signs out. The factory replaces `IUser` with a mock returning that id, so
+handlers run as the test user even behind an HTTP call; the cookie decides only whether the
+request gets in. Unit tests that build `ApplicationDbContext` by hand pass it an `IUser` and
+add the user row, as `StudyTestContext` does.
+
+`CreateClient()` gives HTTP tests a client on the test host (`Authentication/`). The
+`Registration` allowlist *can* be set from the factory, unlike the mock flags, because it is
+read per request. **`Microsoft.AspNetCore.Mvc.Testing` has to match the runtime's major
+version**: on 8.0 under .NET 9 every JSON response failed with "PipeWriter does not implement
+UnflushedBytes", which went unnoticed only because no test made an HTTP call.
+
 ### End-to-end
 
 ```bash
@@ -200,8 +294,19 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially all 171 pass in about six minutes. CI had always set one
-worker, so only local runs were affected, which is why this went unnoticed.
+suspecting the tests. Serially the suite - 188 tests, 5 of them skipped in the source - passes
+in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
+is why this went unnoticed.
+
+**Each context opens its own connection to the E2E database**, which is a named, shared-cache
+in-memory one (`Data Source=VocabularyBuilderE2E;Mode=Memory;Cache=Shared`). One more
+connection, `InMemoryDatabaseKeepAlive`, is held open only so the database outlives the
+contexts; nothing queries through it. It used to be a single connection handed to every
+context, and a study spec failed now and again with `SQLite Error 5: database is locked`: the
+enrichment worker queries from a scope of its own while requests run, and `SqliteConnection`
+is not thread-safe. `InMemoryDatabaseConcurrencyTests` reproduces that reliably against a
+shared connection and holds the fix in place. A plain `Data Source=:memory:` would give every
+connection an empty database of its own, so the app refuses to start with one.
 
 `test.describe.configure({ mode: 'serial' })` inside a spec only orders tests within that
 file. It does not help across files.
@@ -209,6 +314,17 @@ file. It does not help across files.
 The reset endpoint (`/api/e2e-testing/reset-database`, `E2ETestingEndpoints`) deletes from a
 **hardcoded list of tables**. A new table has to be added to it or its rows survive every
 reset and leak into later tests — `WordForms` did exactly that until it was noticed.
+
+**The suite runs signed in as the E2E administrator** (`e2e@example.com`, from
+`appsettings.E2ETest.json`). The `setup` project (`auth.setup.js`) logs in once and saves the
+cookie to `playwright/.auth/`; the `chromium` project depends on it and starts every spec from
+that state. The saved state reaches the `request` fixture as well as the page, so the specs
+make signed-in API calls without knowing about it. The reset keeps that account - deleting it
+would leave the saved session pointing at nobody - and removes every other user.
+
+`auth.spec.js` is the exception: it overrides `storageState` to start signed out, and does
+its resetting and seeding through a request context of its own built from the saved session.
+It registers from the allowlist in `appsettings.E2ETest.json` (`helpers/auth.js`).
 
 ## French support
 
@@ -263,11 +379,12 @@ resolves to the same string every time, and a model that answers `aller` today a
 it the tier is a silent no-op and every conjugation falls through to the model:
 
 ```bash
-curl -k -X POST "https://localhost:5001/api/NewWords/import-frequency?lang=fr" --get --data-urlencode "filePath=<absolute path to scripts/frequency-words-fr.txt>"
+curl -k -X POST "https://localhost:5001/api/NewWords/import-frequency?lang=fr" -H "Authorization: Bearer $TOKEN" --get --data-urlencode "filePath=<absolute path to scripts/frequency-words-fr.txt>"
 ```
 
 46,945 lemmas and 128,888 forms, about thirty seconds. The endpoint reads a path on the
-server, not an upload.
+server, not an upload, which is why it takes an administrator's token (Running it shows how
+to get one); anyone else gets `403`.
 
 Tier 2 is deliberately offered **only** forms that a subject pronoun proved to be verbs. The
 same table would reduce plural nouns, and must not be used for them: it maps `ciseaux` to

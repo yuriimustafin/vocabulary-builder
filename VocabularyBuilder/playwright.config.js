@@ -1,5 +1,6 @@
 // @ts-check
 const { defineConfig, devices } = require('@playwright/test');
+const { AUTH_FILE } = require('./tests/e2e/helpers/auth');
 
 /**
  * @see https://playwright.dev/docs/test-configuration
@@ -23,9 +24,17 @@ module.exports = defineConfig({
   },
 
   projects: [
+    // Signs in once and saves the session; see tests/e2e/auth.setup.js
+    {
+      name: 'setup',
+      testMatch: /auth\.setup\.js/,
+    },
     {
       name: 'chromium',
-      use: { ...devices['Desktop Chrome'] },
+      // Every spec starts signed in as the administrator. The saved cookie reaches the
+      // request fixture as well as the browser, so API calls from a spec are signed in too.
+      use: { ...devices['Desktop Chrome'], storageState: AUTH_FILE },
+      dependencies: ['setup'],
     },
   ],
 

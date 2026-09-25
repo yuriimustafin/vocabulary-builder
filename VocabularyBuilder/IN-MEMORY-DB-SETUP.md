@@ -12,7 +12,7 @@ Successfully converted E2E tests to use an in-memory SQLite database, eliminatin
 ```json
 {
   "ConnectionStrings": {
-    "DefaultConnection": "Data Source=:memory:"
+    "DefaultConnection": "Data Source=VocabularyBuilderE2E;Mode=Memory;Cache=Shared"
   },
   "UseInMemoryDatabase": true,
   ...
@@ -23,8 +23,8 @@ Successfully converted E2E tests to use an in-memory SQLite database, eliminatin
 
 Added conditional database configuration:
 - **In-Memory Mode** (E2E Tests):
-  - Creates a singleton `SqliteConnection` that stays open
-  - Registers `ApplicationDbContext` with the shared connection
+  - Opens one connection that stays open, only to keep the database alive (`InMemoryDatabaseKeepAlive`)
+  - Registers `ApplicationDbContext` with the connection string, so each context opens a connection of its own
   - Database persists for the lifetime of the web server
   
 - **File-Based Mode** (Development/Production):
@@ -50,7 +50,7 @@ else if (app.Environment.EnvironmentName == "E2ETest")
 ## How It Works
 
 1. **Test Starts**: Playwright launches the app with E2ETest environment
-2. **Connection Opens**: Singleton SqliteConnection opens in-memory database
+2. **Database Opens**: The keep-alive connection opens the named in-memory database
 3. **Schema Created**: `EnsureCreatedAsync()` creates tables from entity models
 4. **Data Seeded**: Default roles, users, and sample data are created
 5. **Tests Run**: All tests use the same in-memory database instance
@@ -67,12 +67,16 @@ else if (app.Environment.EnvironmentName == "E2ETest")
 
 ## Technical Details
 
-### Why Singleton Connection?
+### Why a Connection per Context, and a Keep-Alive?
 
-SQLite in-memory databases are destroyed when the last connection closes. By registering the connection as a singleton:
-- It stays open for the entire application lifetime
-- Multiple DbContext instances share the same connection
-- The database persists across requests
+SQLite in-memory databases are destroyed when the last connection closes, so one connection is
+held open for the application's lifetime. Nothing queries through it.
+
+The contexts do **not** share it. This used to be a single connection handed to every context,
+and it failed now and again with "database is locked": the study enrichment worker runs in a
+scope of its own at the same time as requests, and `SqliteConnection` is not thread-safe. Each
+context now opens its own connection to the same database, as it would to a file.
+`InMemoryDatabaseConcurrencyTests` holds that in place.
 
 ### Why EnsureCreated vs Migrations?
 
@@ -84,7 +88,10 @@ For in-memory databases:
 
 ### Connection String
 
-`Data Source=:memory:` creates a private in-memory database. The singleton connection pattern ensures it stays alive.
+`Data Source=VocabularyBuilderE2E;Mode=Memory;Cache=Shared` is a *named, shared-cache*
+in-memory database, which is what lets separate connections reach the same data. A plain
+`Data Source=:memory:` would give every connection an empty database of its own, so the app
+refuses to start with one when `UseInMemoryDatabase` is on.
 
 ## Running Tests
 

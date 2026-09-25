@@ -22,6 +22,11 @@ public class CreateTodoItemCommandHandler : IRequestHandler<CreateTodoItemComman
 
     public async Task<int> Handle(CreateTodoItemCommand request, CancellationToken cancellationToken)
     {
+        // Through the filtered set, so a list belonging to someone else is not found
+        var list = await _context.TodoLists.FindAsync(new object[] { request.ListId }, cancellationToken);
+
+        Guard.Against.NotFound(request.ListId, list);
+
         var entity = new TodoItem
         {
             ListId = request.ListId,

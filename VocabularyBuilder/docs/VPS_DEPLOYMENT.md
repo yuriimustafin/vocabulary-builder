@@ -90,11 +90,26 @@ The compose file builds from `./app`, so point its build context at the solution
 # Used for study content, and for the import step that reads free-form lesson notes.
 # Without it those features fail; nothing else does.
 OpenAI__ApiKey=<key>
+
+# The administrator, created on first start. The password is only used to create the account
+# and is not re-applied afterwards. It has to satisfy Identity's rules - at least 6 characters
+# with an upper and a lower case letter, a digit and a symbol - or the container stops at
+# startup saying why.
+Admin__Email=you@example.com
+Admin__Password=<password>
+
+# Who else may create an account, separated by commas. Nobody else can register - every
+# account can spend the OpenAI key. Leave it empty to keep the site to the administrator.
+Registration__AllowedEmails=friend@example.com, colleague@example.com
 ```
 
 ```bash
 chmod 600 /srv/vocabulary-builder/.env
 ```
+
+The allowlist is read on each registration, so a changed list takes effect on
+`docker compose up -d` without a rebuild. Taking an address off it stops new registrations
+only: an account that already exists keeps working.
 
 Everything else the container needs is already set in `docker-compose.yml`. Any setting can be
 overridden here using the double-underscore form — `Study__NewCardsPerDay=20`, for instance.
@@ -116,6 +131,29 @@ Check it is serving before going near Caddy:
 ```bash
 curl -fsS http://127.0.0.1:8087/health && echo OK
 ```
+
+Everything except `/health`, the React app and the sign-in endpoints needs a signed-in user,
+so an API call without one answering `401` is the app working, not failing.
+
+### Bringing existing words along (optional)
+
+A database from before users existed can seed the new deployment. The migration that adds
+ownership gives every word already in it to a placeholder account, and the administrator
+takes that account over on first start - so the words arrive in the administrator's
+collection. Do this before the first `docker compose up`, into an empty volume:
+
+```bash
+# On the machine that has the data: one self-contained file, WAL included
+sqlite3 VocabularyBuilder.Prod.db ".backup vocab-seed.db"
+scp vocab-seed.db deploy@vps:/srv/vocabulary-builder/
+
+# On the VPS
+docker volume create vocabulary_builder_data
+docker run --rm -v vocabulary_builder_data:/data -v /srv/vocabulary-builder:/seed alpine \
+  sh -c 'cp /seed/vocab-seed.db /data/VocabularyBuilder.db && chown 1654:1654 /data/VocabularyBuilder.db'
+```
+
+`1654` is the `app` user in the .NET images. The container migrates the file when it starts.
 
 ### 5. Put Caddy in front of it
 
@@ -142,16 +180,23 @@ Point the DNS record at the VPS before restarting Caddy, or the certificate requ
 
 The lemma tier that reduces conjugated verbs is a **silent no-op until this is imported** —
 every conjugation falls through to the model instead. The file ships inside the image, and the
-endpoint reads a server-side path rather than an upload:
+endpoint reads a server-side path rather than an upload. Because of that path, and because the
+data is shared by every user, only the administrator may call it: sign in for a bearer token
+first, using the credentials the container already has in its environment:
 
 ```bash
-docker exec vocabulary-builder \
-  curl -fsS -X POST --get \
-  --data-urlencode "filePath=/app/data/frequency-words-fr.txt" \
-  "http://localhost:8080/api/NewWords/import-frequency?lang=fr"
+docker exec vocabulary-builder sh -c '
+  TOKEN=$(curl -fsS -X POST http://localhost:8080/api/Users/login \
+      -H "Content-Type: application/json" \
+      -d "{\"email\":\"$Admin__Email\",\"password\":\"$Admin__Password\"}" \
+    | sed -E "s/.*\"accessToken\":\"([^\"]+)\".*/\1/")
+  curl -fsS -X POST --get -H "Authorization: Bearer $TOKEN" \
+    --data-urlencode "filePath=/app/data/frequency-words-fr.txt" \
+    "http://localhost:8080/api/NewWords/import-frequency?lang=fr"'
 ```
 
 46,945 lemmas, about thirty seconds. It only needs doing once per database, not per deploy.
+A password containing `"` or `\` will need escaping in that JSON by hand.
 
 ## Updating
 
@@ -185,6 +230,9 @@ docker exec vocabulary-builder rm /data/backup.db
 
 Copy it off the box, and restore one once to prove the backup works.
 
+`/data/keys` holds the keys that sign login cookies. Losing it costs nothing but a sign-in:
+everyone is logged out and signs in again.
+
 > If `sqlite3` is not in the image, stop the container first and copy `/data` wholesale from
 > the volume — a stopped database has nothing outstanding in its WAL.
 
@@ -205,10 +253,23 @@ docker exec -it vocabulary-builder sh    # a shell inside
 ss -tlnp | grep -v '127.0.0'             # must show only sshd and caddy
 ```
 
-## Two things to decide before this is public
+## Accounts
 
-**The API explorer is served at `/api`.** `UseSwaggerUi` publishes the whole surface, including
-the endpoints that write. It is reachable by anyone who reaches the site. Either gate it behind
+Each user has a collection of their own: words, lists and study history are all scoped to
+whoever is signed in, and one user never sees another's. The administrator is created from
+`Admin__Email` and `Admin__Password`; anyone on `Registration__AllowedEmails` can register from
+the login page. There is no email sending, so there is no confirmation email and no "forgot
+password": Identity's reset endpoints exist but have nothing to send the code through. A
+signed-in user can still change their password, through `POST /api/Users/manage/info` with
+`oldPassword` and `newPassword`; one who has forgotten it has no way back in yet.
+
+Deleting a user deletes their collection with them.
+
+## One thing to decide before this is public
+
+**The API explorer is served at `/api`.** `UseSwaggerUi` publishes a description of the whole
+surface. Every endpoint needs a signed-in user, so it cannot be used anonymously, but it still
+describes the API to anyone who reaches the site. Either gate it behind
 `app.Environment.IsDevelopment()` or block the path in Caddy:
 
 ```
@@ -217,16 +278,21 @@ the endpoints that write. It is reachable by anyone who reaches the site. Either
     }
 ```
 
-**There is no authentication on the vocabulary endpoints.** Identity is wired up, but the API
-and the SPA are open to whoever has the URL. On a public domain that means anyone can read and
-change the collection. Options, roughly in order of effort: keep the hostname unadvertised,
-put Caddy `basic_auth` in front of everything, or require an authenticated user on the
-endpoints.
-
 ## When something is wrong
 
 **Container restarts in a loop** — `docker compose logs web`. The usual cause is the database:
-a volume restored from elsewhere, or a migration that cannot apply.
+a volume restored from elsewhere, or a migration that cannot apply. The other is the
+administrator: `Could not create the administrator` or `Could not accept the administrator's
+password`, followed by a rule like "Passwords must have at least one non alphanumeric
+character", means `Admin__Password` does not meet the password rules. `Admin:Email is set but
+Admin:Password is not` means what it says.
+
+**Nobody can sign in, and the log warns that data "belongs to no one who can sign in"** —
+`Admin__Email` is not set, so the words carried over from before users existed are still with
+the placeholder account. Set it and the password, and restart.
+
+**Everyone is signed out after every deploy** — the cookie keys are not reaching the volume.
+`DataProtection__KeysPath` must point inside `/data`.
 
 **`/health` answers but the page is blank** — the React app did not make it into the image.
 Confirm `wwwroot/index.html` exists in the published output:

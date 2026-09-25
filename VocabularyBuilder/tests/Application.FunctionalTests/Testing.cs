@@ -44,6 +44,13 @@ public partial class Testing
         await mediator.Send(request);
     }
 
+    /// <summary>
+    /// A client for the test host, holding its own cookies, on HTTPS so that the host has no
+    /// redirect of its own to make.
+    /// </summary>
+    public static HttpClient CreateClient() =>
+        _factory.CreateClient(new() { BaseAddress = new Uri("https://localhost"), AllowAutoRedirect = false });
+
     public static string? GetUserId()
     {
         return _userId;
@@ -59,11 +66,32 @@ public partial class Testing
         return await RunAsUserAsync("administrator@local", "Administrator1234!", new[] { Roles.Administrator });
     }
 
+    /// <summary>
+    /// Runs the rest of the test with nobody signed in.
+    /// </summary>
+    public static void RunAsAnonymous()
+    {
+        _userId = null;
+    }
+
+    /// <summary>
+    /// Signs in as the given user, creating it the first time. Switching back to a user the
+    /// test has already used returns to the same account, and so to the same data.
+    /// </summary>
     public static async Task<string> RunAsUserAsync(string userName, string password, string[] roles)
     {
         using var scope = _scopeFactory.CreateScope();
 
         var userManager = scope.ServiceProvider.GetRequiredService<UserManager<ApplicationUser>>();
+
+        var existing = await userManager.FindByNameAsync(userName);
+
+        if (existing is not null)
+        {
+            _userId = existing.Id;
+
+            return _userId;
+        }
 
         var user = new ApplicationUser { UserName = userName, Email = userName };
 
@@ -130,6 +158,18 @@ public partial class Testing
         using var scope = _scopeFactory.CreateScope();
 
         return use(scope.ServiceProvider.GetRequiredService<TService>());
+    }
+
+    /// <summary>
+    /// <see cref="WithService{TService, TResult}"/> for work that has to be awaited, which must
+    /// finish before the scope it runs in is disposed.
+    /// </summary>
+    public static async Task<TResult> WithServiceAsync<TService, TResult>(Func<TService, Task<TResult>> use)
+        where TService : notnull
+    {
+        using var scope = _scopeFactory.CreateScope();
+
+        return await use(scope.ServiceProvider.GetRequiredService<TService>());
     }
 
     public static IEnumerable<TService> GetServices<TService>()

@@ -1,10 +1,12 @@
 import React, { Component } from 'react';
 import { Collapse, Navbar, NavbarBrand, NavbarToggler, NavItem, NavLink, UncontrolledDropdown, DropdownToggle, DropdownMenu, DropdownItem } from 'reactstrap';
 import { Link } from 'react-router-dom';
+import { AuthContext } from './auth/AuthContext';
 import './NavMenu.css';
 
 export class NavMenu extends Component {
     static displayName = NavMenu.name;
+    static contextType = AuthContext;
 
     constructor(props) {
         super(props);
@@ -31,6 +33,18 @@ export class NavMenu extends Component {
 
     render() {
         const languageDisplay = this.state.currentLanguage === 'en' ? '🇬🇧 EN' : '🇫🇷 FR';
+        const { user, logout } = this.context;
+
+        // Signed out there is nowhere to go but the login form, so only the brand is shown
+        if (!user) {
+            return (
+                <header>
+                    <Navbar className="navbar-expand-sm navbar-toggleable-sm ng-white border-bottom box-shadow mb-3" container light>
+                        <NavbarBrand tag={Link} to="/">VocabularyBuilder.Web</NavbarBrand>
+                    </Navbar>
+                </header>
+            );
+        }
         
         return (
             <header>
@@ -49,6 +63,16 @@ export class NavMenu extends Component {
                                     </DropdownItem>
                                     <DropdownItem onClick={() => this.changeLanguage('fr')}>
                                         🇫🇷 French
+                                    </DropdownItem>
+                                </DropdownMenu>
+                            </UncontrolledDropdown>
+                            <UncontrolledDropdown nav inNavbar>
+                                <DropdownToggle nav caret className="text-dark" data-testid="user-menu">
+                                    {user.email}
+                                </DropdownToggle>
+                                <DropdownMenu end>
+                                    <DropdownItem onClick={logout}>
+                                        Sign out
                                     </DropdownItem>
                                 </DropdownMenu>
                             </UncontrolledDropdown>
@@ -92,9 +116,6 @@ export class NavMenu extends Component {
                             </NavItem>
                             <NavItem>
                                 <a className="nav-link text-dark" href="/api">APIshechka</a>
-                            </NavItem>
-                            <NavItem>
-                                <a className="nav-link text-dark" href="/Identity/Account/Manage">Account</a>
                             </NavItem>
                         </ul>
                     </Collapse>

@@ -168,7 +168,7 @@ Note: Each test run uses a fresh in-memory database, ensuring complete isolation
 - Trace on first retry
 
 **`appsettings.E2ETest.json`** - Application configuration for E2E tests:
-- In-memory database: `Data Source=:memory:`
+- In-memory database: `Data Source=VocabularyBuilderE2E;Mode=Memory;Cache=Shared`
 - Automatic database initialization on app startup
 - Mock mode enabled for third-party services
 - Reduced logging

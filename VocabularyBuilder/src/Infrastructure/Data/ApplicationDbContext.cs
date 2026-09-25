@@ -1,5 +1,6 @@
 ﻿using System.Reflection;
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Domain.Common;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
@@ -7,13 +8,28 @@ using Microsoft.EntityFrameworkCore;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 using VocabularyBuilder.Domain.Entities.Frequency;
 using VocabularyBuilder.Domain.Entities.Study;
-using System.Reflection.Emit;
 
 namespace VocabularyBuilder.Infrastructure.Data;
 
 public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplicationDbContext
 {
-    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
+    private readonly IUser? _user;
+
+    /// <param name="user">
+    /// Whose data this context sees and writes. Left out, the context belongs to nobody: every
+    /// owned query comes back empty and saving a new owned entity throws.
+    /// </param>
+    public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options, IUser? user = null)
+        : base(options)
+    {
+        _user = user;
+    }
+
+    /// <summary>
+    /// The user every owned query is scoped to. The query filters read it on each execution
+    /// rather than when the model is built, so one model serves every user.
+    /// </summary>
+    private string? CurrentUserId => _user?.Id;
 
     public DbSet<TodoList> TodoLists => Set<TodoList>();
 
@@ -45,9 +61,10 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
-        // Create unique index for Word: Headword + Language must be unique
+        // A headword is unique within one user's vocabulary, not across users: each user
+        // keeps their own copy of a word, and two users can both be learning "maison"
         builder.Entity<Word>()
-            .HasIndex(w => new { w.Headword, w.Language })
+            .HasIndex(w => new { w.OwnerId, w.Headword, w.Language })
             .IsUnique();
         
         builder.Entity<WordEncounter>()
@@ -103,7 +120,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         
         // Create index for ImportedBookWord: Headword + Language for efficient lookups
         builder.Entity<ImportedBookWord>()
-            .HasIndex(ibw => new { ibw.Headword, ibw.Language });
+            .HasIndex(ibw => new { ibw.OwnerId, ibw.Headword, ibw.Language });
 
         // Configure VocabularyList relationship with cascade delete
         builder.Entity<VocabularyListItem>()
@@ -112,8 +129,101 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
             .HasForeignKey(vli => vli.ListId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        ConfigureOwnership(builder);
+
         builder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
         base.OnModelCreating(builder);
+    }
+
+    /// <summary>
+    /// Scopes every user's data to that user, on the way in and on the way out.
+    /// </summary>
+    /// <remarks>
+    /// The filters are the guarantee, not the handlers. A handler that looks a word up by id
+    /// finds nothing when the word is someone else's - it answers "not found" exactly as it
+    /// would for an id that was never used, and has no code of its own to get wrong.
+    ///
+    /// Dependents are filtered too, through their parent, because several of them are queried
+    /// directly: the study queue starts from review cards, and encounter counting looks words
+    /// up by their inflected forms. A filter on the roots alone would leave those reading
+    /// every user's rows.
+    ///
+    /// Frequency data is deliberately left out. It is reference data about the language,
+    /// imported once and shared by everyone.
+    /// </remarks>
+    private void ConfigureOwnership(ModelBuilder builder)
+    {
+        ConfigureOwnedRoot<Word>(builder);
+        ConfigureOwnedRoot<VocabularyList>(builder);
+        ConfigureOwnedRoot<ImportedBookWord>(builder);
+        ConfigureOwnedRoot<TodoList>(builder);
+
+        builder.Entity<WordEncounter>().HasQueryFilter(e => e.Word.OwnerId == CurrentUserId);
+        builder.Entity<WordDictionarySource>().HasQueryFilter(s => s.Word.OwnerId == CurrentUserId);
+        builder.Entity<WordForm>().HasQueryFilter(f => f.Word.OwnerId == CurrentUserId);
+        builder.Entity<WordStudyContent>().HasQueryFilter(c => c.Word.OwnerId == CurrentUserId);
+        builder.Entity<ReviewCard>().HasQueryFilter(c => c.Word.OwnerId == CurrentUserId);
+        builder.Entity<ReviewLog>().HasQueryFilter(l => l.ReviewCard.Word.OwnerId == CurrentUserId);
+        builder.Entity<VocabularyListItem>().HasQueryFilter(i => i.List.OwnerId == CurrentUserId);
+        builder.Entity<TodoItem>().HasQueryFilter(i => i.List.OwnerId == CurrentUserId);
+
+        // A sense has no navigation back to its word, only the key, so it is matched against
+        // the words this user can see - which carries the word's own filter along with it
+        builder.Entity<Sense>().HasQueryFilter(s =>
+            Words.Any(w => w.Id == EF.Property<int?>(s, "WordId")));
+    }
+
+    private void ConfigureOwnedRoot<TEntity>(ModelBuilder builder) where TEntity : class, IOwnedEntity
+    {
+        var entity = builder.Entity<TEntity>();
+
+        entity.Property(e => e.OwnerId).IsRequired();
+
+        // Removing a user removes everything they collected
+        entity.HasOne<ApplicationUser>()
+            .WithMany()
+            .HasForeignKey(e => e.OwnerId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        entity.HasQueryFilter(e => e.OwnerId == CurrentUserId);
+    }
+
+    public override int SaveChanges(bool acceptAllChangesOnSuccess)
+    {
+        AssignOwners();
+
+        return base.SaveChanges(acceptAllChangesOnSuccess);
+    }
+
+    public override Task<int> SaveChangesAsync(bool acceptAllChangesOnSuccess, CancellationToken cancellationToken = default)
+    {
+        AssignOwners();
+
+        return base.SaveChangesAsync(acceptAllChangesOnSuccess, cancellationToken);
+    }
+
+    /// <summary>
+    /// Gives each new owned entity to the current user.
+    /// </summary>
+    /// <remarks>
+    /// Done here rather than in an interceptor so that it holds for every context, including
+    /// the ones tests build by hand without any interceptors registered. An owner that is
+    /// already set is kept, which is what lets the administrator bootstrap hand rows to a
+    /// particular user; nothing that takes input from a request sets one.
+    /// </remarks>
+    private void AssignOwners()
+    {
+        foreach (var entry in ChangeTracker.Entries<IOwnedEntity>())
+        {
+            if (entry.State != EntityState.Added || !string.IsNullOrEmpty(entry.Entity.OwnerId))
+            {
+                continue;
+            }
+
+            entry.Entity.OwnerId = CurrentUserId
+                ?? throw new InvalidOperationException(
+                    $"Cannot save a new {entry.Metadata.ClrType.Name} without a signed-in user to own it.");
+        }
     }
 }

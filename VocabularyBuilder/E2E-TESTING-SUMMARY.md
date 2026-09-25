@@ -63,7 +63,7 @@ Created a Node.js script to generate mock data:
 #### Configuration File
 - **File**: `src/Web/appsettings.E2ETest.json`
 - **Settings**:
-  - In-memory database: `Data Source=:memory:`
+  - In-memory database: `Data Source=VocabularyBuilderE2E;Mode=Memory;Cache=Shared`
   - UseInMemoryDatabase flag: `true`
   - Mock mode enabled for OpenAI and Oxford
   - Reduced logging for cleaner test output
@@ -71,7 +71,7 @@ Created a Node.js script to generate mock data:
 #### Database Initialization
 - **Modified**: `src/Infrastructure/DependencyInjection.cs`
   - Detects `UseInMemoryDatabase` flag
-  - Registers singleton SQLite connection (keeps in-memory DB alive)
+  - Holds one connection open to keep the in-memory DB alive; each context opens its own
   - Switches between file-based and in-memory database automatically
 - **Modified**: `src/Infrastructure/Data/ApplicationDbContextInitialiser.cs`
   - Uses `EnsureCreatedAsync()` for in-memory databases

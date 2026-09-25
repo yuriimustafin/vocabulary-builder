@@ -3,6 +3,7 @@ using VocabularyBuilder.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace VocabularyBuilder.Web.Endpoints;
 
@@ -40,17 +41,19 @@ public class E2ETestingEndpoints : EndpointGroupBase
             using var scope = serviceProvider.CreateScope();
             var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
             
-            // Check if using in-memory database
-            var connectionString = context.Database.GetConnectionString();
-            var isInMemory = connectionString?.Contains(":memory:") == true;
-
-            if (!isInMemory)
+            if (!InMemoryDatabase.IsInMemory(context.Database.GetConnectionString()))
             {
                 return Results.BadRequest(new 
                 { 
                     error = "Database reset is only available for in-memory databases (E2E testing)" 
                 });
             }
+
+            // The suite signs in once, as the administrator, and every spec reuses that
+            // session. Deleting the account would leave the session pointing at nobody, so it
+            // stays, along with the role that makes it an administrator
+            var administratorEmail = scope.ServiceProvider
+                .GetRequiredService<IOptions<AdministratorOptions>>().Value.Email ?? string.Empty;
 
             // Use raw SQL to delete all data - order matters (child tables first due to FK constraints)
             // Don't use transactions - just execute directly
@@ -59,6 +62,11 @@ public class E2ETestingEndpoints : EndpointGroupBase
             
             using (var command = connection.CreateCommand())
             {
+                var keep = command.CreateParameter();
+                keep.ParameterName = "$administrator";
+                keep.Value = administratorEmail.Normalize().ToUpperInvariant();
+                command.Parameters.Add(keep);
+
                 command.CommandText = @"
                     PRAGMA foreign_keys = OFF;
                     
@@ -76,13 +84,14 @@ public class E2ETestingEndpoints : EndpointGroupBase
                     DELETE FROM TodoItems;
                     DELETE FROM TodoLists;
                     
-                    DELETE FROM AspNetUserTokens;
-                    DELETE FROM AspNetUserRoles;
-                    DELETE FROM AspNetUserLogins;
-                    DELETE FROM AspNetUserClaims;
-                    DELETE FROM AspNetUsers;
-                    DELETE FROM AspNetRoleClaims;
-                    DELETE FROM AspNetRoles;
+                    DELETE FROM AspNetUserTokens WHERE UserId NOT IN (SELECT Id FROM AspNetUsers WHERE NormalizedEmail = $administrator);
+                    DELETE FROM AspNetUserRoles WHERE UserId NOT IN (SELECT Id FROM AspNetUsers WHERE NormalizedEmail = $administrator);
+                    DELETE FROM AspNetUserLogins WHERE UserId NOT IN (SELECT Id FROM AspNetUsers WHERE NormalizedEmail = $administrator);
+                    DELETE FROM AspNetUserClaims WHERE UserId NOT IN (SELECT Id FROM AspNetUsers WHERE NormalizedEmail = $administrator);
+                    DELETE FROM AspNetUsers WHERE NormalizedEmail IS NOT $administrator;
+
+                    -- A spec that tried a wrong password must not leave the account locked out
+                    UPDATE AspNetUsers SET AccessFailedCount = 0, LockoutEnd = NULL;
                     
                     PRAGMA foreign_keys = ON;
                 ";

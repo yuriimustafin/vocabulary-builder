@@ -7,8 +7,14 @@ using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Domain.Samples.Entities;
-public class Word : BaseAuditableEntity
+public class Word : BaseAuditableEntity, IOwnedEntity
 {
+    /// <summary>
+    /// The user whose vocabulary this is. Each user has their own copy of a word, dictionary
+    /// data included, so the same headword can exist once per user.
+    /// </summary>
+    public string OwnerId { get; set; } = string.Empty;
+
     // TODO: Consider change PK from Id to Headword
     // TODO: Consider renaming/using instead Lemma
     public required string Headword { get; set; }

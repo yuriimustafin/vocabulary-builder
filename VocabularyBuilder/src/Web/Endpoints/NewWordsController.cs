@@ -1,5 +1,6 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using VocabularyBuilder.Application.Common.Interfaces;
@@ -7,6 +8,7 @@ using VocabularyBuilder.Application.Exercises.Commands;
 using VocabularyBuilder.Application.ImportWords.Commands;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
+using VocabularyBuilder.Domain.Constants;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 
@@ -155,7 +157,11 @@ public class NewWordsController : ControllerBase
     }
 
 
+    // Administrators only, for two reasons: frequency data is shared by every user rather
+    // than owned by one, and the file is named by a path on the server, which anyone else
+    // could point at whatever they liked
     [HttpPost("import-frequency")]
+    [Authorize(Roles = Roles.Administrator)]
     public async Task<ActionResult<int>> ImportFrequency([FromQuery] string filePath, [FromQuery] string lang = "en")
     {
         if (string.IsNullOrWhiteSpace(filePath))

@@ -87,6 +87,11 @@ if (!behindReverseProxy)
 
 app.UseStaticFiles();
 
+// After static files, so the React bundle and its assets load for someone not yet signed in -
+// the login page is part of that bundle
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseSwaggerUi(settings =>
 {
     settings.Path = "/api";
@@ -99,12 +104,17 @@ app.MapControllerRoute(
 
 app.MapRazorPages();
 
-app.MapFallbackToFile("index.html");
+// The page that shows the login form cannot itself require a login
+app.MapFallbackToFile("index.html").AllowAnonymous();
 
 app.UseExceptionHandler(options => { });
 
 
 app.MapEndpoints();
+
+// After every way the schema can come to exist - migrated above, or created in memory for the
+// end-to-end tests - since the account lives in it
+await app.InitialiseAdministratorAsync();
 
 app.Run();
 

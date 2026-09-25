@@ -43,8 +43,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 # curl is here for the health check and nothing else; the runtime image ships without it
 RUN apt-get update     && apt-get install -y --no-install-recommends curl     && rm -rf /var/lib/apt/lists/*
 
-# Everything the app writes lives here: the SQLite file and the WAL beside it. Owned by the
-# non-root user the image already provides. Deliberately not declared as a VOLUME - the
+# Everything the app writes lives here: the SQLite file and the WAL beside it, and the keys
+# that sign login cookies. Owned by the non-root user the image already provides. Deliberately not declared as a VOLUME - the
 # compose file mounts a named volume, and a declared one only invites anonymous volumes to
 # pile up for anyone running the image by hand.
 RUN mkdir -p /data && chown app:app /data
@@ -62,7 +62,8 @@ ENV ASPNETCORE_ENVIRONMENT=Production \
     ASPNETCORE_HTTP_PORTS=8080 \
     ConnectionStrings__DefaultConnection="Data Source=/data/VocabularyBuilder.db" \
     ApplyMigrationsOnStartup=true \
-    BehindReverseProxy=true
+    BehindReverseProxy=true \
+    DataProtection__KeysPath=/data/keys
 
 EXPOSE 8080
 

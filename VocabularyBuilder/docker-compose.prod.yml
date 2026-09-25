@@ -33,6 +33,10 @@ services:
       # redirect or send HSTS a second time
       BehindReverseProxy: "true"
 
+      # The keys that sign login cookies. On the volume, so a rebuilt container can still read
+      # the cookies the last one issued rather than signing everybody out on every deploy
+      DataProtection__KeysPath: /data/keys
+
     volumes:
       - vocabulary_data:/data
 

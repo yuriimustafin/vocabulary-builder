@@ -18,7 +18,9 @@ public static class DependencyInjection
     {
         services.AddDatabaseDeveloperPageExceptionFilter();
 
-        services.AddScoped<IUser, CurrentUser>();
+        // Registered as itself too, so background work can resolve it and act as a user
+        services.AddScoped<CurrentUser>();
+        services.AddScoped<IUser>(provider => provider.GetRequiredService<CurrentUser>());
 
         // Fills in missing study content away from the request that noticed it.
         services.AddHostedService<StudyContentEnrichmentWorker>();
