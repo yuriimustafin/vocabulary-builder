@@ -389,14 +389,29 @@ No response from WordReference for word: manuel
 Retrying 1 French words against Gpt
 ```
 
-Nothing fails visibly - the fallback is doing its job - but the consequences are worth knowing.
-Every French word costs a model call rather than a page fetch, which is the bill and the
-`Long Running Request` warnings on `FillWordFromDictionaryCommand`. GPT also answers with
-English part-of-speech names (`noun`, `verb`) where WordReference gives `nm`/`nf`, so a word
-filled this way carries no gender from the part of speech itself, and conjugation pages - a
-second WordReference page - are simply unavailable. Grepping the log for `418` is the quickest
-way to tell which source a deployment is actually running on. It works from a development
-machine, so this shows up only in production.
+Nothing fails visibly - the fallback is doing its job - but the consequences are worth
+knowing. What still works: GPT is asked for gender and IPA and supplies both, so French nouns
+keep their gender and `FrenchArticles` still derives the article. Examples come back paired
+with their translations as well.
+
+What is lost:
+
+- **`Sense.Gloss`**, the French sense indicator. `GptFrenchParser` does not produce one, so the
+  🇫🇷 line that `study/BilingualText.js` draws never appears on a production card. In the
+  database behind this note: 54 French senses, **0 with a gloss**, all 54 with example
+  translations.
+- **Conjugation tables**, which are a second WordReference page and so equally blocked.
+- **`ReparseCachedSensesCommand`** has nothing useful to re-read: every cached page is a GPT
+  response, not a WordReference one. All 36 in that database are `SourceType = 3`.
+- **Cost**, since every French word is now a model call rather than a page fetch. That is what
+  the `Long Running Request` warnings on `FillWordFromDictionaryCommand` are.
+
+Grepping the log for `418` is the quickest way to tell which source a deployment is actually
+running on, and `select SourceType, count(*) from WordDictionarySources group by SourceType`
+tells you the same from the data. It works from a development machine, so this shows up only in
+production. The polite delay is honoured (`RequestDelayMilliseconds`, a second between
+requests), so rate is not what is being objected to - the same code and user agent succeed from
+a home connection and fail from the VPS, which points at the hosting IP.
 
 ### Imports
 
