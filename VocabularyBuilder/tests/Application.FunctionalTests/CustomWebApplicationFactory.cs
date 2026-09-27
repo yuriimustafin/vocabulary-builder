@@ -1,4 +1,4 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Parsers;
@@ -32,14 +32,29 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     /// </summary>
     public const string InvitedEmail = "invited@local";
 
+    /// <summary>
+    /// The administrator the host bootstraps on startup. Fixed here rather than taken from
+    /// the developer's own settings - see <see cref="ConfigureWebHost"/>.
+    /// </summary>
+    private const string BootstrapAdministratorEmail = "bootstrap-administrator@local";
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        // The allowlist is read through IOptions on each registration, not captured while the
-        // services are registered, so unlike the UseMockMode flags it can be set from here
+        // Both of these are read after the host is built - the allowlist through IOptions on
+        // each registration, the administrator by the bootstrap - so unlike the UseMockMode
+        // flags they can be set from here.
+        //
+        // The administrator is pinned because the bootstrap runs in every environment, and
+        // otherwise takes whatever Admin section the developer happens to have in their own
+        // appsettings.Development.json. A password there that does not satisfy Identity's
+        // rules throws inside OneTimeSetUp, which fails every test in the run before one of
+        // them has executed a line - and the message names the password, not the cause.
         builder.ConfigureAppConfiguration((_, configuration) =>
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                ["Registration:AllowedEmails"] = InvitedEmail
+                ["Registration:AllowedEmails"] = InvitedEmail,
+                ["Admin:Email"] = BootstrapAdministratorEmail,
+                ["Admin:Password"] = "Bootstrap1234!"
             }));
 
         builder.ConfigureTestServices(services =>

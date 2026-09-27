@@ -97,6 +97,29 @@ like a mixture of the two, which is exactly as confusing as it sounds.
 
 `src/Web/db-backups/<timestamp>/` is the existing backup convention.
 
+### Every `Take()` needs a total order
+
+Both `UseSqlite` calls set `QuerySplittingBehavior.SplitQuery`, so an `Include` of a
+collection is a **second statement that re-evaluates the parent query**, `ORDER BY` and
+`LIMIT` included. If that ordering has ties spanning the limit, SQLite may break them one way
+for the parent and the other way for the include, and the entity that comes back holds another
+row's children - or none.
+
+It does not throw and it does not warn. It reads as data that is simply missing: a word with
+two senses in the table arrives with `Senses` empty, so `StudyMaterial.HasMeaning` is false, no
+exercise can be built, and the session reports it as "preparing" and queues it for enrichment -
+which loads the word by id, with no `Take` and therefore no tie, sees nothing missing and
+writes nothing. Two queries disagreeing about one word, for ever. That is what
+`ShouldKeepItsOwnSensesWhenCandidatesTieOnEverySortKey` pins, and two French words sharing an
+encounter count and a frequency was all it took in production.
+
+So **end every ordering that feeds a `Take()` on an `Include`-bearing query with a unique
+key**, normally `.ThenBy(x => x.Id)`. `NewWordSelector` and `GetStudyQueue.DueCardsAsync` both
+do. Ordering by something that looks distinguishing is not enough: due times collide to the
+millisecond for cards introduced in one batch, and frequencies repeat across the Lexique data.
+A query that projects with `Select` instead of `Include` - `DistractorSource` - is one
+statement and not affected.
+
 ## Configuration and mock modes
 
 Switches live in `appsettings.<Environment>.json`. **Secrets only ever go in
@@ -238,6 +261,20 @@ So after `dotnet ef database update` on `Test.db` or `Prod.db`, add an `Admin` s
 `appsettings.Development.json` (gitignored) or pass `Admin__Email` / `Admin__Password`, start
 once, and sign in as that user to see the words.
 
+**`Admin:Password` has to satisfy Identity's own rules** - at least six characters with a
+digit, an upper case letter, a lower case letter and **a non-alphanumeric character**. The
+bootstrap throws rather than skipping a password it cannot use, and because it runs on every
+start that failure is not confined to running the app: the NSwag target in the Web build
+starts the host to read its endpoints, so **an `Admin` password missing a symbol in
+`appsettings.Development.json` fails `dotnet build` and `dotnet test` as well**, with
+`Could not create the administrator: Passwords must have at least one non alphanumeric
+character.` and a stack in NSwag that does not mention configuration at all. `-p:SkipNSwag=True`
+gets a build through without fixing it (the generated client is committed, so nothing is lost).
+
+`Application.FunctionalTests` pins its own `Admin` credentials in `CustomWebApplicationFactory`
+for that reason - the suite used to inherit whatever was in the developer's Development
+settings and fail all of it in `OneTimeSetUp`.
+
 ## Tests
 
 ```bash
@@ -342,6 +379,24 @@ transcription, so `hache` (`ˈaʃ`) takes *la* while `homme` takes *l'*.
 `WordReference` is the French dictionary, with GPT as a fallback for words it does not carry
 (`DictionaryDefaults`, and `LookupWordsFromDictionary`). Conjugations come from a second
 WordReference page cached under its own source type.
+
+**WordReference blocks the VPS.** Every request from the deployed host comes back `418`, so
+every word falls through to GPT:
+
+```
+WordReference returned 418 for https://www.wordreference.com/fren/manuel
+No response from WordReference for word: manuel
+Retrying 1 French words against Gpt
+```
+
+Nothing fails visibly - the fallback is doing its job - but the consequences are worth knowing.
+Every French word costs a model call rather than a page fetch, which is the bill and the
+`Long Running Request` warnings on `FillWordFromDictionaryCommand`. GPT also answers with
+English part-of-speech names (`noun`, `verb`) where WordReference gives `nm`/`nf`, so a word
+filled this way carries no gender from the part of speech itself, and conjugation pages - a
+second WordReference page - are simply unavailable. Grepping the log for `418` is the quickest
+way to tell which source a deployment is actually running on. It works from a development
+machine, so this shows up only in production.
 
 ### Imports
 

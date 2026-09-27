@@ -151,8 +151,16 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
 
         foreach (var card in due)
         {
-            var result = Render(card, card.Word, content, pool, now);
-            if (result is null) { waiting++; } else { rendered.Add(result); }
+            var outcome = Render(card, card.Word, content, pool, now);
+
+            if (outcome.Card is null)
+            {
+                if (outcome.Waiting) { waiting++; }
+            }
+            else
+            {
+                rendered.Add(outcome.Card);
+            }
         }
 
         foreach (var word in newWords)
@@ -168,17 +176,17 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
                 IntroducedAtUtc = now
             };
 
-            var result = Render(card, word, content, pool, now);
+            var outcome = Render(card, word, content, pool, now);
 
-            if (result is null)
+            if (outcome.Card is null)
             {
-                waiting++;
+                if (outcome.Waiting) { waiting++; }
                 continue;
             }
 
             _context.ReviewCards.Add(card);
             word.IsMarkedForStudy = false;
-            rendered.Add(result with { Introduced = true });
+            rendered.Add(outcome.Card with { Introduced = true });
         }
 
         // Counted from what this call actually created. A card that was introduced earlier
@@ -272,6 +280,10 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
                         || c.State == CardState.Relearning)
                     && c.DueAtUtc <= stepCutoff))
             .OrderBy(c => c.DueAtUtc)
+            // Unique tiebreak, for the reason spelled out in NewWordSelector: a Take() over
+            // an ordering with ties is re-evaluated for the Include under split queries, and
+            // cards introduced in the same batch share a due time to the millisecond.
+            .ThenBy(c => c.Id)
             .Take(limit)
             .ToListAsync(cancellationToken);
     }
@@ -288,10 +300,10 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
     }
 
     /// <summary>
-    /// Chooses the rung and renders it, or returns null after asking for the word to be
-    /// filled in.
+    /// Chooses the rung and renders it, or asks for the word to be filled in and reports it
+    /// as still being prepared.
     /// </summary>
-    private RenderedCard? Render(
+    private RenderOutcome Render(
         ReviewCard card,
         Word word,
         IReadOnlyDictionary<int, WordStudyContent> content,
@@ -311,8 +323,18 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         {
             // Not even the bottom rung can be rendered, which means the word has no usable
             // meaning yet.
+            //
+            // Reported as waiting only while enrichment might still produce one. A word it
+            // has given up on will never render, and counting it would leave the session
+            // showing "Preparing 1 word" for ever: there is no automatic retry behind that
+            // spinner, so nothing would ever clear it. Skipped quietly instead.
+            if (generated?.Status == StudyContentStatus.Failed)
+            {
+                return RenderOutcome.GivenUp;
+            }
+
             _enrichmentQueue.Enqueue(word.Id);
-            return null;
+            return RenderOutcome.Preparing;
         }
 
         // Studiable, but possibly still missing what only the dictionary holds - a French
@@ -340,9 +362,21 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
             material, new ExerciseBuildContext(distractors, AllowHint: !escalated))
             with { Article = material.Article };
 
-        return new RenderedCard(card, word.Headword, rung, exercise);
+        return RenderOutcome.Ready(new RenderedCard(card, word.Headword, rung, exercise));
     }
 
     private record RenderedCard(
         ReviewCard Card, string Headword, int Rung, ExercisePayload Exercise, bool Introduced = false);
+
+    /// <summary>
+    /// The rendered card, or nothing - and whether the session should say the word is still
+    /// being prepared. A word enrichment has given up on is neither rendered nor waited on.
+    /// </summary>
+    private record RenderOutcome(RenderedCard? Card, bool Waiting)
+    {
+        public static readonly RenderOutcome GivenUp = new(null, false);
+        public static readonly RenderOutcome Preparing = new(null, true);
+
+        public static RenderOutcome Ready(RenderedCard card) => new(card, false);
+    }
 }

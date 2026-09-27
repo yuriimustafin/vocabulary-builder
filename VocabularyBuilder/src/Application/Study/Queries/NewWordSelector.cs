@@ -40,6 +40,15 @@ public static class NewWordSelector
 
         var share = Math.Max(1, count / 3);
 
+        // Every bucket below settles on the id last, and that is load-bearing rather than
+        // tidy. The context runs with QuerySplittingBehavior.SplitQuery, so a Take() over an
+        // ordering with ties is evaluated twice - once for the words, once again as the parent
+        // of each Include - and SQLite is free to break the tie differently each time. The
+        // word that came back then holds another word's senses, or none, which reads exactly
+        // like a word the dictionary never filled in: unrenderable for ever, reported as
+        // "preparing" on every session, and never introduced. Two words sharing an encounter
+        // count and a frequency is all it takes.
+
         // Ordered by id rather than by LastModified: SQLite cannot sort a DateTimeOffset in
         // SQL, and LastModified would not mean "when it was marked" anyway, since any edit
         // moves it. Oldest word first is both translatable and stable.
@@ -54,12 +63,14 @@ public static class NewWordSelector
             .OrderByDescending(w => w.WordEncounters.Count)
             .ThenBy(w => w.Frequency == null)
             .ThenBy(w => w.Frequency)
+            .ThenBy(w => w.Id)
             .Take(share)
             .ToListAsync(cancellationToken);
 
         var mostCommon = await candidates
             .Where(w => w.Frequency != null)
             .OrderBy(w => w.Frequency)
+            .ThenBy(w => w.Id)
             .Take(share)
             .ToListAsync(cancellationToken);
 
