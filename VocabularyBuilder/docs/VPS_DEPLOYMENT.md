@@ -232,24 +232,33 @@ by doing that** — if the release added one, restore the database from a backup
 ## Backups
 
 The volume is the only thing that cannot be rebuilt from the repo. SQLite runs in WAL mode, so
-copying the `.db` file alone is not a backup: the `-wal` beside it holds recent writes. Use
-`sqlite3 .backup`, which checkpoints as part of the copy:
+copying the `.db` file out from under a running container is not a backup: the `-wal` beside it
+holds writes the `.db` does not have yet.
+
+The runtime image has no `sqlite3` in it, so the checkpoint has to come from closing the
+database rather than from a command. Stopping the container does exactly that:
 
 ```bash
-docker exec vocabulary-builder \
-  sh -c 'sqlite3 /data/VocabularyBuilder.db ".backup /data/backup.db"'
-
-docker cp vocabulary-builder:/data/backup.db ./vocab-$(date +%F).db
-docker exec vocabulary-builder rm /data/backup.db
+cd /srv/vocabulary-builder
+docker compose stop web
+docker cp vocabulary-builder:/data/VocabularyBuilder.db ./vocab-$(date +%F).db
+docker compose start web
 ```
 
-Copy it off the box, and restore one once to prove the backup works.
+A few seconds of downtime, and the file that comes out is self-contained. Copy it off the box,
+and restore one once to prove the backup works.
+
+To take one without stopping, copy all three parts and keep them together - a `.db` on its own
+is a database missing its most recent writes:
+
+```bash
+for f in VocabularyBuilder.db VocabularyBuilder.db-wal VocabularyBuilder.db-shm; do
+  docker cp "vocabulary-builder:/data/$f" . 2>/dev/null
+done
+```
 
 `/data/keys` holds the keys that sign login cookies. Losing it costs nothing but a sign-in:
 everyone is logged out and signs in again.
-
-> If `sqlite3` is not in the image, stop the container first and copy `/data` wholesale from
-> the volume — a stopped database has nothing outstanding in its WAL.
 
 ## Everyday commands
 
