@@ -355,6 +355,25 @@ connection an empty database of its own, so the app refuses to start with one.
 `test.describe.configure({ mode: 'serial' })` inside a spec only orders tests within that
 file. It does not help across files.
 
+**Wait for a modal to close with `expect(page.locator('.modal.show')).toHaveCount(0)`**, not
+with `expect(page.locator('.modal-title')).not.toBeVisible()`. `toBeVisible` resolves its
+locator *strictly*, and `.modal-title` matches the title of every modal on the page - so while
+one is fading out and the next is opening it matches two elements and the assertion errors
+instead of retrying. `toHaveCount` is built for a locator that matches several, and only a
+modal actually on screen carries `show`.
+
+**A `waitForTimeout` in front of an `expect()` is doing nothing**: Playwright assertions retry
+until they pass or time out, so the sleep only makes the suite slower. It earns its place only
+in front of something that does *not* retry - a direct API read, an `isVisible()` or
+`isEnabled()` probe, the backoff in a hand-rolled polling loop - and there something
+observable is usually a better wait anyway. The suite went from 24 of them to 6 on that rule.
+
+**The `setup` project warms the dev server** before any spec runs. `webServer.url` waits for
+the React dev server to answer, which it does as soon as it is listening, but it is the first
+navigation from a real browser that makes webpack compile and serve the bundle - and the login
+in `auth.setup.js` is an API call, so nothing warmed it. Whichever spec ran first paid that
+cost, and paid it intermittently.
+
 The reset endpoint (`/api/e2e-testing/reset-database`, `E2ETestingEndpoints`) deletes from a
 **hardcoded list of tables**. A new table has to be added to it or its rows survive every
 reset and leak into later tests — `WordForms` did exactly that until it was noticed.

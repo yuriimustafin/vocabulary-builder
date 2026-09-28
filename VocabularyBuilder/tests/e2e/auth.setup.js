@@ -19,3 +19,20 @@ setup('sign in as the end-to-end administrator', async ({ request }) => {
 
   await request.storageState({ path: AUTH_FILE });
 });
+
+/**
+ * Loads the app once, in a browser, before any spec does.
+ *
+ * `webServer.url` waits for the React dev server to answer, which it does as soon as it is
+ * listening - but the first navigation from a real browser is what makes webpack compile and
+ * serve the bundle, and on a cold start that takes long enough to outlast an ordinary
+ * assertion timeout. Whichever spec ran first paid for it, and paid intermittently: the
+ * suite would fail one test on a cold run and pass it on the next. The login above is an API
+ * call and never touches the bundle, so nothing warmed it.
+ *
+ * Generous timeouts on purpose - this step is allowed to be slow, so that no spec has to be.
+ */
+setup('warm the dev server so the first spec does not pay for it', async ({ page }) => {
+  await page.goto('/', { timeout: 120000 });
+  await page.waitForSelector('#root', { timeout: 120000 });
+});

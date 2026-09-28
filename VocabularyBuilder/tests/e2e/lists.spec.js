@@ -88,10 +88,9 @@ test.describe('Lists Management', () => {
     await page.click('.modal-footer button:has-text("Create")');
     
     // Wait for modal to close
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Wait a bit longer for the API call and reload to complete
-    await page.waitForTimeout(1500);
     
     // Verify the list appears in the UI
     const listCell = page.locator(`td:has-text("${uniqueTitle}")`);
@@ -109,10 +108,8 @@ test.describe('Lists Management', () => {
     await expect(page.locator('.modal-title')).toContainText('Add New List', { timeout: 10000 });
     await page.fill('input[name="title"]', originalTitle);
     await page.click('.modal-footer button:has-text("Create")');
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
-    // Wait for list to appear
-    await page.waitForTimeout(500);
     await expect(page.locator(`td:has-text("${originalTitle}")`)).toBeVisible();
     
     // Click Edit button
@@ -131,10 +128,7 @@ test.describe('Lists Management', () => {
     await page.click('.modal-footer button:has-text("Update")');
     
     // Wait for modal to close
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
-    
-    // Wait for update to complete
-    await page.waitForTimeout(500);
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Verify the updated title appears
     await expect(page.locator(`td:has-text("${updatedTitle}")`)).toBeVisible();
@@ -154,10 +148,8 @@ test.describe('Lists Management', () => {
     await expect(page.locator('.modal-title')).toContainText('Add New List', { timeout: 10000 });
     await page.fill('input[name="title"]', listTitle);
     await page.click('.modal-footer button:has-text("Create")');
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
-    // Wait for list to appear
-    await page.waitForTimeout(500);
     await expect(page.locator(`td:has-text("${listTitle}")`)).toBeVisible();
     
     // Click delete button
@@ -172,10 +164,7 @@ test.describe('Lists Management', () => {
     await page.click('.modal-footer button:has-text("Confirm")');
     
     // Wait for modal to close
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
-    
-    // Wait for deletion to complete
-    await page.waitForTimeout(500);
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Verify the list is no longer visible
     await expect(page.locator(`td:has-text("${listTitle}")`)).not.toBeVisible();
@@ -188,10 +177,9 @@ test.describe('Lists Management', () => {
     await expect(page.locator('.modal-title')).toContainText('Add New List', { timeout: 10000 });
     await page.fill('input[name="title"]', listTitle);
     await page.click('.modal-footer button:has-text("Create")');
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Wait for list to appear
-    await page.waitForTimeout(500);
     
     // Click View button to see list details
     const viewButton = page.locator(`tr:has-text("${listTitle}") button:has-text("View")`);
@@ -211,16 +199,13 @@ test.describe('Lists Management', () => {
     // Click the Add button within the modal footer to avoid ambiguity
     await page.locator('.modal').last().locator('.modal-footer button:has-text("Add")').click();
     
-    // Wait for item modal to close
-    await page.waitForTimeout(500);
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Add second item
     await page.click('button:has-text("Add Item")');
     await expect(page.locator('.modal').last().locator('.modal-title')).toContainText('Add Item', { timeout: 10000 });
     await page.fill('input[name="text"]', 'superb');
     await page.locator('.modal').last().locator('.modal-footer button:has-text("Add")').click();    
-    // Wait for item modal to close
-    await page.waitForTimeout(500);
     
     // Verify items appear in the list
     await expect(page.locator('td:has-text("excellent")')).toBeVisible();
@@ -231,7 +216,6 @@ test.describe('Lists Management', () => {
     await firstCheckbox.click();
     
     // Wait for update
-    await page.waitForTimeout(500);
     
     // Verify the row is highlighted/styled as mastered
     const masteredRow = page.locator('tr:has-text("excellent")');
@@ -243,8 +227,6 @@ test.describe('Lists Management', () => {
     await expect(page.locator('.modal').last().locator('.modal-title')).toContainText('Edit Item', { timeout: 10000 });
     await page.fill('input[name="text"]', 'magnificent');
     await page.locator('.modal').last().locator('.modal-footer button:has-text("Update")').click();    
-    // Wait for update
-    await page.waitForTimeout(500);
     
     // Verify updated text
     await expect(page.locator('td:has-text("magnificent")')).toBeVisible();
@@ -257,9 +239,6 @@ test.describe('Lists Management', () => {
     const deleteItemButton = page.locator('tr:has-text("magnificent") button:has-text("Delete")');
     await deleteItemButton.click();
     
-    // Wait for deletion
-    await page.waitForTimeout(500);
-    
     // Verify item is gone
     await expect(page.locator('td:has-text("magnificent")')).not.toBeVisible();
     
@@ -268,7 +247,7 @@ test.describe('Lists Management', () => {
     
     // Close details modal
     await page.click('.modal-footer button:has-text("Close")');
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Reload the page to get updated counts (UI doesn't auto-refresh)
     await page.reload();
