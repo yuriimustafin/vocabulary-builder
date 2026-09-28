@@ -49,6 +49,23 @@ public class StudyContentEnrichmentWorker : BackgroundService
         try
         {
             using var scope = _scopeFactory.CreateScope();
+
+            // Nobody is signed in out here, and every word is visible only to its owner, so
+            // the scope has to be told whose word this is before anything can find it
+            var ownerId = await scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Words
+                .IgnoreQueryFilters()
+                .Where(w => w.Id == wordId)
+                .Select(w => w.OwnerId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (ownerId is null)
+            {
+                // Deleted since it was queued
+                return;
+            }
+
+            scope.ServiceProvider.GetRequiredService<CurrentUser>().ActAs(ownerId);
+
             var sender = scope.ServiceProvider.GetRequiredService<ISender>();
 
             var outcome = await sender.Send(new EnrichWordStudyContentCommand(wordId), cancellationToken);
@@ -81,7 +98,9 @@ public class StudyContentEnrichmentWorker : BackgroundService
             var staleBefore = timeProvider.GetUtcNow().UtcDateTime
                 .AddMinutes(-_options.EnrichmentStaleClaimMinutes);
 
+            // Every user's words, not just one: nobody is signed in to scope this to
             var abandoned = await context.WordStudyContents
+                .IgnoreQueryFilters()
                 .AsNoTracking()
                 .Where(c => c.Status == StudyContentStatus.Pending)
                 .Where(c => c.ClaimedAtUtc == null || c.ClaimedAtUtc < staleBefore)

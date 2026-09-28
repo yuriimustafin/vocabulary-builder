@@ -199,24 +199,17 @@ dotnet new install Clean.Architecture.Solution.Template::8.0.0
 
 ## Test
 
-The solution contains unit, integration, functional, and acceptance tests.
-
-To run the unit, integration, and functional tests (excluding acceptance tests):
-```bash
-dotnet test --filter "FullyQualifiedName!~AcceptanceTests"
-```
-
-To run the acceptance tests, first start the application:
+The solution contains unit, integration and functional tests:
 
 ```bash
-cd .\src\Web\
-dotnet run
-```
-
-Then, in a new console, run the tests:
-```bash
-cd .\src\Web\
 dotnet test
+```
+
+The end-to-end suite drives the React app with Playwright and starts the backend
+itself. It must run with a single worker; see CLAUDE.md for why.
+
+```bash
+npx playwright test
 ```
 
 ## Help

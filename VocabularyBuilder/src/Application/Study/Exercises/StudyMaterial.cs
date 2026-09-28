@@ -31,10 +31,23 @@ public record StudyMaterial
     public string? Meaning { get; init; }
 
     /// <summary>
+    /// Which sense <see cref="Meaning"/> is, said in the language being learned. Shown
+    /// beside the meaning where a whole card is on screen, and never used as a stimulus or
+    /// an answer - it names a sense rather than giving it.
+    /// </summary>
+    public string? MeaningGloss { get; init; }
+
+    /// <summary>
     /// An example sentence that is guaranteed to contain the headword - the resolver
     /// discards any that do not, because a cloze exercise has nothing to blank out.
     /// </summary>
     public string? ContextSentence { get; init; }
+
+    /// <summary>
+    /// What <see cref="ContextSentence"/> says, in the learner's language. Kept apart from
+    /// the sentence so a cloze blanks the sentence alone.
+    /// </summary>
+    public string? ContextSentenceTranslation { get; init; }
 
     public bool HasMeaning => !string.IsNullOrWhiteSpace(Meaning);
 

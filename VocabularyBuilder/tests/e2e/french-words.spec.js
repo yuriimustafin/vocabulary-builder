@@ -25,11 +25,22 @@ test.describe('French words', () => {
     await page.addInitScript(() => localStorage.setItem('language', 'fr'));
   });
 
-  async function importFrench(request, words) {
-    const response = await request.post('/api/NewWords/import?lang=fr&parseImmediately=true', {
-      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
-      data: words.join('\n')
-    });
+  /**
+   * Imports the words and looks them up at once.
+   *
+   * `sourceType` names a dictionary explicitly. French defaults to GPT now, because
+   * WordReference blocks the deployed host - but two of the tests below are about what only
+   * WordReference gives: a sense list detailed enough for one headword to carry both genders,
+   * and conjugation tables, which are a second WordReference page. Those two name it, and so
+   * keep exercising the recorded pages; everything else goes through the default.
+   */
+  async function importFrench(request, words, { sourceType } = {}) {
+    const source = sourceType ? `&sourceType=${sourceType}` : '';
+    const response = await request.post(
+      `/api/NewWords/import?lang=fr&parseImmediately=true${source}`, {
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+        data: words.join('\n')
+      });
 
     expect(response.ok(), await response.text()).toBeTruthy();
     const result = await response.json();
@@ -85,7 +96,8 @@ test.describe('French words', () => {
   });
 
   test('a noun whose meanings differ in gender shows the article for each meaning', async ({ request, page }) => {
-    await importFrench(request, ['livre']);
+    // WordReference's sense list is what carries both genders for this word
+    await importFrench(request, ['livre'], { sourceType: 'WordReference' });
     await openWords(page);
     await openDetails(page, 'livre');
 
@@ -114,7 +126,8 @@ test.describe('French words', () => {
   });
 
   test('a verb shows its conjugation as tables, and a noun shows none', async ({ request, page }) => {
-    await importFrench(request, ['prendre', 'maison']);
+    // Conjugations are a second WordReference page; no other source has them
+    await importFrench(request, ['prendre', 'maison'], { sourceType: 'WordReference' });
     await openWords(page);
     await openDetails(page, 'prendre');
 

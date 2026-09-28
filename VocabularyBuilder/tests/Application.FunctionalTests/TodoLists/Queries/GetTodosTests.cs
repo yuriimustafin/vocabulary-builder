@@ -52,6 +52,8 @@ public class GetTodosTests : BaseTestFixture
     [Test]
     public async Task ShouldDenyAnonymousUser()
     {
+        RunAsAnonymous();
+
         var query = new GetTodosQuery();
 
         var action = () => SendAsync(query);

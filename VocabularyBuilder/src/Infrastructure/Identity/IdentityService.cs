@@ -24,9 +24,10 @@ public class IdentityService : IIdentityService
 
     public async Task<string?> GetUserNameAsync(string userId)
     {
-        var user = await _userManager.Users.FirstAsync(u => u.Id == userId);
+        // A session can outlive its account - a bearer token lasts an hour after the user is deleted
+        var user = await _userManager.Users.FirstOrDefaultAsync(u => u.Id == userId);
 
-        return user.UserName;
+        return user?.UserName;
     }
 
     public async Task<(Result Result, string UserId)> CreateUserAsync(string userName, string password)

@@ -1,0 +1,243 @@
+{
+  "moods": [
+    {
+      "mood": "participe",
+      "tenses": [
+        {
+          "tense": "présent",
+          "forms": [
+            {
+              "person": null,
+              "form": "prenant"
+            }
+          ]
+        },
+        {
+          "tense": "passé",
+          "forms": [
+            {
+              "person": null,
+              "form": "pris"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mood": "indicatif",
+      "tenses": [
+        {
+          "tense": "présent",
+          "forms": [
+            {
+              "person": "je",
+              "form": "prends"
+            },
+            {
+              "person": "tu",
+              "form": "prends"
+            },
+            {
+              "person": "il, elle, on",
+              "form": "prend"
+            },
+            {
+              "person": "nous",
+              "form": "prenons"
+            },
+            {
+              "person": "vous",
+              "form": "prenez"
+            },
+            {
+              "person": "ils, elles",
+              "form": "prennent"
+            }
+          ]
+        },
+        {
+          "tense": "imparfait",
+          "forms": [
+            {
+              "person": "je",
+              "form": "prenais"
+            },
+            {
+              "person": "tu",
+              "form": "prenais"
+            },
+            {
+              "person": "il, elle, on",
+              "form": "prenait"
+            },
+            {
+              "person": "nous",
+              "form": "prenions"
+            },
+            {
+              "person": "vous",
+              "form": "preniez"
+            },
+            {
+              "person": "ils, elles",
+              "form": "prenaient"
+            }
+          ]
+        },
+        {
+          "tense": "futur simple",
+          "forms": [
+            {
+              "person": "je",
+              "form": "prendrai"
+            },
+            {
+              "person": "tu",
+              "form": "prendras"
+            },
+            {
+              "person": "il, elle, on",
+              "form": "prendra"
+            },
+            {
+              "person": "nous",
+              "form": "prendrons"
+            },
+            {
+              "person": "vous",
+              "form": "prendrez"
+            },
+            {
+              "person": "ils, elles",
+              "form": "prendront"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mood": "formes composées",
+      "tenses": [
+        {
+          "tense": "passé composé",
+          "forms": [
+            {
+              "person": "j",
+              "form": "ai pris"
+            },
+            {
+              "person": "tu",
+              "form": "as pris"
+            },
+            {
+              "person": "il, elle, on",
+              "form": "a pris"
+            },
+            {
+              "person": "nous",
+              "form": "avons pris"
+            },
+            {
+              "person": "vous",
+              "form": "avez pris"
+            },
+            {
+              "person": "ils, elles",
+              "form": "ont pris"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mood": "subjonctif",
+      "tenses": [
+        {
+          "tense": "présent",
+          "forms": [
+            {
+              "person": "que je",
+              "form": "prenne"
+            },
+            {
+              "person": "que tu",
+              "form": "prennes"
+            },
+            {
+              "person": "qu il, elle, on",
+              "form": "prenne"
+            },
+            {
+              "person": "que nous",
+              "form": "prenions"
+            },
+            {
+              "person": "que vous",
+              "form": "preniez"
+            },
+            {
+              "person": "qu ils, elles",
+              "form": "prennent"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mood": "conditionnel",
+      "tenses": [
+        {
+          "tense": "présent",
+          "forms": [
+            {
+              "person": "je",
+              "form": "prendrais"
+            },
+            {
+              "person": "tu",
+              "form": "prendrais"
+            },
+            {
+              "person": "il, elle, on",
+              "form": "prendrait"
+            },
+            {
+              "person": "nous",
+              "form": "prendrions"
+            },
+            {
+              "person": "vous",
+              "form": "prendriez"
+            },
+            {
+              "person": "ils, elles",
+              "form": "prendraient"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "mood": "impératif",
+      "tenses": [
+        {
+          "tense": "présent",
+          "forms": [
+            {
+              "person": null,
+              "form": "prends"
+            },
+            {
+              "person": null,
+              "form": "prenons"
+            },
+            {
+              "person": null,
+              "form": "prenez"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-using VocabularyBuilder.Domain.Enums;
+﻿using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Study.Exercises.Definitions;
 
@@ -27,6 +27,8 @@ public class MeaningToWordRecallExerciseDefinition : SelfGradedExerciseDefinitio
         Hint = null,
         PartOfSpeech = material.PartOfSpeech,
         Transcription = material.Transcription,
-        ContextSentence = material.ContextSentence
+        ContextSentence = material.ContextSentence,
+        ContextSentenceTranslation = material.ContextSentenceTranslation,
+        MeaningGloss = material.MeaningGloss
     };
 }

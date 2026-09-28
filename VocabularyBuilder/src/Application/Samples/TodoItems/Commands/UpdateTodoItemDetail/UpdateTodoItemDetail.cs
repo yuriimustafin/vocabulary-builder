@@ -30,6 +30,11 @@ public class UpdateTodoItemDetailCommandHandler : IRequestHandler<UpdateTodoItem
 
         Guard.Against.NotFound(request.Id, entity);
 
+        // Through the filtered set, so a list belonging to someone else is not found
+        var list = await _context.TodoLists.FindAsync(new object[] { request.ListId }, cancellationToken);
+
+        Guard.Against.NotFound(request.ListId, list);
+
         entity.ListId = request.ListId;
         entity.Priority = request.Priority;
         entity.Note = request.Note;

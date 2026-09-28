@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"arbre\"",
+  "Response": "{\n  \"lemma\": \"arbre\",\n  \"ipa\": \"aʁbʁ\",\n  \"partOfSpeech\": \"noun\",\n  \"gender\": \"masculine\",\n  \"pluralOnly\": false,\n  \"senses\": [\n    {\n      \"definition\": \"tree\",\n      \"gloss\": null,\n      \"examples\": [\n        {\n          \"french\": \"Un arbre pousse dans le jardin.\",\n          \"english\": \"A tree grows in the garden.\"\n        }\n      ],\n      \"gender\": null\n    }\n  ]\n}",
+  "CreatedAt": "2026-09-27T23:37:12Z"
+}

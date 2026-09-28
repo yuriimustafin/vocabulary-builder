@@ -44,9 +44,11 @@ public class MockOxfordParser : IWordReferenceParser
             }
             else
             {
+                // Answer as the dictionary would for a word it does not carry: with nothing.
+                // A stub here would be indistinguishable from a real entry to everything
+                // downstream, and identical for every word, which quietly ruins anything
+                // that compares one word's meaning against another's
                 Console.WriteLine($"No mock data found for word: {searchedWord}");
-                // Return a basic word structure as fallback
-                words.Add(CreateDefaultWord(searchedWord));
             }
         }
 
@@ -76,14 +78,8 @@ public class MockOxfordParser : IWordReferenceParser
             }
             else
             {
+                // See above: an unrecorded word is a word the dictionary does not have
                 Console.WriteLine($"No mock data found for word: {searchedWord}");
-                results.Add(new WordParseResult
-                {
-                    Word = CreateDefaultWord(searchedWord),
-                    SearchedTerm = searchedWord,
-                    SourceHtml = "<html><body>Mock data not found</body></html>",
-                    SourceUrl = $"mock://oxford/{GetWordKey(searchedWord)}"
-                });
             }
         }
 
@@ -125,26 +121,5 @@ public class MockOxfordParser : IWordReferenceParser
         }
 
         return searchedWord.ToLowerInvariant().Replace(" ", "_");
-    }
-
-    private Word CreateDefaultWord(string searchedWord)
-    {
-        return new Word
-        {
-            Headword = GetWordKey(searchedWord),
-            PartOfSpeech = "noun",
-            Transcription = "",
-            Senses = new List<Sense>
-            {
-                new Sense
-                {
-                    Definition = "Mock definition - data not available",
-                    Examples = new List<string>
-                    {
-                        "This is a mock example."
-                    }
-                }
-            }
-        };
     }
 }

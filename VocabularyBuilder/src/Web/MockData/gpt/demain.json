@@ -1,5 +1,5 @@
 {
   "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"demain\"",
-  "Response": "{\n  \"word\": \"demain\",\n  \"partOfSpeech\": \"adverb\",\n  \"translation\": \"tomorrow\",\n  \"definition\": \"On the day after today\",\n  \"examples\": [\n    {\n      \"french\": \"À demain!\",\n      \"english\": \"See you tomorrow!\"\n    },\n    {\n      \"french\": \"Demain, nous partons en voyage.\",\n      \"english\": \"Tomorrow, we are going on a trip.\"\n    }\n  ]\n}",
+  "Response": "{\n  \"lemma\": \"demain\",\n  \"ipa\": \"d(ə).mɛ̃\",\n  \"partOfSpeech\": \"adverb\",\n  \"gender\": null,\n  \"pluralOnly\": false,\n  \"senses\": [\n    {\n      \"definition\": \"tomorrow\",\n      \"gloss\": null,\n      \"examples\": [\n        {\n          \"french\": \"Je viendrai demain.\",\n          \"english\": \"I will come tomorrow.\"\n        }\n      ],\n      \"gender\": null\n    }\n  ]\n}",
   "CreatedAt": "2026-03-21T17:10:40.546Z"
 }

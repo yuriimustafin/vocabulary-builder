@@ -30,7 +30,7 @@ test.describe('Export Words', () => {
       await page.fill('input[name="partOfSpeech"]', 'noun');
       await page.fill('textarea[name="examples"]', `Example sentence ${i}.`);
       await page.click('.modal-footer button:has-text("Create")');
-      await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+      await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
       
       // Verify word was created
       const created = await waitForWordInDb(page, uniqueWord);

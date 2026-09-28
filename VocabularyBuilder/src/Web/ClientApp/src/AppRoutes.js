@@ -7,6 +7,8 @@ import { ListPractice } from "./components/ListPractice";
 import { Study } from "./components/Study";
 import { BulkImport } from "./components/BulkImport";
 import { KindleImport } from "./components/KindleImport";
+import { LingQImport } from "./components/LingQImport";
+import { NotesImport } from "./components/NotesImport";
 import { ExportWords } from "./components/ExportWords";
 
 const AppRoutes = [
@@ -45,6 +47,14 @@ const AppRoutes = [
   {
     path: '/kindle-import',
     element: <KindleImport />
+  },
+  {
+    path: '/lingq-import',
+    element: <LingQImport />
+  },
+  {
+    path: '/notes-import',
+    element: <NotesImport />
   },
   {
     path: '/export-words',

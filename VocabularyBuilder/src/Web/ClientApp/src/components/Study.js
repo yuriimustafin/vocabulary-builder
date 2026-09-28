@@ -403,6 +403,7 @@ export class Study extends Component {
       return (
         <IntroductionCard
           exercise={exercise}
+          language={this.state.language}
           submitting={this.busy}
           onAcknowledge={this.acknowledge}
           onAlreadyKnown={this.markKnown}
@@ -418,6 +419,8 @@ export class Study extends Component {
 
     const shared = {
       exercise,
+      // Which flag labels the studied side; every exercise gets it through the spread
+      language: this.state.language,
       submitting: this.busy,
       onHintUsed: () => this.setState({ hintUsed: true })
     };
@@ -500,6 +503,7 @@ export class Study extends Component {
                   ? (
                     <AnswerFeedback
                       feedback={this.state.feedback}
+                      language={this.state.language}
                       continuing={this.busy}
                       onContinue={this.continueFromFeedback}
                     />

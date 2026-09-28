@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"prendre\"",
+  "Response": "{\n  \"lemma\": \"prendre\",\n  \"ipa\": \"pʁɑ̃dʁ\",\n  \"partOfSpeech\": \"verb\",\n  \"gender\": null,\n  \"pluralOnly\": false,\n  \"senses\": [\n    {\n      \"definition\": \"to take\",\n      \"gloss\": \"saisir\",\n      \"gender\": null,\n      \"examples\": [\n        {\n          \"french\": \"Je prends le livre.\",\n          \"english\": \"I take the book.\"\n        }\n      ]\n    },\n    {\n      \"definition\": \"to catch\",\n      \"gloss\": \"attraper\",\n      \"gender\": null,\n      \"examples\": [\n        {\n          \"french\": \"Il prend le train.\",\n          \"english\": \"He catches the train.\"\n        }\n      ]\n    }\n  ]\n}",
+  "CreatedAt": "2026-09-27T23:51:16Z"
+}

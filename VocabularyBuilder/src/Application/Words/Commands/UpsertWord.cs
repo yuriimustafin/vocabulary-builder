@@ -1,6 +1,7 @@
 ﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
+using VocabularyBuilder.Domain.Helpers;
 using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Application.Words.Commands;
@@ -17,13 +18,25 @@ public record UpsertWordCommand : IRequest<int>
     public int? Frequency { get; init; }
     public List<string>? Examples { get; init; }
     public List<Sense>? Senses { get; init; }
+
+    /// <summary>
+    /// Labels to record the word under. Added to whatever the word already carries rather
+    /// than replacing them.
+    /// </summary>
+    public List<string>? Tags { get; init; }
     
     // Properties for creating WordEncounter
     public WordEncounterSource Source { get; init; } = WordEncounterSource.Manual;
     public string? SourceIdentifier { get; init; }
     public string? Context { get; init; }
     public string? Notes { get; init; }
-    
+
+    /// <summary>
+    /// False when the upsert only fills the word in - a dictionary lookup is not a meeting
+    /// with the word, and must not count as one.
+    /// </summary>
+    public bool RecordEncounter { get; init; } = true;
+
     // Dictionary sources for caching (optional)
     public List<WordDictionarySource>? DictionarySources { get; init; }
 
@@ -69,7 +82,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
                 IsPluralOnly = request.IsPluralOnly,
                 Frequency = frequency,
                 Examples = request.Examples,
-                Senses = request.Senses
+                Senses = request.Senses,
+                Tags = request.Tags is { Count: > 0 } ? WordTags.Merge(null, request.Tags) : null
             };
 
             _context.Words.Add(newWord);
@@ -119,6 +133,13 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             }
             
             existingWord.Examples = request.Examples ?? existingWord.Examples;
+
+            // Tags accumulate: meeting a word again under a new label must not lose the
+            // label it was first collected under
+            if (request.Tags is { Count: > 0 })
+            {
+                existingWord.Tags = WordTags.Merge(existingWord.Tags, request.Tags);
+            }
             
             // Merge senses: add only new senses that don't already exist
             if (request.Senses != null && request.Senses.Any())
@@ -206,6 +227,11 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
 
     private async Task CreateWordEncounter(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
     {
+        if (!request.RecordEncounter)
+        {
+            return;
+        }
+
         // Generate SourceIdentifier from today's date if not provided (for manual entries)
         var sourceIdentifier = request.SourceIdentifier ?? DateTimeOffset.UtcNow.ToString("yyyy-MM-dd");
         

@@ -229,10 +229,12 @@ public class WordReferenceFrenchParser : IWordReferenceParser
                 return new Sense
                 {
                     Definition = entry.BuildDefinition(),
+                    Gloss = string.IsNullOrWhiteSpace(entry.Gloss) ? null : entry.Gloss,
                     PartOfSpeech = ParsePartOfSpeech(entry.PartOfSpeech),
                     Gender = noun?.Gender,
                     IsPluralOnly = noun?.IsPluralOnly ?? false,
-                    Examples = entry.BuildExamples()
+                    Examples = entry.BuildExamples(),
+                    ExampleTranslations = entry.BuildExampleTranslations()
                 };
             })
             .Where(sense => !string.IsNullOrWhiteSpace(sense.Definition))
@@ -256,7 +258,8 @@ public class WordReferenceFrenchParser : IWordReferenceParser
             IsPluralOnly = primaryNoun?.IsPluralOnly ?? false,
             Language = Language.French,
             Senses = senses,
-            Examples = entries.SelectMany(entry => entry.BuildExamples()).ToList()
+            Examples = entries.SelectMany(entry => entry.BuildExamples()).ToList(),
+            ExampleTranslations = entries.SelectMany(entry => entry.BuildExampleTranslations()).ToList()
         };
     }
 
@@ -552,35 +555,37 @@ public class WordReferenceFrenchParser : IWordReferenceParser
         public List<string> EnglishExamples { get; } = new();
 
         /// <summary>
-        /// Pair each French example with its translation by position, keeping
-        /// the "French (English)" convention used elsewhere. A sentence whose
-        /// counterpart is missing is kept on its own rather than dropped.
+        /// The French sentences, as they were written. Their translations are returned
+        /// separately by <see cref="BuildExampleTranslations"/> rather than written into
+        /// the sentence, so that whatever displays them decides how to show the pair - and
+        /// so that a cloze exercise blanks a sentence rather than a sentence carrying its
+        /// own translation.
         /// </summary>
         public IList<string> BuildExamples()
         {
+            return FrenchExamples.ToList();
+        }
+
+        /// <summary>
+        /// Translations of the sentences above, by position. Padded where a sentence has
+        /// none, so that index n always refers to the same pair.
+        /// </summary>
+        public IList<string> BuildExampleTranslations()
+        {
             return FrenchExamples
-                .Select((french, index) => index < EnglishExamples.Count
-                    ? $"{french} ({EnglishExamples[index]})"
-                    : french)
+                .Select((_, index) => index < EnglishExamples.Count ? EnglishExamples[index] : string.Empty)
                 .ToList();
         }
 
         /// <summary>
-        /// "(saisir) take, pick up [sth], grasp" - the French gloss says which
-        /// sense is meant, the English translations say what it means.
+        /// What the word means: "take, pick up [sth], grasp". The French gloss saying which
+        /// sense that is - "(saisir)" - is kept out of it and returned by <see cref="Gloss"/>,
+        /// because a meaning is compared against other meanings and a gloss in front of it
+        /// only gets in the way.
         /// </summary>
         public string BuildDefinition()
         {
-            var translations = string.Join(", ", Translations.Distinct());
-
-            if (string.IsNullOrWhiteSpace(Gloss))
-            {
-                return translations;
-            }
-
-            return string.IsNullOrWhiteSpace(translations)
-                ? $"({Gloss})"
-                : $"({Gloss}) {translations}";
+            return string.Join(", ", Translations.Distinct());
         }
     }
 }

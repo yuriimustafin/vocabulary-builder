@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"gens\"",
+  "Response": "{\n  \"lemma\": \"gens\",\n  \"ipa\": \"ʒɑ̃\",\n  \"partOfSpeech\": \"noun\",\n  \"gender\": \"masculine\",\n  \"pluralOnly\": true,\n  \"senses\": [\n    {\n      \"definition\": \"people\",\n      \"gloss\": null,\n      \"gender\": null,\n      \"examples\": [\n        {\n          \"french\": \"Les gens sont gentils.\",\n          \"english\": \"People are kind.\"\n        }\n      ]\n    }\n  ]\n}",
+  "CreatedAt": "2026-09-27T23:51:16Z"
+}

@@ -13,6 +13,8 @@ public class PurgeTodoListsTests : BaseTestFixture
     [Test]
     public async Task ShouldDenyAnonymousUser()
     {
+        RunAsAnonymous();
+
         var command = new PurgeTodoListsCommand();
 
         command.GetType().Should().BeDecoratedWith<AuthorizeAttribute>();

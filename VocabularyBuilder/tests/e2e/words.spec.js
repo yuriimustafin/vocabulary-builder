@@ -54,7 +54,7 @@ test.describe('Words Management', () => {
     const newStatusCheckbox = page.locator('input[type="checkbox"][value="0"]');
     if (await newStatusCheckbox.isChecked()) {
       await newStatusCheckbox.click();
-      await page.waitForTimeout(500); // Wait for filtering
+      await expect(newStatusCheckbox).not.toBeChecked();
     }
     
     // Verify the list has updated
@@ -68,14 +68,12 @@ test.describe('Words Management', () => {
     
     // Sort alphabetically (the option with an empty value)
     await page.selectOption('select#sortBy', { label: 'Alphabetical' });
-    await page.waitForTimeout(500);
     
     // Verify table is still visible and has data
     await expect(page.locator('table tbody tr').first()).toBeVisible();
     
     // Sort by encounters, then frequency
     await page.selectOption('select#sortBy', 'encounterfrequency');
-    await page.waitForTimeout(500);
     
     await expect(page.locator('table tbody tr').first()).toBeVisible();
   });
@@ -98,7 +96,7 @@ test.describe('Words Management', () => {
     await page.click('.modal-footer button:has-text("Create")');
     
     // Wait for modal to close
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // VERIFY: Word was actually created in the database
     const dbWord = await waitForWordInDb(page, uniqueWord);
@@ -131,7 +129,7 @@ test.describe('Words Management', () => {
     
     // Close modal
     await page.click('button:has-text("Close")');
-    await expect(page.locator('.modal-title')).not.toBeVisible();
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
   });
 
   test('should edit a word', async ({ page }) => {
@@ -153,7 +151,7 @@ test.describe('Words Management', () => {
     await page.click('.modal-footer button:has-text("Update")');
     
     // Wait for modal to close
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Success - word was updated
   });
@@ -167,7 +165,7 @@ test.describe('Words Management', () => {
     await page.fill('input[name="headword"]', uniqueWord);
     await page.fill('input[name="partOfSpeech"]', 'noun');
     await page.click('.modal-footer button:has-text("Create")');
-    await expect(page.locator('.modal-title')).not.toBeVisible({ timeout: 10000 });
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
     
     // Verify word was created in database
     const createdWord = await waitForWordInDb(page, uniqueWord);
@@ -181,7 +179,11 @@ test.describe('Words Management', () => {
     
     // Confirm deletion - the dialog is titled "Confirm Delete" but its button says Delete
     await page.click('.modal-footer button:has-text("Delete")');
-    await page.waitForTimeout(500);
+
+    // The database is read directly below, and that read does not retry. So wait on the UI
+    // saying the delete has landed rather than on a fixed number of milliseconds.
+    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
+    await expect(row).toHaveCount(0, { timeout: 10000 });
     
     // VERIFY: Word is gone from database
     const deletedWord = await findWordByHeadword(page, uniqueWord);
@@ -206,7 +208,6 @@ test.describe('Words Management', () => {
       const nextButton = page.locator('button:has-text("Next")');
       if (await nextButton.isEnabled()) {
         await nextButton.click();
-        await page.waitForTimeout(500);
         
         // Verify we moved to next page
         await expect(page.locator('table tbody tr').first()).toBeVisible();
@@ -222,7 +223,6 @@ test.describe('Words Management', () => {
     const minEncounterInput = page.locator('input[placeholder="Min"]');
     if (await minEncounterInput.isVisible()) {
       await minEncounterInput.fill('2');
-      await page.waitForTimeout(500);
       
       // Verify filtering occurred
       await expect(page.locator('table tbody tr').first()).toBeVisible();

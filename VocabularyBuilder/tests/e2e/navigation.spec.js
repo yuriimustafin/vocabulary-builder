@@ -143,7 +143,6 @@ test.describe('Navigation and Home Page', () => {
     if (await mobileToggle.isVisible()) {
       // Click to open mobile menu
       await mobileToggle.click();
-      await page.waitForTimeout(300);
       
       // Verify menu items are now visible
       await expect(page.locator('a:has-text("Words")')).toBeVisible();

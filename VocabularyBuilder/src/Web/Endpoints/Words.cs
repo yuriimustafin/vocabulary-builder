@@ -1,4 +1,4 @@
-﻿using VocabularyBuilder.Application.Common.Models;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Application.Study.Commands;
 using VocabularyBuilder.Application.Words.Queries;
@@ -26,6 +26,8 @@ public class Words : EndpointGroupBase
         group.MapPut("/{id}/mark-for-study", MarkForStudy);
         group.MapDelete("/{id}", DeleteWord);
         group.MapPost("/update-frequencies", UpdateWordFrequencies);
+        group.MapPost("/fill-dictionary", FillMissingDictionaryData);
+        group.MapPost("/reparse-cached", ReparseCachedSenses);
         group.MapGet("/for-export", GetWordsForExport);
         group.MapPost("/export", ExportWords);
     }
@@ -94,6 +96,31 @@ public class Words : EndpointGroupBase
     public async Task<UpdateWordFrequenciesResult> UpdateWordFrequencies(ISender sender, string lang)
     {
         return await sender.Send(new UpdateWordFrequenciesCommand());
+    }
+
+    /// <summary>
+    /// Looks up every word still waiting on a dictionary, so that words already in the
+    /// vocabulary gain their gender - and with it their article - without waiting to come
+    /// round in a study session.
+    /// </summary>
+    /// <param name="force">
+    /// Look up words that already have dictionary data too, ignoring their cached pages, which
+    /// is how words collected earlier pick up something the parser has newly learnt to read.
+    /// One request per word - pass a limit and work through a collection in batches.
+    /// </param>
+    public async Task<FillMissingDictionaryDataResult> FillMissingDictionaryData(
+        ISender sender, string lang, int? limit = null, bool force = false)
+    {
+        return await sender.Send(new FillMissingDictionaryDataCommand(ParseLanguage(lang), limit, force));
+    }
+
+    /// <summary>
+    /// Reads each word's cached dictionary page again, for when the parser has learned to
+    /// record something the stored senses were written without. Costs no request.
+    /// </summary>
+    public async Task<ReparseCachedSensesResult> ReparseCachedSenses(ISender sender, string lang)
+    {
+        return await sender.Send(new ReparseCachedSensesCommand(ParseLanguage(lang)));
     }
 
     public async Task<IResult> GetWordsForExport(ISender sender, string lang, int[]? statuses = null)

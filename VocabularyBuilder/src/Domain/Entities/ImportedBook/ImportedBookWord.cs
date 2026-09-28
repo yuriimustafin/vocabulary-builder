@@ -7,8 +7,10 @@ using VocabularyBuilder.Domain.Helpers;
 using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
-public class ImportedBookWord : BaseAuditableEntity
+public class ImportedBookWord : BaseAuditableEntity, IOwnedEntity
 {
+    public string OwnerId { get; set; } = string.Empty;
+
     public required string Headword { get; set; }
     
     /// <summary>

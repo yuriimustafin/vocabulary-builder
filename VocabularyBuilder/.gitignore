@@ -491,6 +491,9 @@ playwright-report/
 test-results/
 playwright/.cache/
 
+# The signed-in session the setup project saves for the specs to reuse
+playwright/.auth/
+
 # Playwright browsers (if downloaded locally)
 .playwright/
 

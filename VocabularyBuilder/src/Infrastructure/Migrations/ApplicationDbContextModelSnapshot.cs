@@ -463,6 +463,10 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<string>("Note")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int?>("Status")
                         .HasColumnType("INTEGER");
 
@@ -477,7 +481,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.HasIndex("Headword", "Language");
+                    b.HasIndex("OwnerId", "Headword", "Language");
 
                     b.ToTable("ImportedBookWords");
                 });
@@ -498,12 +502,18 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.PrimitiveCollection<string>("ExampleTranslations")
+                        .HasColumnType("TEXT");
+
                     b.PrimitiveCollection<string>("Examples")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("Gender")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Gloss")
+                        .HasColumnType("TEXT");
 
                     b.Property<bool>("IsPluralOnly")
                         .HasColumnType("INTEGER");
@@ -524,7 +534,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
                     b.HasIndex("WordId");
 
-                    b.ToTable("Sense");
+                    b.ToTable("Sense", (string)null);
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoItem", b =>
@@ -590,12 +600,18 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("TodoLists");
                 });
@@ -621,6 +637,10 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
@@ -629,6 +649,8 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("OwnerId");
 
                     b.ToTable("VocabularyLists");
                 });
@@ -680,6 +702,9 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<string>("CreatedBy")
                         .HasColumnType("TEXT");
 
+                    b.PrimitiveCollection<string>("ExampleTranslations")
+                        .HasColumnType("TEXT");
+
                     b.PrimitiveCollection<string>("Examples")
                         .HasColumnType("TEXT");
 
@@ -709,6 +734,10 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<string>("LastModifiedBy")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PartOfSpeech")
                         .HasColumnType("TEXT");
 
@@ -718,12 +747,15 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<Guid?>("SyncId")
                         .HasColumnType("TEXT");
 
+                    b.PrimitiveCollection<string>("Tags")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Transcription")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Headword", "Language")
+                    b.HasIndex("OwnerId", "Headword", "Language")
                         .IsUnique();
 
                     b.ToTable("Words");
@@ -1028,6 +1060,12 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .WithMany()
                         .HasForeignKey("ChapterId");
 
+                    b.HasOne("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
                         .WithMany()
                         .HasForeignKey("WordId");
@@ -1059,6 +1097,12 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>
                 {
+                    b.HasOne("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.OwnsOne("VocabularyBuilder.Domain.Samples.ValueObjects.Colour", "Colour", b1 =>
                         {
                             b1.Property<int>("TodoListId")
@@ -1080,6 +1124,15 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.VocabularyList", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.VocabularyListItem", b =>
                 {
                     b.HasOne("VocabularyBuilder.Domain.Samples.Entities.VocabularyList", "List")
@@ -1089,6 +1142,15 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("List");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.Word", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.WordDictionarySource", b =>

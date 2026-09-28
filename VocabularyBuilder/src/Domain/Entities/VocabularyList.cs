@@ -6,8 +6,13 @@ namespace VocabularyBuilder.Domain.Samples.Entities;
 /// Represents a list of vocabulary words/phrases for memorization
 /// (e.g., synonyms for overused words, IELTS phrases, etc.)
 /// </summary>
-public class VocabularyList : BaseAuditableEntity
+public class VocabularyList : BaseAuditableEntity, IOwnedEntity
 {
+    /// <summary>
+    /// The user the list belongs to. Its items belong to the same user.
+    /// </summary>
+    public string OwnerId { get; set; } = string.Empty;
+
     /// <summary>
     /// Title/name of the list
     /// </summary>

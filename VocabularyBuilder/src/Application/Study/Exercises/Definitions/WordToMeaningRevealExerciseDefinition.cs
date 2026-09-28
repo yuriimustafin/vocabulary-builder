@@ -1,4 +1,4 @@
-using VocabularyBuilder.Domain.Enums;
+﻿using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Study.Exercises.Definitions;
 
@@ -23,6 +23,8 @@ public class WordToMeaningRevealExerciseDefinition : SelfGradedExerciseDefinitio
         Answer = material.Meaning,
         Transcription = material.Transcription,
         PartOfSpeech = material.PartOfSpeech,
-        ContextSentence = material.ContextSentence
+        ContextSentence = material.ContextSentence,
+        ContextSentenceTranslation = material.ContextSentenceTranslation,
+        MeaningGloss = material.MeaningGloss
     };
 }

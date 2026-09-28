@@ -1,7 +1,8 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Study.Exercises;
+using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -53,19 +54,52 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
     private readonly IStudyMaterialResolver _resolver;
     private readonly StudyOptions _options;
     private readonly TimeProvider _timeProvider;
+    private readonly ISender _sender;
 
     public EnrichWordStudyContentCommandHandler(
         IApplicationDbContext context,
         IGptClient gptClient,
         IStudyMaterialResolver resolver,
         StudyOptions options,
-        TimeProvider timeProvider)
+        TimeProvider timeProvider,
+        ISender sender)
     {
         _context = context;
         _gptClient = gptClient;
         _resolver = resolver;
         _options = options;
         _timeProvider = timeProvider;
+        _sender = sender;
+    }
+
+    /// <summary>
+    /// Fills the word from the dictionary if it has not been, and re-reads it so the gaps are
+    /// counted against what it now knows.
+    /// </summary>
+    /// <remarks>
+    /// A dictionary that is unreachable or has no entry must not stop a word being studied -
+    /// it simply goes on without an article, which is what happened before this step existed.
+    /// </remarks>
+    private async Task<Word> FillFromDictionary(Word word, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var outcome = await _sender.Send(new FillWordFromDictionaryCommand(word.Id), cancellationToken);
+
+            if (outcome != DictionaryFillOutcome.Filled)
+            {
+                return word;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Could not fill '{word.Headword}' from the dictionary: {ex.Message}");
+            return word;
+        }
+
+        return await _context.Words
+            .Include(w => w.Senses)
+            .FirstOrDefaultAsync(w => w.Id == word.Id, cancellationToken) ?? word;
     }
 
     public async Task<EnrichmentOutcome> Handle(EnrichWordStudyContentCommand request, CancellationToken cancellationToken)
@@ -81,6 +115,12 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
             return EnrichmentOutcome.WordNotFound;
         }
 
+        // Ask the dictionary first, then count what is still missing. A word imported as a
+        // bare headword has no gender until something looks it up, and with no gender a
+        // French noun is studied without its article. Filling it here rather than leaving it
+        // to export also narrows the gaps, so the model is asked for less - sometimes nothing
+        word = await FillFromDictionary(word, cancellationToken);
+
         var content = await _context.WordStudyContents
             .FirstOrDefaultAsync(c => c.WordId == request.WordId, cancellationToken);
 
@@ -88,7 +128,7 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         if (gaps == StudyMaterialGaps.None)
         {
-            return await NothingLeftToDo(content, cancellationToken);
+            return await NothingLeftToDo(word, content, cancellationToken);
         }
 
         if (content is not null && !TryClaim(content, now, out var refusal))
@@ -126,10 +166,36 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
     /// A word whose gaps have since been closed - usually because the dictionary data was
     /// filled in elsewhere - is marked done without spending a call.
     /// </summary>
-    private async Task<EnrichmentOutcome> NothingLeftToDo(WordStudyContent? content, CancellationToken cancellationToken)
+    /// <remarks>
+    /// A word the dictionary could not fill still gets a row, marked Ready. The study queue
+    /// asks for a word only while it has no row or a pending one, so the row is what records
+    /// that the dictionary has been tried - without it a word the dictionary does not carry
+    /// would be looked up again on every session.
+    /// </remarks>
+    private async Task<EnrichmentOutcome> NothingLeftToDo(
+        Word word, WordStudyContent? content, CancellationToken cancellationToken)
     {
         if (content is null)
         {
+            if (word.IsMissingDictionaryData())
+            {
+                _context.WordStudyContents.Add(new WordStudyContent
+                {
+                    WordId = word.Id,
+                    Status = StudyContentStatus.Ready,
+                    PromptVersion = StudyContentPrompt.Version
+                });
+
+                try
+                {
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+                catch (DbUpdateException)
+                {
+                    // Another run recorded the word first, which serves just as well
+                }
+            }
+
             return EnrichmentOutcome.NothingMissing;
         }
 

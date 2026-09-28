@@ -7,8 +7,14 @@ using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 
 namespace VocabularyBuilder.Domain.Samples.Entities;
-public class Word : BaseAuditableEntity
+public class Word : BaseAuditableEntity, IOwnedEntity
 {
+    /// <summary>
+    /// The user whose vocabulary this is. Each user has their own copy of a word, dictionary
+    /// data included, so the same headword can exist once per user.
+    /// </summary>
+    public string OwnerId { get; set; } = string.Empty;
+
     // TODO: Consider change PK from Id to Headword
     // TODO: Consider renaming/using instead Lemma
     public required string Headword { get; set; }
@@ -34,6 +40,19 @@ public class Word : BaseAuditableEntity
     public bool IsPluralOnly { get; set; }
     public IList<Sense>? Senses { get; set; }
     public IList<string>? Examples { get; set; }
+
+    /// <summary>
+    /// Translations of <see cref="Examples"/>, paired by position. See the same field on
+    /// <see cref="Sense"/> for why they are kept apart.
+    /// </summary>
+    public IList<string>? ExampleTranslations { get; set; }
+
+    /// <summary>
+    /// Free-form labels the word was collected under - the lesson, the book, the export it
+    /// came from. Added to rather than replaced: a word met again under a second tag keeps
+    /// the first, so the tags accumulate into a record of where it has been seen.
+    /// </summary>
+    public IList<string>? Tags { get; set; }
     public int? Frequency { get; set; }
     public WordStatus Status { get; set; } = WordStatus.New;
     
@@ -86,6 +105,27 @@ public class Word : BaseAuditableEntity
         Language == Language.French
             ? FrenchArticles.For(Headword, sense.Gender, sense.IsPluralOnly, Transcription)
             : null;
+
+    /// <summary>
+    /// Whether the word is still missing something only a dictionary supplies.
+    /// </summary>
+    /// <remarks>
+    /// Gender is asked about separately from the rest: a word can pick up a definition from
+    /// a model and still have no gender, and without one <see cref="FrenchArticles"/> will
+    /// not guess an article, so the noun is shown bare. Only nouns are considered for it,
+    /// read from the part of speech as the dictionary writes it ("nf", "nm").
+    /// </remarks>
+    public bool IsMissingDictionaryData()
+    {
+        if (string.IsNullOrWhiteSpace(PartOfSpeech) || Senses is null || !Senses.Any())
+        {
+            return true;
+        }
+
+        var isNoun = PartOfSpeech.Trim().StartsWith("n", StringComparison.OrdinalIgnoreCase);
+
+        return Language == Language.French && isNoun && Gender is null;
+    }
 
     public string GetHeadword()
     {
