@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Infrastructure.Ai;
@@ -82,11 +82,18 @@ public class MockGptClient : IGptClient
             return Task.FromResult<string?>(response);
         }
 
-        // If no exact match, try to find by word
+        // If no exact match, try to find by word.
+        //
+        // Matched on the quoted form the prompt writes it in, not as a bare substring: a
+        // recording is keyed by its whole prompt, and "comprendre" contains "prendre", so a
+        // substring match served the wrong word's answer to anything that happened to be a
+        // suffix of another recording. It was silent, and it renamed the word - the lemma in
+        // the answer is what the import stores.
         var word = ExtractWordFromPrompt(prompt);
         if (!string.IsNullOrEmpty(word))
         {
-            var matchingKey = _mockResponses.Keys.FirstOrDefault(k => k.Contains(word.ToLowerInvariant()));
+            var quoted = $"\"{word.ToLowerInvariant()}\"";
+            var matchingKey = _mockResponses.Keys.FirstOrDefault(k => k.Contains(quoted, StringComparison.Ordinal));
             if (matchingKey != null)
             {
                 return Task.FromResult<string?>(_mockResponses[matchingKey]);
@@ -189,19 +196,40 @@ public class MockGptClient : IGptClient
         return match.Success ? match.Groups[1].Value : null;
     }
 
+    /// <summary>
+    /// The answer for a French word with no recorded response.
+    /// </summary>
+    /// <remarks>
+    /// Has to match the schema <c>GptFrenchParser</c> actually deserialises - lemma, ipa,
+    /// gender and nested senses. It once carried an older, flatter shape, which the parser
+    /// read as a word with no gender and no senses at all. Nothing failed: the GPT parser was
+    /// only the fallback then, and the recorded WordReference pages answered first. The moment
+    /// GPT became the default source that silence would have turned into every mocked French
+    /// word arriving empty. <c>MockGptFixtureTests</c> now holds the recorded files to this
+    /// schema; this one is here beside them.
+    ///
+    /// A gender is given because the word is declared a noun, and French nouns need one for
+    /// an article to be derived. The gloss is null: one sense has nothing to tell apart.
+    /// </remarks>
     private string GetDefaultResponse(string word)
     {
-        // Return a default JSON response structure
         return $$"""
         {
-          "word": "{{word}}",
+          "lemma": "{{word}}",
+          "ipa": null,
           "partOfSpeech": "noun",
-          "translation": "translation for {{word}}",
-          "definition": "Definition not available in mock data",
-          "examples": [
+          "gender": "masculine",
+          "pluralOnly": false,
+          "senses": [
             {
-              "french": "Example sentence in French",
-              "english": "Example sentence in English"
+              "definition": "a mock definition of {{word}}",
+              "gloss": null,
+              "examples": [
+                {
+                  "french": "Une phrase avec {{word}}.",
+                  "english": "A sentence with {{word}}."
+                }
+              ]
             }
           ]
         }

@@ -1,4 +1,4 @@
-﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -88,13 +88,17 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
         if (uncachedWords.Any())
         {
             Console.WriteLine($"Fetching {uncachedWords.Count} {request.Language} words from {request.SourceType} dictionary");
-            var fetchedResults = (await parser.GetWordsWithSource(uncachedWords)).ToList();
+            // Tagged with the parser that produced each one, because the fallback's results
+            // are mixed in below and have to be cached under their own source
+            var fetchedResults = (await parser.GetWordsWithSource(uncachedWords))
+                .Select(result => (Result: result, Source: parser.SourceType))
+                .ToList();
 
             // Anything the dictionary had no entry for gets a second chance
             // against the language's fallback, if it has one
             var missed = uncachedWords
-                .Where(word => !fetchedResults.Any(result =>
-                    result.SearchedTerm.Equals(word.Trim(), StringComparison.OrdinalIgnoreCase)))
+                .Where(word => !fetchedResults.Any(fetched =>
+                    fetched.Result.SearchedTerm.Equals(word.Trim(), StringComparison.OrdinalIgnoreCase)))
                 .ToList();
 
             if (missed.Any())
@@ -102,14 +106,13 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
                 fetchedResults.AddRange(await FetchFromFallback(missed, request, parser));
             }
             
-            foreach (var parseResult in fetchedResults)
+            foreach (var (parseResult, sourceType) in fetchedResults)
             {
-                // A fallback result must be cached under the source that
-                // actually produced it, not the one that was asked for
-                var sourceType = parseResult.SourceUrl.StartsWith("gpt://", StringComparison.OrdinalIgnoreCase)
-                    ? DictionarySourceType.Gpt
-                    : request.SourceType;
-
+                // A fallback result is cached under the source that actually produced it,
+                // not the one that was asked for. Read from the parser rather than sniffed
+                // out of the URL: a "gpt://" prefix only identified the one source that
+                // happened to be the fallback, so the day the pair was inverted a
+                // WordReference result would have been filed as a GPT one.
                 var dictionarySources = new List<WordDictionarySource>
                 {
                     new()
@@ -147,10 +150,15 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
 
     /// <summary>
     /// Retry the words a dictionary had no entry for against the language's
-    /// fallback. French falls back from WordReference to GPT, which can answer
-    /// for words WordReference does not carry.
+    /// fallback. French falls back from GPT to WordReference.
     /// </summary>
-    private async Task<IEnumerable<WordParseResult>> FetchFromFallback(
+    /// <remarks>
+    /// That pair used to be the other way round. WordReference blocks the deployed host with
+    /// a 418, so it answered for nothing in production; GPT leads now and WordReference is
+    /// kept as the second try rather than removed, for the environments where it does work.
+    /// In practice the model answers for almost everything, so this rarely runs.
+    /// </remarks>
+    private async Task<IEnumerable<(WordParseResult Result, DictionarySourceType Source)>> FetchFromFallback(
         List<string> missedWords,
         LookupWordsFromDictionaryQuery request,
         IWordReferenceParser usedParser)
@@ -159,7 +167,7 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
 
         if (fallbackSourceType == null)
         {
-            return Array.Empty<WordParseResult>();
+            return Array.Empty<(WordParseResult, DictionarySourceType)>();
         }
 
         var fallbackParser = _parserFactory.GetParser(request.Language, fallbackSourceType.Value);
@@ -167,20 +175,22 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
         // Nothing to gain from asking the same parser twice
         if (ReferenceEquals(fallbackParser, usedParser) || fallbackParser.SourceType == usedParser.SourceType)
         {
-            return Array.Empty<WordParseResult>();
+            return Array.Empty<(WordParseResult, DictionarySourceType)>();
         }
 
         Console.WriteLine(
             $"Retrying {missedWords.Count} {request.Language} words against {fallbackParser.SourceType}");
 
-        return await fallbackParser.GetWordsWithSource(missedWords);
+        var results = await fallbackParser.GetWordsWithSource(missedWords);
+
+        return results.Select(result => (result, fallbackParser.SourceType));
     }
 
     private static DictionarySourceType? GetFallbackSourceType(Language language)
     {
         return language switch
         {
-            Language.French => DictionarySourceType.Gpt,
+            Language.French => DictionarySourceType.WordReference,
             _ => null
         };
     }

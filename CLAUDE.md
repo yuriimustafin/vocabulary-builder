@@ -376,12 +376,25 @@ from gender and pronunciation by `Domain/Helpers/FrenchArticles`, which also han
 and the aspirated h — dictionaries mark the latter with `U+02C8` at the start of the
 transcription, so `hache` (`ˈaʃ`) takes *la* while `homme` takes *l'*.
 
-`WordReference` is the French dictionary, with GPT as a fallback for words it does not carry
-(`DictionaryDefaults`, and `LookupWordsFromDictionary`). Conjugations come from a second
-WordReference page cached under its own source type.
+**GPT is the French dictionary, and WordReference is the fallback.** That pair is the other way
+round from how it was built, for the reason below. `DictionaryDefaults.GetDefaultSourceType`
+picks the primary and `LookupWordsFromDictionary.GetFallbackSourceType` the second try;
+inverting them again is those two lines. WordReference is kept, not removed - its parser,
+recorded pages and conjugation support are untouched, a caller can still name it explicitly
+through `sourceType`, and where it is reachable it reads better than the model. In practice the
+model answers for almost everything, so the fallback rarely runs.
 
-**WordReference blocks the VPS.** Every request from the deployed host comes back `418`, so
-every word falls through to GPT:
+Conjugations come from a second WordReference page cached under its own source type, and are
+therefore unavailable wherever WordReference is.
+
+A result is cached under **the source that produced it**, read from the parser rather than
+sniffed out of the URL. It used to test the URL for a `gpt://` prefix, which only identified the
+one source that happened to be the fallback - so inverting the pair would have filed
+WordReference results as GPT ones.
+
+**Why: WordReference blocks the VPS.** Every request from the deployed host comes back `418`, so
+before the switch every word fell through to GPT anyway, after waiting for WordReference to
+refuse it:
 
 ```
 WordReference returned 418 for https://www.wordreference.com/fren/manuel
@@ -396,15 +409,45 @@ with their translations as well.
 
 What is lost:
 
-- **`Sense.Gloss`**, the French sense indicator. `GptFrenchParser` does not produce one, so the
-  🇫🇷 line that `study/BilingualText.js` draws never appears on a production card. In the
-  database behind this note: 54 French senses, **0 with a gloss**, all 54 with example
-  translations.
-- **Conjugation tables**, which are a second WordReference page and so equally blocked.
-- **`ReparseCachedSensesCommand`** has nothing useful to re-read: every cached page is a GPT
-  response, not a WordReference one. All 36 in that database are `SourceType = 3`.
-- **Cost**, since every French word is now a model call rather than a page fetch. That is what
-  the `Long Running Request` warnings on `FillWordFromDictionaryCommand` are.
+- **Conjugation tables**, a second WordReference page and so equally blocked. This is the one
+  gap still open; a bundled dataset, in the shape of the Lexique import, is the honest fix
+  rather than asking a model one verb at a time.
+- **Cost**, since every French word is a model call rather than a page fetch. That is what the
+  `Long Running Request` warnings on `FillWordFromDictionaryCommand` are.
+
+`Sense.Gloss` was the other gap and is now closed: `GptFrenchParser` asks for the French sense
+indicator and normalises it exactly as the WordReference parser normalises its own, so the 🇫🇷
+line that `study/BilingualText.js` draws appears whichever source answered.
+
+**Words collected before that cannot be backfilled by `reparse-cached`.** That command re-reads
+the page already stored against a word, and for a GPT word the stored page *is* the JSON the
+model returned - recorded before the prompt asked for a gloss, so there is no gloss in it to
+find. Re-parsing only recovers what the stored page already contains, which is why it works for
+a WordReference page the parser has learnt to read better and not here. Those words need a fresh
+lookup, and `FillWordFromDictionaryCommand` will not make one for a word that already has data:
+it answers `AlreadyFilled`. The database behind this note is in that state - 54 French senses, 0
+with a gloss.
+
+Two e2e tests in `french-words.spec.js` therefore **name WordReference explicitly** through the
+import endpoint's `sourceType`, because they are about what only it gives: the sense list that
+puts both genders of `livre` on one headword, and the conjugation tables. Everything else in that
+spec goes through the default. A test that needs a particular source should say so rather than
+rely on which one happens to be first.
+
+The recorded GPT responses live in `src/Web/MockData/gpt` and are keyed **by their prompt**.
+Two traps, both of which bit while GPT was being made the default:
+
+- A recording whose prompt does not quote its own word can never be found, and the client
+  answers from a generic stand-in instead - a masculine noun with no IPA. Silent, and it looks
+  like the parser's fault.
+- The word was looked up as a bare substring, so `prendre` was served `comprendre.json` - and
+  since the import stores the `lemma` from the answer, the word was silently **renamed**. It is
+  matched on the quoted form now.
+
+`MockGptFixtureTests` holds every recording to the schema the parser reads, to its own word, and
+to giving each noun a gender. All ten had quietly drifted to an older, flatter shape that the
+parser read as a word with no gender and no senses; nothing failed, because GPT was only the
+fallback then and the recorded WordReference pages answered first.
 
 Grepping the log for `418` is the quickest way to tell which source a deployment is actually
 running on, and `select SourceType, count(*) from WordDictionarySources group by SourceType`

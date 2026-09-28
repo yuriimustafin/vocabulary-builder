@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -32,6 +32,8 @@ Return JSON in this exact format:
   ""senses"": [
     {
       ""definition"": ""English translation/definition"",
+      ""gloss"": ""which sense this is, said in French - a synonym or short phrase, no parentheses, null when there is nothing to distinguish"",
+      ""gender"": ""this sense's gender when it differs from the word's, otherwise null"",
       ""examples"": [
         {
           ""french"": ""French example sentence"",
@@ -42,7 +44,21 @@ Return JSON in this exact format:
   ]
 }
 
-Include the most common 1-3 senses. For each sense, provide 1-2 example sentences in French with English translations.";
+Include the most common 1-3 senses. For each sense, provide 1-2 example sentences in French with English translations.
+
+Mark an aspirated h by starting the IPA with U+02C8, the way a dictionary does: ""hache"" is
+""ˈaʃ"" and takes ""la"", where ""homme"" is ""ɔm"" and takes ""l'"". The article is derived from
+gender and pronunciation, so a missing mark spells the word with the wrong article.
+
+A few nouns take a different article in different senses - ""livre"" is ""le livre"" for a book
+and ""la livre"" for a pound. Give those senses their own gender; leave it null on every sense of
+a word whose gender does not change, which is almost all of them.
+
+The gloss names a sense rather than giving it, the way a French-English dictionary prints a
+short French indication before the translations: for ""prendre"" it is ""saisir"" rather than
+""to take"". Keep it in French, keep it shorter than the definition, and never restate the
+English translation. Return null for it when a word has one sense, or when the senses are
+already told apart by their translations - a gloss that adds nothing is worse than none.";
 
     public GptFrenchParser(IGptClient gptClient)
     {
@@ -154,8 +170,16 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
                 Senses = gptResponse.Senses?.Select(s => new Sense
                 {
                     Definition = s.Definition,
+                    // Normalised the way WordReferenceFrenchParser normalises the gloss it
+                    // reads out of the middle cell, so both sources store the same shape
+                    Gloss = NormalizeGloss(s.Gloss),
                     PartOfSpeech = partOfSpeech,
-                    Gender = gender,
+                    // A sense may carry its own gender, which is how "le livre" (a book) and
+                    // "la livre" (a pound) end up on one headword. Only nouns, and only when
+                    // the model actually said so - otherwise the word's own gender stands.
+                    Gender = partOfSpeech == PartsOfSpeech.Noun
+                        ? ParseGender(s.Gender) ?? gender
+                        : null,
                     IsPluralOnly = isPluralOnly,
                     // Kept apart, as the dictionary parser keeps them: a sentence written
                     // with its own translation trailing after it ends up inside the gap of a
@@ -228,6 +252,25 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
     }
 
     // DTOs for deserializing GPT response
+    /// <summary>
+    /// A gloss is optional, so anything empty becomes null rather than an empty line on a
+    /// card. Parentheses are stripped because a model asked for "saisir" will sometimes
+    /// answer "(saisir)", and the string "null" because it sometimes answers that too.
+    /// </summary>
+    private static string? NormalizeGloss(string? gloss)
+    {
+        if (string.IsNullOrWhiteSpace(gloss))
+        {
+            return null;
+        }
+
+        var trimmed = gloss.Trim().Trim('(', ')', ' ');
+
+        return trimmed.Length == 0 || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase)
+            ? null
+            : trimmed;
+    }
+
     private static GrammaticalGender? ParseGender(string? gender)
     {
         return gender?.Trim().ToLowerInvariant() switch
@@ -263,6 +306,11 @@ Include the most common 1-3 senses. For each sense, provide 1-2 example sentence
     private class GptSense
     {
         public string Definition { get; set; } = string.Empty;
+        public string? Gloss { get; set; }
+
+        /// <summary>Set only where a sense's gender differs from the word's, as in "livre".</summary>
+        public string? Gender { get; set; }
+
         public List<GptExample>? Examples { get; set; }
     }
 

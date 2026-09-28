@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"hache\"",
+  "Response": "{\n  \"lemma\": \"hache\",\n  \"ipa\": \"ˈaʃ\",\n  \"partOfSpeech\": \"noun\",\n  \"gender\": \"feminine\",\n  \"pluralOnly\": false,\n  \"senses\": [\n    {\n      \"definition\": \"axe, hatchet\",\n      \"gloss\": null,\n      \"examples\": [\n        {\n          \"french\": \"Il coupe du bois avec une hache.\",\n          \"english\": \"He chops wood with an axe.\"\n        }\n      ],\n      \"gender\": null\n    }\n  ]\n}",
+  "CreatedAt": "2026-09-27T23:37:12Z"
+}

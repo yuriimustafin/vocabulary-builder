@@ -1,0 +1,5 @@
+{
+  "Prompt": "You are a French-English dictionary assistant. For each French word provided, return a JSON response with linguistic information.\n\nProvide dictionary information for the French word: \"élève\"",
+  "Response": "{\n  \"lemma\": \"élève\",\n  \"ipa\": \"e.lɛv\",\n  \"partOfSpeech\": \"noun\",\n  \"gender\": \"both\",\n  \"pluralOnly\": false,\n  \"senses\": [\n    {\n      \"definition\": \"pupil, student\",\n      \"gloss\": null,\n      \"gender\": null,\n      \"examples\": [\n        {\n          \"french\": \"L'élève écoute.\",\n          \"english\": \"The pupil is listening.\"\n        }\n      ]\n    }\n  ]\n}",
+  "CreatedAt": "2026-09-27T23:51:16Z"
+}
