@@ -2163,13 +2163,17 @@ export class WordsClient {
         return Promise.resolve<UpdateWordFrequenciesResult>(null as any);
     }
 
-    postApiWordsFillDictionary(lang: string, limit: number | null | undefined): Promise<FillMissingDictionaryDataResult> {
+    postApiWordsFillDictionary(lang: string, limit: number | null | undefined, force: boolean | undefined): Promise<FillMissingDictionaryDataResult> {
         let url_ = this.baseUrl + "/api/{lang}/words/fill-dictionary?";
         if (lang === undefined || lang === null)
             throw new Error("The parameter 'lang' must be defined.");
         url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
         if (limit !== undefined && limit !== null)
             url_ += "limit=" + encodeURIComponent("" + limit) + "&";
+        if (force === null)
+            throw new Error("The parameter 'force' cannot be null.");
+        else if (force !== undefined)
+            url_ += "force=" + encodeURIComponent("" + force) + "&";
         url_ = url_.replace(/[?&]$/, "");
 
         let options_: RequestInit = {

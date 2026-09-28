@@ -1,4 +1,4 @@
-﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Constants;
 using VocabularyBuilder.Infrastructure.Data;
 using VocabularyBuilder.Infrastructure.Data.Interceptors;
@@ -99,6 +99,7 @@ public static class DependencyInjection
         // WordReference is the French dictionary; GPT stays registered as a
         // fallback for when it has no entry
         services.Configure<WordReferenceOptions>(configuration.GetSection(WordReferenceOptions.SectionName));
+        services.Configure<GptDictionaryOptions>(configuration.GetSection(GptDictionaryOptions.SectionName));
 
         if (useWordReferenceMock)
         {

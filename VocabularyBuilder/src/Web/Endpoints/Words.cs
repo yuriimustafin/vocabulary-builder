@@ -1,4 +1,4 @@
-﻿using VocabularyBuilder.Application.Common.Models;
+using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Application.Study.Commands;
 using VocabularyBuilder.Application.Words.Queries;
@@ -103,10 +103,15 @@ public class Words : EndpointGroupBase
     /// vocabulary gain their gender - and with it their article - without waiting to come
     /// round in a study session.
     /// </summary>
+    /// <param name="force">
+    /// Look up words that already have dictionary data too, ignoring their cached pages, which
+    /// is how words collected earlier pick up something the parser has newly learnt to read.
+    /// One request per word - pass a limit and work through a collection in batches.
+    /// </param>
     public async Task<FillMissingDictionaryDataResult> FillMissingDictionaryData(
-        ISender sender, string lang, int? limit = null)
+        ISender sender, string lang, int? limit = null, bool force = false)
     {
-        return await sender.Send(new FillMissingDictionaryDataCommand(ParseLanguage(lang), limit));
+        return await sender.Send(new FillMissingDictionaryDataCommand(ParseLanguage(lang), limit, force));
     }
 
     /// <summary>

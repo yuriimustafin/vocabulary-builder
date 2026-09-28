@@ -1950,6 +1950,15 @@
               "nullable": true
             },
             "x-position": 2
+          },
+          {
+            "name": "force",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "x-position": 3
           }
         ],
         "responses": {

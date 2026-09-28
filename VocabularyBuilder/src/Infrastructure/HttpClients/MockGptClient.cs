@@ -3,6 +3,8 @@ using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Infrastructure.Ai;
 
+using VocabularyBuilder.Infrastructure.Parsers;
+
 namespace VocabularyBuilder.Infrastructure.HttpClients;
 
 /// <summary>
@@ -17,13 +19,23 @@ public class MockGptClient : IGptClient
     private const string FailureTriggerPrefix = "zzfail";
 
     private readonly Dictionary<string, string> _mockResponses;
+
+    /// <summary>
+    /// Conjugation recordings, kept in their own folder and so out of the dictionary lookup.
+    /// A conjugation prompt quotes the same word as the dictionary prompt for it, so sharing
+    /// one folder would let either answer serve the other request.
+    /// </summary>
+    private readonly Dictionary<string, string> _conjugationResponses;
+
     private readonly string _mockDataPath;
 
     public MockGptClient(string? mockDataPath = null)
     {
         _mockDataPath = mockDataPath ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MockData", "gpt");
         _mockResponses = new Dictionary<string, string>();
+        _conjugationResponses = new Dictionary<string, string>();
         LoadMockResponses();
+        LoadConjugationResponses();
     }
 
     private void LoadMockResponses()
@@ -75,11 +87,27 @@ public class MockGptClient : IGptClient
             return Task.FromResult<string?>(LemmaResponse(prompt));
         }
 
+        // Before the recorded-dictionary lookup on purpose: a conjugation prompt names the same
+        // word, so the lookup below would answer it with that word's dictionary entry.
+        if (prompt.Contains(GptFrenchParser.ConjugationMarker, StringComparison.Ordinal))
+        {
+            return Task.FromResult(ConjugationResponse(prompt));
+        }
+
         var key = GetPromptKey(prompt);
+        var word = ExtractWordFromPrompt(prompt);
 
         if (_mockResponses.TryGetValue(key, out var response))
         {
             return Task.FromResult<string?>(response);
+        }
+
+        // A word named to fail is declined outright, which is the only way to reach the
+        // language's fallback source from a test: the model answers for everything otherwise.
+        if (word is not null && word.StartsWith(FailureTriggerPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            Console.WriteLine($"Declining the French word: {word}");
+            return Task.FromResult<string?>(null);
         }
 
         // If no exact match, try to find by word.
@@ -89,7 +117,6 @@ public class MockGptClient : IGptClient
         // substring match served the wrong word's answer to anything that happened to be a
         // suffix of another recording. It was silent, and it renamed the word - the lemma in
         // the answer is what the import stores.
-        var word = ExtractWordFromPrompt(prompt);
         if (!string.IsNullOrEmpty(word))
         {
             var quoted = $"\"{word.ToLowerInvariant()}\"";
@@ -194,6 +221,61 @@ public class MockGptClient : IGptClient
         // Try to extract the word being queried from the prompt
         var match = System.Text.RegularExpressions.Regex.Match(prompt, @"word:\s*""([^""]+)""");
         return match.Success ? match.Groups[1].Value : null;
+    }
+
+    /// <summary>
+    /// A recorded conjugation, or nothing.
+    /// </summary>
+    /// <remarks>
+    /// Nothing rather than a synthesised table: the moods and tenses of a French verb are not
+    /// something to invent plausibly, and a made-up table would let a test assert a conjugation
+    /// that no real answer would produce. A verb without a recording simply has no forms, which
+    /// is what the parser is written to survive.
+    /// </remarks>
+    private string? ConjugationResponse(string prompt)
+    {
+        var verb = ExtractVerbFromPrompt(prompt);
+
+        if (verb is not null && _conjugationResponses.TryGetValue(verb.ToLowerInvariant(), out var recorded))
+        {
+            return recorded;
+        }
+
+        Console.WriteLine($"No recorded conjugation for: {verb ?? "unknown"}");
+        return null;
+    }
+
+    private static string? ExtractVerbFromPrompt(string prompt)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(prompt, @"verb:\s*""([^""]+)""");
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    /// <summary>
+    /// Loads the conjugation recordings, keyed by file name rather than by prompt - there is one
+    /// per verb and the prompt is fixed apart from the verb, so the name is the key.
+    /// </summary>
+    private void LoadConjugationResponses()
+    {
+        var path = Path.Combine(_mockDataPath, "conjugation");
+
+        if (!Directory.Exists(path))
+        {
+            return;
+        }
+
+        foreach (var file in Directory.GetFiles(path, "*.json"))
+        {
+            try
+            {
+                _conjugationResponses[Path.GetFileNameWithoutExtension(file).ToLowerInvariant()] =
+                    File.ReadAllText(file);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error loading mock conjugation from {file}: {ex.Message}");
+            }
+        }
     }
 
     /// <summary>

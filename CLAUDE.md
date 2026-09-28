@@ -164,6 +164,7 @@ read it per request.
 | `ConnectionStrings:DefaultConnection` | `GetConnectionString` at registration | no |
 | `OpenAI:ApiKey` | indexer at registration | no |
 | `OpenAI:UseMockMode` | `GetValue` at registration | no |
+| `OpenAI:IncludeConjugations` | `Configure<GptDictionaryOptions>` | yes, through `IOptions` |
 | `Oxford:UseMockMode` | `GetValue` at registration | no |
 | `WordReference:UseMockMode` | `GetValue` at registration | no |
 | `UseInMemoryDatabase` | `GetValue` at registration | no |
@@ -407,26 +408,50 @@ knowing. What still works: GPT is asked for gender and IPA and supplies both, so
 keep their gender and `FrenchArticles` still derives the article. Examples come back paired
 with their translations as well.
 
-What is lost:
+What is lost is **cost**: every French word is a model call rather than a page fetch, and a verb
+is two. That is what the `Long Running Request` warnings on `FillWordFromDictionaryCommand` are.
 
-- **Conjugation tables**, a second WordReference page and so equally blocked. This is the one
-  gap still open; a bundled dataset, in the shape of the Lexique import, is the honest fix
-  rather than asking a model one verb at a time.
-- **Cost**, since every French word is a model call rather than a page fetch. That is what the
-  `Long Running Request` warnings on `FillWordFromDictionaryCommand` are.
+Everything else WordReference gave is now asked of the model:
 
-`Sense.Gloss` was the other gap and is now closed: `GptFrenchParser` asks for the French sense
-indicator and normalises it exactly as the WordReference parser normalises its own, so the 🇫🇷
-line that `study/BilingualText.js` draws appears whichever source answered.
+| | How |
+| --- | --- |
+| `Sense.Gloss` | Asked for as the French sense indicator, normalised exactly as the WordReference parser normalises its own, so the 🇫🇷 line `study/BilingualText.js` draws appears whichever source answered |
+| Per-sense gender | Asked for only where it differs from the word's, which is what puts *le livre* (a book) and *la livre* (a pound) on one headword |
+| The aspirated h | The prompt asks for `U+02C8` at the front of the IPA, the convention `FrenchArticles` reads. A model does not follow it unasked, and without it `hache` is spelled *l'hache* |
+| Conjugations | A second call, for verbs only, behind `OpenAI:IncludeConjugations`. Cached under `GptConjugation`, its own source type, because a word caches one document per type |
 
-**Words collected before that cannot be backfilled by `reparse-cached`.** That command re-reads
-the page already stored against a word, and for a GPT word the stored page *is* the JSON the
-model returned - recorded before the prompt asked for a gloss, so there is no gloss in it to
-find. Re-parsing only recovers what the stored page already contains, which is why it works for
-a WordReference page the parser has learnt to read better and not here. Those words need a fresh
-lookup, and `FillWordFromDictionaryCommand` will not make one for a word that already has data:
-it answers `AlreadyFilled`. The database behind this note is in that state - 54 French senses, 0
-with a gloss.
+Measured against the real model: `discuter` came back with glosses (*échanger des idées*,
+*débat*) and **89 forms** across all six moods, rendering in the word details exactly as a
+WordReference table does. An adjective costs one call and gets no forms.
+
+`MockGptClient` answers a conjugation prompt from `MockData/gpt/conjugation/<verb>.json`, keyed
+by file name. It deliberately returns **nothing** for a verb it has no recording of rather than
+inventing a table - the moods and tenses of a French verb are not something to make up
+plausibly, and a synthesised one would let a test assert a conjugation no real answer produces.
+
+### Backfilling a field onto words collected before it
+
+**`reparse-cached` cannot do it.** That command re-reads the page already stored against a word,
+and for a GPT word the stored page *is* the JSON the model returned - recorded before the prompt
+asked for a gloss, so there is no gloss in it to find. Re-parsing only recovers what the stored
+page already contains, which is why it works for a WordReference page the parser has learnt to
+read better and not here. Demonstrated: re-parsing `chanter` left both its senses glossless.
+
+A fresh lookup is the only way, and `force` is what asks for one -
+`POST /api/{lang}/words/fill-dictionary?force=true&limit=N`. It ignores both the `AlreadyFilled`
+gate and the cached page, and **replaces** the word's senses instead of merging. Merging was
+tried first and is wrong: `UpsertWord` keeps any sense whose definition it has not seen, and on
+a re-lookup that is nearly all of them, so `aujourd'hui` came back with `today, on this day`
+sitting beside a newly added `today`.
+
+**Do not run it blanket over a collection that has WordReference data.** Replacing means the
+current dictionary's answer is the one kept, and the current dictionary is the model. Forced on
+`aujourd'hui`, which had two WordReference senses with good glosses (*ce jour*, *de nos jours*),
+the model answered with one sense and no gloss at all - and that one sense is what the word now
+has. It is the right tool for a word whose senses came from the model already, and a bad trade
+for a word whose senses came from somewhere richer. `select SourceType from
+WordDictionarySources where WordId = ?` says which a word is, and `limit` is what keeps a
+mistake small.
 
 Two e2e tests in `french-words.spec.js` therefore **name WordReference explicitly** through the
 import endpoint's `sourceType`, because they are about what only it gives: the sense list that

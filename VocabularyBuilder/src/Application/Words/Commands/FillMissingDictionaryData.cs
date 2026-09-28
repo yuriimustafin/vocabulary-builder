@@ -26,11 +26,24 @@ public class FillMissingDictionaryDataResult
 /// This is the sweep for them, and for a vocabulary imported before anything filled words in
 /// at all.
 ///
+/// Pass Force to look up words that already have data, which is what backfills something the
+/// parser has newly learnt to read.
+///
 /// One word at a time on purpose. Each is a dictionary request, the parser paces itself
 /// between them, and a word the dictionary does not have is counted and stepped over rather
 /// than stopping the rest.
 /// </remarks>
-public record FillMissingDictionaryDataCommand(Language Language, int? Limit = null)
+/// <param name="Force">
+/// Look every word up again, including the ones that already have dictionary data, ignoring
+/// their cached pages. This is how a field the parser has only just started asking for reaches
+/// words collected before it - re-parsing a stored page cannot find a gloss that was never
+/// recorded in it.
+///
+/// It is a dictionary request per word, and where that dictionary is a model it is a bill per
+/// word, so pass <paramref name="Limit"/> and work through a collection in batches rather than
+/// forcing several hundred in one call.
+/// </param>
+public record FillMissingDictionaryDataCommand(Language Language, int? Limit = null, bool Force = false)
     : IRequest<FillMissingDictionaryDataResult>;
 
 public class FillMissingDictionaryDataCommandHandler
@@ -57,7 +70,7 @@ public class FillMissingDictionaryDataCommandHandler
             .ToListAsync(cancellationToken);
 
         var waiting = words
-            .Where(w => w.IsMissingDictionaryData())
+            .Where(w => request.Force || w.IsMissingDictionaryData())
             .OrderBy(w => w.Id)
             .Take(request.Limit ?? int.MaxValue)
             .ToList();
@@ -66,7 +79,8 @@ public class FillMissingDictionaryDataCommandHandler
 
         foreach (var word in waiting)
         {
-            var outcome = await _sender.Send(new FillWordFromDictionaryCommand(word.Id), cancellationToken);
+            var outcome = await _sender.Send(
+                new FillWordFromDictionaryCommand(word.Id, request.Force), cancellationToken);
 
             switch (outcome)
             {

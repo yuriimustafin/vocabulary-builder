@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Options;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Enums;
@@ -16,7 +17,16 @@ namespace VocabularyBuilder.Infrastructure.Parsers;
 /// </summary>
 public class GptFrenchParser : IWordReferenceParser
 {
+    /// <summary>
+    /// Marks the conjugation prompt. A recorded-response mock keys on the prompt and finds a
+    /// word by the quoted form inside it, so without something to tell the two prompts apart a
+    /// conjugation request for "prendre" is answered with prendre's dictionary entry - which
+    /// the conjugation reader can make nothing of.
+    /// </summary>
+    public const string ConjugationMarker = "CONJUGATION_V1";
+
     private readonly IGptClient _gptClient;
+    private readonly GptDictionaryOptions _options;
 
     public DictionarySourceType SourceType => DictionarySourceType.Gpt;
     
@@ -60,9 +70,30 @@ short French indication before the translations: for ""prendre"" it is ""saisir"
 English translation. Return null for it when a word has one sense, or when the senses are
 already told apart by their translations - a gloss that adds nothing is worse than none.";
 
-    public GptFrenchParser(IGptClient gptClient)
+    private const string ConjugationPrompt = @"You are a French conjugation reference. " + ConjugationMarker + @"
+
+Return the full conjugation of the verb given, as JSON in this exact format:
+{
+  ""moods"": [
+    {
+      ""mood"": ""indicatif"",
+      ""tenses"": [
+        { ""tense"": ""présent"", ""forms"": [ { ""person"": ""je"", ""form"": ""prends"" } ] }
+      ]
+    }
+  ]
+}
+
+Use the French names a conjugation table prints, in lower case: participe, indicatif, formes
+composées, subjonctif, conditionnel, impératif. Put the participles under the mood
+""participe"", with a tense (""présent"", ""passé"") and a null person. Give every person of
+every tense, writing the subject as a table does - ""je"", ""tu"", ""il, elle, on"", ""nous"",
+""vous"", ""ils, elles"" - and leave the person null wherever a form has no subject.";
+
+    public GptFrenchParser(IGptClient gptClient, IOptions<GptDictionaryOptions> options)
     {
         _gptClient = gptClient;
+        _options = options.Value;
     }
 
     public async Task<IEnumerable<Word>> GetWords(IEnumerable<string> searchedWords)
@@ -91,13 +122,17 @@ already told apart by their translations - a gloss that adds nothing is worse th
                 var word = ParseGptResponse(response, searchedWord);
                 if (word != null)
                 {
-                    results.Add(new WordParseResult
+                    var parsed = new WordParseResult
                     {
                         Word = word,
                         SearchedTerm = searchedWord,
                         SourceHtml = response, // Store the raw GPT response as "HTML"
                         SourceUrl = $"gpt://french/{searchedWord}"
-                    });
+                    };
+
+                    await AddConjugation(word, parsed);
+
+                    results.Add(parsed);
                     Console.WriteLine($"Successfully parsed French word: {word.Headword}");
                 }
             }
@@ -109,6 +144,110 @@ already told apart by their translations - a gloss that adds nothing is worse th
 
         return results;
     }
+
+    /// <summary>
+    /// Asks for a verb's conjugation, as a second call. Only verbs, so nothing else costs
+    /// anything, and a failure loses the table rather than the entry it belongs to - the same
+    /// rule the WordReference parser follows.
+    /// </summary>
+    private async Task AddConjugation(Word word, WordParseResult result)
+    {
+        if (!_options.IncludeConjugations || ParsePartOfSpeech(word.PartOfSpeech) != PartsOfSpeech.Verb)
+        {
+            return;
+        }
+
+        try
+        {
+            var prompt = $"{ConjugationPrompt}\n\nConjugate the French verb: \"{word.Headword}\"";
+            var response = await _gptClient.SendMessageAsync(prompt);
+
+            if (string.IsNullOrWhiteSpace(response))
+            {
+                Console.WriteLine($"No conjugation from GPT for verb: {word.Headword}");
+                return;
+            }
+
+            var forms = ReadConjugation(response);
+
+            if (forms.Count == 0)
+            {
+                Console.WriteLine($"No usable conjugation forms for verb: {word.Headword}");
+                return;
+            }
+
+            result.ConjugationHtml = response;
+            result.ConjugationUrl = $"gpt://french/conjugation/{word.Headword}";
+            result.Forms = forms;
+
+            Console.WriteLine($"Parsed {forms.Count} forms for {word.Headword}");
+        }
+        catch (Exception ex)
+        {
+            // A missing conjugation must not lose the entry itself
+            Console.WriteLine($"Error reading conjugation for '{word.Headword}': {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// One row per cell, which is what <see cref="WordForm"/> expects: a form that recurs
+    /// across persons is stored each time, so the table can be shown as it was given.
+    /// </summary>
+    public static List<WordForm> ReadConjugation(string response)
+    {
+        var forms = new List<WordForm>();
+        var json = ExtractJsonFromResponse(response);
+
+        if (json is null)
+        {
+            return forms;
+        }
+
+        GptConjugationResponse? conjugation;
+
+        try
+        {
+            conjugation = JsonSerializer.Deserialize<GptConjugationResponse>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            });
+        }
+        catch (JsonException ex)
+        {
+            // An answer that is not the JSON asked for costs the table, not the entry - the
+            // same way the dictionary reader treats a response it cannot deserialise
+            Console.WriteLine($"Could not read a conjugation table: {ex.Message}");
+            return forms;
+        }
+
+        foreach (var mood in conjugation?.Moods ?? new List<GptMood>())
+        {
+            foreach (var tense in mood.Tenses ?? new List<GptTense>())
+            {
+                foreach (var entry in tense.Forms ?? new List<GptForm>())
+                {
+                    if (string.IsNullOrWhiteSpace(entry.Form))
+                    {
+                        continue;
+                    }
+
+                    forms.Add(new WordForm
+                    {
+                        Form = entry.Form.Trim(),
+                        Language = Language.French,
+                        Mood = Blank(mood.Mood),
+                        Tense = Blank(tense.Tense),
+                        Person = Blank(entry.Person)
+                    });
+                }
+            }
+        }
+
+        return forms;
+    }
+
+    private static string? Blank(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
     public Task<Word?> GetWordFromCachedHtml(string cachedHtml)
     {
@@ -228,7 +367,7 @@ already told apart by their translations - a gloss that adds nothing is worse th
         };
     }
 
-    private string ExtractJsonFromResponse(string response)
+    private static string ExtractJsonFromResponse(string response)
     {
         // Handle markdown code blocks
         var jsonBlockMatch = System.Text.RegularExpressions.Regex.Match(response, @"```(?:json)?\s*(\{.*?\})\s*```", 
@@ -318,5 +457,28 @@ already told apart by their translations - a gloss that adds nothing is worse th
     {
         public string French { get; set; } = string.Empty;
         public string English { get; set; } = string.Empty;
+    }
+
+    private class GptConjugationResponse
+    {
+        public List<GptMood>? Moods { get; set; }
+    }
+
+    private class GptMood
+    {
+        public string? Mood { get; set; }
+        public List<GptTense>? Tenses { get; set; }
+    }
+
+    private class GptTense
+    {
+        public string? Tense { get; set; }
+        public List<GptForm>? Forms { get; set; }
+    }
+
+    private class GptForm
+    {
+        public string? Person { get; set; }
+        public string? Form { get; set; }
     }
 }

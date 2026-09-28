@@ -1,4 +1,4 @@
-﻿namespace VocabularyBuilder.Domain.Enums;
+namespace VocabularyBuilder.Domain.Enums;
 
 /// <summary>
 /// Types of dictionary sources used for parsing word definitions
@@ -36,6 +36,15 @@ public enum DictionarySourceType
     /// word, and a word may only cache one document per source type.
     /// </summary>
     WordReferenceConjugation = 5,
+
+    /// <summary>
+    /// Conjugation tables produced by the model, for the same reason
+    /// <see cref="WordReferenceConjugation"/> is separate: a second document for
+    /// one word, and a word caches one document per source type. Held apart from
+    /// the WordReference one so the provenance of a table is not lost.
+    /// </summary>
+    GptConjugation = 6,
+
     
     /// <summary>
     /// Other or custom dictionary source

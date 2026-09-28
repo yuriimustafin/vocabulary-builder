@@ -25,6 +25,17 @@ public record LookupWordsFromDictionaryQuery : IRequest<List<WordLookupResult>>
     public required List<string> Words { get; init; }
     public Language Language { get; init; } = Language.English;
     public DictionarySourceType SourceType { get; init; } = DictionarySourceType.Oxford;
+
+    /// <summary>
+    /// Ask the dictionary again even for a word whose page is already cached.
+    /// </summary>
+    /// <remarks>
+    /// Re-parsing the cached page only ever recovers what that page already says, so it cannot
+    /// pick up a field the parser has newly learnt to ask for - a gloss recorded before the
+    /// prompt requested one is not in the stored response to find. That needs a fresh answer,
+    /// which costs a request, which is why it is off unless asked for.
+    /// </remarks>
+    public bool IgnoreCache { get; init; }
 }
 
 public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWordsFromDictionaryQuery, List<WordLookupResult>>
@@ -49,6 +60,11 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
         // Check for cached HTML before fetching
         foreach (var wordText in request.Words)
         {
+            if (request.IgnoreCache)
+            {
+                break;
+            }
+
             var normalizedWord = wordText.Trim().ToLower();
             var existingSource = await _context.WordDictionarySources
                 .Include(wds => wds.Word)
@@ -123,13 +139,14 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
                     }
                 };
 
-                // The conjugation page is a second document for the same word,
-                // so it is cached under its own source type
+                // The conjugation table is a second document for the same word, so it is
+                // cached under its own source type - and under the one belonging to whichever
+                // source produced it, so a model-written table is not filed as WordReference's
                 if (!string.IsNullOrEmpty(parseResult.ConjugationHtml))
                 {
                     dictionarySources.Add(new WordDictionarySource
                     {
-                        SourceType = DictionarySourceType.WordReferenceConjugation,
+                        SourceType = ConjugationSourceFor(sourceType),
                         SourceHtml = parseResult.ConjugationHtml,
                         SourceUrl = parseResult.ConjugationUrl
                     });
@@ -185,6 +202,21 @@ public class LookupWordsFromDictionaryQueryHandler : IRequestHandler<LookupWords
 
         return results.Select(result => (result, fallbackParser.SourceType));
     }
+
+    /// <summary>
+    /// Where a conjugation table produced by <paramref name="sourceType"/> is cached.
+    /// </summary>
+    /// <remarks>
+    /// A word caches one document per source type, so a table cannot share the entry's own.
+    /// Anything without a conjugation type of its own falls back to WordReference's, which is
+    /// where the only other table comes from.
+    /// </remarks>
+    public static DictionarySourceType ConjugationSourceFor(DictionarySourceType sourceType) =>
+        sourceType switch
+        {
+            DictionarySourceType.Gpt => DictionarySourceType.GptConjugation,
+            _ => DictionarySourceType.WordReferenceConjugation
+        };
 
     private static DictionarySourceType? GetFallbackSourceType(Language language)
     {

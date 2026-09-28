@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.Extensions.Options;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Infrastructure.HttpClients;
 using VocabularyBuilder.Infrastructure.Parsers;
@@ -11,7 +12,13 @@ namespace VocabularyBuilder.Infrastructure.IntegrationTests.Parsers;
 /// </summary>
 public class GptFrenchParserTests
 {
-    private static GptFrenchParser CreateParser() => new(new MockGptClient(FixturePath()));
+    /// <summary>
+    /// Conjugations off: these are about the entry, and asking for a table would be a second
+    /// call per verb for something GptConjugationTests covers.
+    /// </summary>
+    private static GptFrenchParser CreateParser() =>
+        new(new MockGptClient(FixturePath()),
+            Options.Create(new GptDictionaryOptions { IncludeConjugations = false }));
 
     /// <summary>
     /// The recorded responses ship with the Web project, which is where the running app reads
@@ -126,7 +133,10 @@ public class GptFrenchParserTests
           ""senses"": [ {{ ""definition"": ""to take"", ""gloss"": ""{given}"", ""examples"": [] }} ]
         }}");
 
-        var results = await new GptFrenchParser(client).GetWordsWithSource(new[] { "prendre" });
+        var parser = new GptFrenchParser(
+            client, Options.Create(new GptDictionaryOptions { IncludeConjugations = false }));
+
+        var results = await parser.GetWordsWithSource(new[] { "prendre" });
 
         results.Single().Word.Senses!.Single().Gloss.Should().Be(expected);
     }
