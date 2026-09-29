@@ -33,8 +33,8 @@ public class ExerciseLadderTests
             ExerciseType.WordToMeaningReveal,
             ExerciseType.WordToMeaningChoice,
             ExerciseType.MeaningToWordChoice,
-            ExerciseType.ContextToWordRecall,
             ExerciseType.MeaningToWordScramble,
+            ExerciseType.ContextToWordRecall,
             ExerciseType.MeaningToWordRecall);
     }
 
@@ -150,7 +150,7 @@ public class ExerciseLadderTests
     {
         var ladder = Ladder();
 
-        // Fails cloze, then answers the easier rungs correctly on the days after.
+        // Fails the scramble, then answers the easier rungs correctly on the days after.
         var rung = ladder.NextRung(3, ReviewGrade.Again, 1.0);
         ladder.TypeAt(rung).Should().Be(ExerciseType.WordToMeaningChoice);
 
@@ -158,6 +158,6 @@ public class ExerciseLadderTests
         ladder.TypeAt(rung).Should().Be(ExerciseType.MeaningToWordChoice);
 
         rung = ladder.NextRung(rung, ReviewGrade.Good, 1.0);
-        ladder.TypeAt(rung).Should().Be(ExerciseType.ContextToWordRecall);
+        ladder.TypeAt(rung).Should().Be(ExerciseType.MeaningToWordScramble);
     }
 }

@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, cardFor
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, cardFor
 } = require('./helpers/study-helpers');
 
 /**
@@ -57,7 +57,7 @@ test.describe('Long-gap escalation', () => {
 
   test('a word seen on schedule keeps its own rung and its hint', async ({ request }) => {
     await seedCard(request, {
-      headword: 'lg03', rung: 3, state: 2, intervalDays: 10,
+      headword: 'lg03', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 10,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 

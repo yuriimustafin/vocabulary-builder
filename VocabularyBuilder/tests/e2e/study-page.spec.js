@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  seedWords, seedBareWords, seedCard, getCard, isolateWord
+  ExerciseType, rungOf, seedWords, seedBareWords, seedCard, getCard, isolateWord
 } = require('./helpers/study-helpers');
 
 /**
@@ -117,7 +117,7 @@ test.describe('Study page', () => {
   });
 
   test('the whole first day can be worked through in one sitting', async ({ request, page }) => {
-    // Six words is eighteen interactions once each has been met and tested twice, with a
+    // Six words is twenty-four interactions once each has been met and tested three times, with a
     // refetch between batches, so this needs more than the default budget.
     test.setTimeout(120_000);
 
@@ -216,7 +216,8 @@ test.describe('Study page', () => {
   test('the scramble is assembled from tiles', async ({ request, page }) => {
     await seedWords(request, ['abc']);
     await seedCard(request, {
-      headword: 'abc', rung: 4, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+      headword: 'abc', rung: rungOf(ExerciseType.MeaningToWordScramble), state: 2, intervalDays: 3,
+      dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
     await openStudy(page);
@@ -240,7 +241,8 @@ test.describe('Study page', () => {
   test('a cloze hides its hint until it is asked for', async ({ request, page }) => {
     await seedWords(request, ['hintword']);
     await seedCard(request, {
-      headword: 'hintword', rung: 3, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+      headword: 'hintword', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 3,
+      dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
     await openStudy(page);

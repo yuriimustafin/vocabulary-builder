@@ -41,11 +41,18 @@ public class GradeResolver : IGradeResolver
             return ReviewGrade.Hard;
         }
 
+        // Picking from options can never be Easy. A quick click may come from ruling out the
+        // other options or from a vague sense of familiarity, and says nothing about whether
+        // the word could be produced. Easy is what lets a card skip ahead, so it is reserved
+        // for exercises where the learner builds the word.
         if (signals.ElapsedMs <= _options.FastAnswerMs)
         {
-            return ReviewGrade.Easy;
+            return IsRecognition(type) ? ReviewGrade.Good : ReviewGrade.Easy;
         }
 
         return signals.ElapsedMs >= _options.SlowAnswerMs ? ReviewGrade.Hard : ReviewGrade.Good;
     }
+
+    private static bool IsRecognition(ExerciseType type) =>
+        type is ExerciseType.WordToMeaningChoice or ExerciseType.MeaningToWordChoice;
 }

@@ -98,8 +98,8 @@ test.describe('First-day session order', () => {
 
     expect(met).toBe(12, "the day's allowance is met in full");
 
-    // Two learning steps each, so every word is tested twice before it graduates.
-    expect(tested).toBe(met * 2);
+    // Three learning steps each, so every word is tested three times before it graduates.
+    expect(tested).toBe(met * 3);
   });
 
   test('a word is not asked about before it has been met', async ({ request }) => {

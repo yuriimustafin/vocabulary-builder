@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, submitReview, cardFor, isolateWord
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor, isolateWord
 } = require('./helpers/study-helpers');
 
 /**
@@ -83,7 +83,7 @@ test.describe('Answer feedback', () => {
   });
 
   test('a misspelling is marked without blaming another word', async ({ request }) => {
-    const card = await serve(request, 'fb04', 4);
+    const card = await serve(request, 'fb04', rungOf(ExerciseType.MeaningToWordScramble));
 
     const result = await submitReview(request, card, { answer: 'notthisword' });
 

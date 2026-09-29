@@ -33,11 +33,20 @@ public class GradeResolverTests
         var resolver = Resolver();
 
         resolver.Resolve(ExerciseType.WordToMeaningChoice, new AutoGradeSignals(true, 1_500))
-            .Should().Be(ReviewGrade.Easy);
+            .Should().Be(ReviewGrade.Good);
         resolver.Resolve(ExerciseType.WordToMeaningChoice, new AutoGradeSignals(true, 6_000))
             .Should().Be(ReviewGrade.Good);
         resolver.Resolve(ExerciseType.WordToMeaningChoice, new AutoGradeSignals(true, 12_000))
             .Should().Be(ReviewGrade.Hard);
+    }
+
+    [TestCase(ExerciseType.WordToMeaningChoice)]
+    [TestCase(ExerciseType.MeaningToWordChoice)]
+    public void RecognisingAWordIsNeverEasyHoweverFast(ExerciseType type)
+    {
+        // A quick pick from options may be elimination or familiarity, not recall.
+        Resolver().Resolve(type, new AutoGradeSignals(true, 300))
+            .Should().Be(ReviewGrade.Good);
     }
 
     [Test]
@@ -58,8 +67,8 @@ public class GradeResolverTests
     [Test]
     public void ResetsOnlyPenaliseTheExerciseThatCanHaveThem()
     {
-        Resolver().Resolve(ExerciseType.WordToMeaningChoice, new AutoGradeSignals(true, 1_000, Resets: 3))
-            .Should().Be(ReviewGrade.Easy);
+        Resolver().Resolve(ExerciseType.WordToMeaningChoice, new AutoGradeSignals(true, 6_000, Resets: 3))
+            .Should().Be(ReviewGrade.Good);
     }
 
     [Test]

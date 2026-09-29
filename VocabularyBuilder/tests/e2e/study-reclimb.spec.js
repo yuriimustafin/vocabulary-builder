@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, submitReview, cardFor, advanceClock, getCard
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor, advanceClock, getCard
 } = require('./helpers/study-helpers');
 const { advanceToDue } = require('./helpers/study-helpers');
 
@@ -15,6 +15,7 @@ test.describe('Re-climbing after a failure', () => {
   test.describe.configure({ mode: 'serial' });
 
   const words = () => Array.from({ length: 8 }, (_, i) => `rc${String(i).padStart(2, '0')}`);
+  const cloze = rungOf(ExerciseType.ContextToWordRecall);
 
   test.beforeEach(async ({ request }) => {
     await setupCleanDatabase(request);
@@ -23,7 +24,7 @@ test.describe('Re-climbing after a failure', () => {
 
   test('failing cloze drops the word two rungs', async ({ request }) => {
     await seedCard(request, {
-      headword: 'rc00', rung: 3, state: 2, intervalDays: 5,
+      headword: 'rc00', rung: cloze, state: 2, intervalDays: 5,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
@@ -32,12 +33,12 @@ test.describe('Re-climbing after a failure', () => {
 
     await submitReview(request, card, { selfGrade: 1 });
 
-    expect((await getCard(request, 'rc00')).rung).toBe(1);
+    expect((await getCard(request, 'rc00')).rung).toBe(cloze - 2);
   });
 
   test('the word walks back up over the following days', async ({ request }) => {
     await seedCard(request, {
-      headword: 'rc00', rung: 3, state: 2, intervalDays: 5,
+      headword: 'rc00', rung: cloze, state: 2, intervalDays: 5,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
@@ -66,35 +67,37 @@ test.describe('Re-climbing after a failure', () => {
       await submitReview(request, card, answerCorrectly(card));
     }
 
-    expect(seen[0]).toBe(ExerciseType.WordToMeaningChoice);
+    const rungs = seen.map(rungOf);
+
+    expect(rungs[0]).toBe(cloze - 2);
     expect(seen[seen.length - 1]).toBe(ExerciseType.ContextToWordRecall);
 
     // It only ever climbs back, never skips ahead or slips further.
-    for (let i = 1; i < seen.length; i++) {
-      expect(seen[i]).toBeGreaterThanOrEqual(seen[i - 1]);
-      expect(seen[i] - seen[i - 1]).toBeLessThanOrEqual(1);
+    for (let i = 1; i < rungs.length; i++) {
+      expect(rungs[i]).toBeGreaterThanOrEqual(rungs[i - 1]);
+      expect(rungs[i] - rungs[i - 1]).toBeLessThanOrEqual(1);
     }
 
-    expect(seen).toContain(ExerciseType.MeaningToWordChoice);
+    expect(seen).toContain(ExerciseType.MeaningToWordScramble);
   });
 
   test('a correct answer straight after a failure repeats the rung rather than climbing',
     async ({ request }) => {
       await seedCard(request, {
-        headword: 'rc04', rung: 3, state: 2, intervalDays: 5,
+        headword: 'rc04', rung: cloze, state: 2, intervalDays: 5,
         dueInDays: -0.1, lastReviewedDaysAgo: 1
       });
 
       const failed = cardFor(await getQueue(request), 'rc04');
       await submitReview(request, failed, { selfGrade: 1 });
-      expect((await getCard(request, 'rc04')).rung).toBe(1);
+      expect((await getCard(request, 'rc04')).rung).toBe(cloze - 2);
 
       await advanceToDue(request, 'rc04');
       const recovering = cardFor(await getQueue(request), 'rc04');
       await submitReview(request, recovering, answerCorrectly(recovering));
 
       // One success is not yet enough of a record to be made harder again.
-      expect((await getCard(request, 'rc04')).rung).toBe(1);
+      expect((await getCard(request, 'rc04')).rung).toBe(cloze - 2);
     });
 
   test('a word failed at the bottom stays at the bottom', async ({ request }) => {
@@ -111,7 +114,7 @@ test.describe('Re-climbing after a failure', () => {
 
   test('a failure sends the word back through the learning steps', async ({ request }) => {
     await seedCard(request, {
-      headword: 'rc02', rung: 3, state: 2, intervalDays: 20,
+      headword: 'rc02', rung: cloze, state: 2, intervalDays: 20,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
@@ -126,7 +129,7 @@ test.describe('Re-climbing after a failure', () => {
 
   test('a lapse costs the word some ease', async ({ request }) => {
     await seedCard(request, {
-      headword: 'rc03', rung: 3, state: 2, intervalDays: 10,
+      headword: 'rc03', rung: cloze, state: 2, intervalDays: 10,
       easeFactor: 2.5, dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 

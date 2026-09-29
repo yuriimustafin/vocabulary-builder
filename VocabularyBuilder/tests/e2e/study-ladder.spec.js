@@ -1,7 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, submitReview, answerCard, cardFor, advanceClock, getCard
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, answerCard, cardFor, advanceClock,
+  getCard
 } = require('./helpers/study-helpers');
 
 /**
@@ -33,13 +34,13 @@ test.describe('Study ladder', () => {
     expect(after.rung).toBe(1);
   });
 
-  test('the first session shows three different exercise types', async ({ request }) => {
+  test('the first session climbs from recognising the word to assembling it', async ({ request }) => {
     // Enough words for the multiple-choice rungs to have distractors to draw on.
     await seedWords(request, Array.from({ length: 8 }, (_, i) => `lad${String(i).padStart(2, '0')}`));
 
     const seen = [];
 
-    for (let touch = 0; touch < 3; touch++) {
+    for (let touch = 0; touch < 4; touch++) {
       const queue = await getQueue(request);
       const card = cardFor(queue, 'lad00');
       expect(card, `lad00 should be due on touch ${touch + 1}`).not.toBeNull();
@@ -57,14 +58,32 @@ test.describe('Study ladder', () => {
     expect(seen).toEqual([
       ExerciseType.WordToMeaningReveal,
       ExerciseType.WordToMeaningChoice,
-      ExerciseType.MeaningToWordChoice
+      ExerciseType.MeaningToWordChoice,
+      ExerciseType.MeaningToWordScramble
     ]);
+  });
+
+  test('a quick multiple-choice answer does not skip the rest of the first session', async ({ request }) => {
+    // Regression: a pick made in under three seconds was graded Easy and sent a word met a
+    // minute earlier four days away.
+    await seedWords(request, Array.from({ length: 8 }, (_, i) => `qck${String(i).padStart(2, '0')}`));
+
+    await answerCard(request, cardFor(await getQueue(request), 'qck00'), {});
+    await advanceClock(request, { minutes: 2 });
+
+    const card = cardFor(await getQueue(request), 'qck00');
+    expect(card.exercise.type).toBe(ExerciseType.WordToMeaningChoice);
+    await submitReview(request, card, { ...answerFor(card, 3), elapsedMs: 800 });
+
+    const after = await getCard(request, 'qck00');
+    expect(after.state).toBe(1); // still Learning
+    expect(after.intervalDays).toBe(0);
   });
 
   test('cloze arrives the day after the word is introduced', async ({ request }) => {
     await seedWords(request, Array.from({ length: 8 }, (_, i) => `clo${String(i).padStart(2, '0')}`));
 
-    for (let touch = 0; touch < 3; touch++) {
+    for (let touch = 0; touch < 4; touch++) {
       const card = cardFor(await getQueue(request), 'clo00');
       await answerCard(request, card, answerFor(card, 3));
       await advanceClock(request, { minutes: 15 });
@@ -115,7 +134,7 @@ test.describe('Study ladder', () => {
     for (const [type, assertion] of Object.entries(expectations)) {
       await seedCard(request, {
         headword: 'rung00',
-        rung: Number(type),
+        rung: rungOf(Number(type)),
         state: 2,
         intervalDays: 1,
         dueInDays: -0.1,
@@ -162,15 +181,16 @@ test.describe('Study ladder', () => {
   test('a hard answer holds the rung', async ({ request }) => {
     await seedWords(request, Array.from({ length: 8 }, (_, i) => `hrd${String(i).padStart(2, '0')}`));
 
+    // The cloze rung, which takes the learner's own grade.
     await seedCard(request, {
-      headword: 'hrd00', rung: 3, state: 2, intervalDays: 5,
+      headword: 'hrd00', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 5,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
     const card = cardFor(await getQueue(request), 'hrd00');
     await submitReview(request, card, { selfGrade: 2 });
 
-    expect((await getCard(request, 'hrd00')).rung).toBe(3);
+    expect((await getCard(request, 'hrd00')).rung).toBe(rungOf(ExerciseType.ContextToWordRecall));
   });
 });
 

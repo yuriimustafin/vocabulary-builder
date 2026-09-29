@@ -33,7 +33,8 @@ public class Sm2SchedulerTests
         var scheduler = Scheduler();
         var card = Card();
 
-        // Three same-day touches is what puts the first three exercise types in one session.
+        // Four same-day touches - the introduction and three retrievals - is what carries a
+        // word from recognition up to assembling it in its first session.
         var first = scheduler.Schedule(card, ReviewGrade.Good, Now);
         first.State.Should().Be(CardState.Learning);
         first.DueAtUtc.Should().Be(Now.AddMinutes(1));
@@ -41,13 +42,18 @@ public class Sm2SchedulerTests
         card.LearningStepIndex = first.LearningStepIndex;
         var second = scheduler.Schedule(card, ReviewGrade.Good, Now);
         second.State.Should().Be(CardState.Learning);
-        second.DueAtUtc.Should().Be(Now.AddMinutes(10));
+        second.DueAtUtc.Should().Be(Now.AddMinutes(5));
 
         card.LearningStepIndex = second.LearningStepIndex;
         var third = scheduler.Schedule(card, ReviewGrade.Good, Now);
-        third.State.Should().Be(CardState.Review);
-        third.IntervalDays.Should().Be(1);
-        third.DueAtUtc.Should().Be(Now.AddDays(1));
+        third.State.Should().Be(CardState.Learning);
+        third.DueAtUtc.Should().Be(Now.AddMinutes(15));
+
+        card.LearningStepIndex = third.LearningStepIndex;
+        var fourth = scheduler.Schedule(card, ReviewGrade.Good, Now);
+        fourth.State.Should().Be(CardState.Review);
+        fourth.IntervalDays.Should().Be(1);
+        fourth.DueAtUtc.Should().Be(Now.AddDays(1));
     }
 
     [Test]
@@ -70,9 +76,29 @@ public class Sm2SchedulerTests
     }
 
     [Test]
-    public void EasySkipsTheRemainingLearningSteps()
+    public void EasyOnAnEarlyLearningStepOnlyMovesOnOneStep()
     {
-        var result = Scheduler().Schedule(Card(), ReviewGrade.Easy, Now);
+        // Regression: one quick answer a minute after meeting a word sent it four days away.
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 1), ReviewGrade.Easy, Now);
+
+        result.State.Should().Be(CardState.Learning);
+        result.LearningStepIndex.Should().Be(2);
+        result.DueAtUtc.Should().Be(Now.AddMinutes(5));
+    }
+
+    [Test]
+    public void EasyOnTheFinalLearningStepGraduatesToTheEasyInterval()
+    {
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 3), ReviewGrade.Easy, Now);
+
+        result.State.Should().Be(CardState.Review);
+        result.IntervalDays.Should().Be(4);
+    }
+
+    [Test]
+    public void EasyWhileRelearningSkipsTheRemainingSteps()
+    {
+        var result = Scheduler().Schedule(Card(CardState.Relearning, interval: 2), ReviewGrade.Easy, Now);
 
         result.State.Should().Be(CardState.Review);
         result.IntervalDays.Should().Be(4);
@@ -137,7 +163,7 @@ public class Sm2SchedulerTests
         var lapse = scheduler.Schedule(Card(CardState.Review, interval: 30, ease: 2.5), ReviewGrade.Again, Now);
         lapse.IntervalDays.Should().Be(15);
 
-        var card = Card(CardState.Relearning, interval: lapse.IntervalDays, stepsCompleted: 2, ease: lapse.EaseFactor);
+        var card = Card(CardState.Relearning, interval: lapse.IntervalDays, stepsCompleted: 3, ease: lapse.EaseFactor);
         var graduated = scheduler.Schedule(card, ReviewGrade.Good, Now);
 
         graduated.State.Should().Be(CardState.Review);

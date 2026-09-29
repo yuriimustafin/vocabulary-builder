@@ -51,13 +51,19 @@ public class Sm2Scheduler : IReviewScheduler
         var steps = Steps();
         var ease = card.EaseFactor;
 
-        if (grade == ReviewGrade.Easy)
+        // A relearning card already knew the word once, so Easy skips its remaining steps.
+        if (grade == ReviewGrade.Easy && state == CardState.Relearning)
         {
-            // Skip the remaining steps entirely.
-            var easyInterval = state == CardState.Relearning
-                ? Math.Max(card.IntervalDays, _options.EasyIntervalDays)
-                : _options.EasyIntervalDays;
-            return Graduate(easyInterval, ease, nowUtc);
+            return Graduate(Math.Max(card.IntervalDays, _options.EasyIntervalDays), ease, nowUtc);
+        }
+
+        // A new word walks every step whatever the grade. The steps are where it gets its
+        // repeated retrievals and climbs to production exercises; one quick answer on day
+        // one is not enough to skip them. Easy only pays off on the final step, where it
+        // graduates to the easy interval instead of the graduating one.
+        if (grade == ReviewGrade.Easy && card.LearningStepIndex + 1 > steps.Length)
+        {
+            return Graduate(_options.EasyIntervalDays, ease, nowUtc);
         }
 
         // LearningStepIndex counts steps *completed*, so a brand new card sits at zero and

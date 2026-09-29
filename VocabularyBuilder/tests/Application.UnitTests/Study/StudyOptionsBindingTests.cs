@@ -81,7 +81,7 @@ public class StudyOptionsBindingTests
         var options = Bind(new Dictionary<string, string?> { ["Study:NewCardsPerDay"] = "5" });
 
         options.NewCardsPerDay.Should().Be(5);
-        options.EffectiveLearningSteps.Should().Equal(1, 10);
+        options.EffectiveLearningSteps.Should().Equal(1, 5, 15);
         options.EffectiveLadder.Should().HaveCount(6);
     }
 
@@ -109,25 +109,26 @@ public class StudyOptionsBindingTests
         var values = new Dictionary<string, string?>
         {
             ["Study:LearningStepsMinutes:0"] = "1",
-            ["Study:LearningStepsMinutes:1"] = "10",
+            ["Study:LearningStepsMinutes:1"] = "5",
+            ["Study:LearningStepsMinutes:2"] = "15",
             ["Study:Ladder:0:Type"] = nameof(ExerciseType.WordToMeaningReveal),
             ["Study:Ladder:1:Type"] = nameof(ExerciseType.WordToMeaningChoice),
             ["Study:Ladder:2:Type"] = nameof(ExerciseType.MeaningToWordChoice),
-            ["Study:Ladder:3:Type"] = nameof(ExerciseType.ContextToWordRecall),
-            ["Study:Ladder:4:Type"] = nameof(ExerciseType.MeaningToWordScramble),
+            ["Study:Ladder:3:Type"] = nameof(ExerciseType.MeaningToWordScramble),
+            ["Study:Ladder:4:Type"] = nameof(ExerciseType.ContextToWordRecall),
             ["Study:Ladder:5:Type"] = nameof(ExerciseType.MeaningToWordRecall)
         };
 
         var options = Bind(values);
 
-        options.EffectiveLearningSteps.Should().HaveCount(2,
-            "three touches on day one depends on exactly two learning steps");
+        options.EffectiveLearningSteps.Should().HaveCount(3,
+            "day one ends on assembling the word only with exactly three learning steps");
         options.EffectiveLadder.Select(r => r.Type).Should().Equal(
             ExerciseType.WordToMeaningReveal,
             ExerciseType.WordToMeaningChoice,
             ExerciseType.MeaningToWordChoice,
-            ExerciseType.ContextToWordRecall,
             ExerciseType.MeaningToWordScramble,
+            ExerciseType.ContextToWordRecall,
             ExerciseType.MeaningToWordRecall);
     }
 }

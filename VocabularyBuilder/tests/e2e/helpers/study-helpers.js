@@ -19,6 +19,30 @@ const ExerciseType = {
   MeaningToWordPartialLetters: 6
 };
 
+/**
+ * The shipped ladder (appsettings.json, Study:Ladder), easiest first. A card's rung indexes
+ * this, not ExerciseType, so specs seed a rung through rungOf rather than by number.
+ */
+const Ladder = [
+  ExerciseType.WordToMeaningReveal,
+  ExerciseType.WordToMeaningChoice,
+  ExerciseType.MeaningToWordChoice,
+  ExerciseType.MeaningToWordScramble,
+  ExerciseType.ContextToWordRecall,
+  ExerciseType.MeaningToWordRecall
+];
+
+/** The rung a given exercise sits on. */
+function rungOf(type) {
+  const rung = Ladder.indexOf(type);
+
+  if (rung < 0) {
+    throw new Error(`Exercise type ${type} is not on the ladder`);
+  }
+
+  return rung;
+}
+
 /** Mirrors VocabularyBuilder.Domain.Enums.CardState. */
 const CardState = { New: 0, Learning: 1, Review: 2, Relearning: 3, Suspended: 4 };
 
@@ -229,6 +253,8 @@ function cardFor(queue, headword) {
 module.exports = {
   STUDY_API,
   ExerciseType,
+  Ladder,
+  rungOf,
   CardState,
   ReviewGrade,
   seedWords,

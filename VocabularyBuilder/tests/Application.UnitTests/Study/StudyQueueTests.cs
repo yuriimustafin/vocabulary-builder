@@ -308,6 +308,68 @@ public class StudyQueueTests
         queue.PendingEnrichmentCount.Should().Be(2);
     }
 
+    /// <summary>A word the dictionary has filled in, with one example sentence.</summary>
+    private async Task<Word> SeedDictionaryWord(string example, WordStudyContent? content = null)
+    {
+        var word = new Word
+        {
+            Headword = "ubiquitous",
+            PartOfSpeech = "adjective",
+            Language = Language.English,
+            Senses = new List<Sense> { new() { Definition = "found everywhere", Examples = new List<string> { example } } }
+        };
+        _db.Context.Words.Add(word);
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        if (content is not null)
+        {
+            content.WordId = word.Id;
+            _db.Context.WordStudyContents.Add(content);
+            await _db.Context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        return word;
+    }
+
+    [Test]
+    public async Task AWordWithNoUsableSentenceIsStudiedAndAskedForOne()
+    {
+        // Regression: a word with complete dictionary data was never sent for enrichment, so
+        // when no example contained the headword the cloze rung fell back to multiple choice
+        // for ever.
+        await SeedDictionaryWord("Phones are everywhere these days.");
+
+        var queue = await Queue();
+
+        queue.Cards.Should().ContainSingle();
+        queue.PendingEnrichmentCount.Should().Be(0, "the word can be studied meanwhile");
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordWithAUsableDictionaryExampleIsNotSentForASentence()
+    {
+        await SeedDictionaryWord("Phones are ubiquitous these days.");
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AWordEnrichmentHasFinishedWithIsNotAskedForASentenceAgain()
+    {
+        // The model was already asked and gave nothing usable; asking every session would
+        // spend a call each time for the same answer.
+        await SeedDictionaryWord(
+            "Phones are everywhere these days.",
+            new WordStudyContent { Status = StudyContentStatus.Ready });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(0);
+    }
+
     [Test]
     public async Task DistractorsFallBackToGeneratedDefinitions()
     {

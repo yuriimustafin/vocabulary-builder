@@ -52,12 +52,13 @@ public class StudyOptions
     // --- SM-2 --------------------------------------------------------------
 
     /// <summary>
-    /// Same-day steps before a card graduates. Two steps means three touches on day one,
-    /// which is what puts the first three exercise types in the first session.
+    /// Same-day steps before a card graduates. Three steps means the introduction plus three
+    /// graded retrievals on day one, climbing from recognition to assembling the word -
+    /// roughly the three correct recalls a first session needs to stick.
     ///
     /// Left empty on purpose: configuration binding appends to a collection that already
     /// has contents rather than replacing it, so a populated default here would turn the
-    /// configured [1, 10] into [1, 10, 1, 10] and the card would never graduate. Read it
+    /// configured [1, 5, 15] into [1, 5, 15, 1, 5, 15] and the card would never graduate. Read it
     /// through <see cref="EffectiveLearningSteps"/>, which supplies the default.
     /// </summary>
     public int[] LearningStepsMinutes { get; set; } = Array.Empty<int>();
@@ -108,7 +109,10 @@ public class StudyOptions
 
     // --- automatic grading -------------------------------------------------
 
-    /// <summary>A correct answer at or under this is graded Easy.</summary>
+    /// <summary>
+    /// A correct answer at or under this is graded Easy - except multiple choice, which is
+    /// capped at Good because recognising a word is not the same as producing it.
+    /// </summary>
     public int FastAnswerMs { get; set; } = 3000;
 
     /// <summary>A correct answer at or over this is graded Hard.</summary>
@@ -169,15 +173,15 @@ public class StudyOptions
 /// </summary>
 public static class StudyDefaults
 {
-    public static int[] LearningStepsMinutes => new[] { 1, 10 };
+    public static int[] LearningStepsMinutes => new[] { 1, 5, 15 };
 
     public static IReadOnlyList<LadderRungOptions> Ladder => new List<LadderRungOptions>
     {
         new() { Type = ExerciseType.WordToMeaningReveal },
         new() { Type = ExerciseType.WordToMeaningChoice },
         new() { Type = ExerciseType.MeaningToWordChoice },
-        new() { Type = ExerciseType.ContextToWordRecall },
         new() { Type = ExerciseType.MeaningToWordScramble },
+        new() { Type = ExerciseType.ContextToWordRecall },
         new() { Type = ExerciseType.MeaningToWordRecall }
     };
 }

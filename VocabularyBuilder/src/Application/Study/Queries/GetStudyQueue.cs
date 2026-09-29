@@ -348,7 +348,13 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         // tried; nothing the dictionary did not have is going to appear on the next session
         // either, and a word that cannot be filled would otherwise be asked about on every
         // session for ever. The fill-dictionary sweep is what retries those.
-        if (word.IsMissingDictionaryData() && (generated is null || generated.Status == StudyContentStatus.Pending))
+        //
+        // A word with no context sentence is asked for one the same way. Without it the cloze
+        // rung quietly falls back to multiple choice. The same Ready-or-Failed rule means a
+        // model that could not produce a usable sentence is not asked again every session.
+        var enrichmentUnfinished = generated is null || generated.Status == StudyContentStatus.Pending;
+
+        if (enrichmentUnfinished && (word.IsMissingDictionaryData() || !material.HasContextSentence))
         {
             _enrichmentQueue.Enqueue(word.Id);
         }

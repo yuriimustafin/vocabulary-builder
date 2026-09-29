@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedBareWords, seedCard, getQueue, waitForContent, cardFor
+  ExerciseType, rungOf, seedWords, seedBareWords, seedCard, getQueue, waitForContent, cardFor
 } = require('./helpers/study-helpers');
 
 /**
@@ -55,22 +55,23 @@ test.describe('Multiple-choice distractors', () => {
   test('the fallback stops at the nearest rung that works, not at the bottom',
     async ({ request }) => {
       // A healthy collection, but this word has no sentence of its own, so cloze cannot be
-      // built and the next rung down is used rather than dropping all the way to a flashcard.
+      // built and the next rung down - the scramble - is used rather than dropping all the
+      // way to a flashcard.
       await seedWords(request, [
         ...Array.from({ length: 10 }, (_, i) => `near${String(i).padStart(2, '0')}`),
         { headword: 'nosentence', example: null }
       ]);
 
-      const card = await serveRung(request, 'nosentence', 3);
+      const card = await serveRung(request, 'nosentence', rungOf(ExerciseType.ContextToWordRecall));
 
-      expect(card.exercise.type).toBe(ExerciseType.MeaningToWordChoice);
+      expect(card.exercise.type).toBe(ExerciseType.MeaningToWordScramble);
     });
 
   test('rungs that need no distractors survive a thin collection', async ({ request }) => {
     // Assembling a word from its own letters needs nothing from the rest of the collection.
     await seedWords(request, ['solo01', 'solo02']);
 
-    const card = await serveRung(request, 'solo01', 4);
+    const card = await serveRung(request, 'solo01', rungOf(ExerciseType.MeaningToWordScramble));
 
     expect(card.exercise.type).toBe(ExerciseType.MeaningToWordScramble);
     expect(card.exercise.tiles).not.toBeNull();
