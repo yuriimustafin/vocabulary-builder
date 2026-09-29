@@ -3492,6 +3492,8 @@ export class ExercisePayload implements IExercisePayload {
     contextSentence?: string | undefined;
     meaningGloss?: string | undefined;
     contextSentenceTranslation?: string | undefined;
+    exampleId?: number | undefined;
+    connections?: WordConnectionsDto | undefined;
 
     constructor(data?: IExercisePayload) {
         if (data) {
@@ -3528,6 +3530,8 @@ export class ExercisePayload implements IExercisePayload {
             this.contextSentence = _data["contextSentence"];
             this.meaningGloss = _data["meaningGloss"];
             this.contextSentenceTranslation = _data["contextSentenceTranslation"];
+            this.exampleId = _data["exampleId"];
+            this.connections = _data["connections"] ? WordConnectionsDto.fromJS(_data["connections"]) : <any>undefined;
         }
     }
 
@@ -3564,6 +3568,8 @@ export class ExercisePayload implements IExercisePayload {
         data["contextSentence"] = this.contextSentence;
         data["meaningGloss"] = this.meaningGloss;
         data["contextSentenceTranslation"] = this.contextSentenceTranslation;
+        data["exampleId"] = this.exampleId;
+        data["connections"] = this.connections ? this.connections.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -3585,6 +3591,8 @@ export interface IExercisePayload {
     contextSentence?: string | undefined;
     meaningGloss?: string | undefined;
     contextSentenceTranslation?: string | undefined;
+    exampleId?: number | undefined;
+    connections?: WordConnectionsDto | undefined;
 }
 
 export enum ExerciseType {
@@ -3656,6 +3664,54 @@ export interface INounArticleDto {
     gender?: string;
     isElided?: boolean;
     isPlural?: boolean;
+}
+
+export class WordConnectionsDto implements IWordConnectionsDto {
+    usage?: string | undefined;
+    etymology?: string | undefined;
+    cognates?: string | undefined;
+    mnemonic?: string | undefined;
+
+    constructor(data?: IWordConnectionsDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.usage = _data["usage"];
+            this.etymology = _data["etymology"];
+            this.cognates = _data["cognates"];
+            this.mnemonic = _data["mnemonic"];
+        }
+    }
+
+    static fromJS(data: any): WordConnectionsDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new WordConnectionsDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["usage"] = this.usage;
+        data["etymology"] = this.etymology;
+        data["cognates"] = this.cognates;
+        data["mnemonic"] = this.mnemonic;
+        return data;
+    }
+}
+
+export interface IWordConnectionsDto {
+    usage?: string | undefined;
+    etymology?: string | undefined;
+    cognates?: string | undefined;
+    mnemonic?: string | undefined;
 }
 
 export class StudyStatsDto implements IStudyStatsDto {
@@ -3861,6 +3917,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
     contextSentenceTranslation?: string | undefined;
     chosen?: ChosenAnswerDto | undefined;
     note?: string | undefined;
+    connections?: WordConnectionsDto | undefined;
 
     constructor(data?: IReviewFeedbackDto) {
         if (data) {
@@ -3884,6 +3941,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
             this.contextSentenceTranslation = _data["contextSentenceTranslation"];
             this.chosen = _data["chosen"] ? ChosenAnswerDto.fromJS(_data["chosen"]) : <any>undefined;
             this.note = _data["note"];
+            this.connections = _data["connections"] ? WordConnectionsDto.fromJS(_data["connections"]) : <any>undefined;
         }
     }
 
@@ -3907,6 +3965,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
         data["contextSentenceTranslation"] = this.contextSentenceTranslation;
         data["chosen"] = this.chosen ? this.chosen.toJSON() : <any>undefined;
         data["note"] = this.note;
+        data["connections"] = this.connections ? this.connections.toJSON() : <any>undefined;
         return data;
     }
 }
@@ -3923,6 +3982,7 @@ export interface IReviewFeedbackDto {
     contextSentenceTranslation?: string | undefined;
     chosen?: ChosenAnswerDto | undefined;
     note?: string | undefined;
+    connections?: WordConnectionsDto | undefined;
 }
 
 export class ChosenAnswerDto implements IChosenAnswerDto {
@@ -3979,6 +4039,7 @@ export class SubmitReviewCommand implements ISubmitReviewCommand {
     resets?: number;
     hintUsed?: boolean;
     abandoned?: boolean;
+    exampleId?: number | undefined;
 
     constructor(data?: ISubmitReviewCommand) {
         if (data) {
@@ -4000,6 +4061,7 @@ export class SubmitReviewCommand implements ISubmitReviewCommand {
             this.resets = _data["resets"];
             this.hintUsed = _data["hintUsed"];
             this.abandoned = _data["abandoned"];
+            this.exampleId = _data["exampleId"];
         }
     }
 
@@ -4021,6 +4083,7 @@ export class SubmitReviewCommand implements ISubmitReviewCommand {
         data["resets"] = this.resets;
         data["hintUsed"] = this.hintUsed;
         data["abandoned"] = this.abandoned;
+        data["exampleId"] = this.exampleId;
         return data;
     }
 }
@@ -4035,6 +4098,7 @@ export interface ISubmitReviewCommand {
     resets?: number;
     hintUsed?: boolean;
     abandoned?: boolean;
+    exampleId?: number | undefined;
 }
 
 export class IntroductionResultDto implements IIntroductionResultDto {

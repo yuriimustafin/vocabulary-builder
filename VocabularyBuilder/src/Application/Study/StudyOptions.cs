@@ -119,7 +119,7 @@ public class StudyOptions
     public int LongGapEscalationMinRung { get; set; } = 3;
 
     /// <summary>Probe used after a long gap. Falls back to the top level's first exercise when absent from the ladder.</summary>
-    public ExerciseType LongGapProbeType { get; set; } = ExerciseType.MeaningToWordType;
+    public ExerciseType LongGapProbeType { get; set; } = ExerciseType.MeaningToWordRecall;
 
     /// <summary>Weight of the newest review in the success-rate moving average.</summary>
     public double SuccessEmaAlpha { get; set; } = 0.3;
@@ -212,9 +212,10 @@ public static class StudyDefaults
         // Met, not graded, the first time; a word dropped this far is graded here once.
         Level("Introduction", 1, ExerciseType.WordToMeaningReveal),
 
-        // One success: recognising a word again adds little once it is recognised. The
-        // other two are what a word dropped here meets, so it is not the question it missed.
-        Level("Recognition", 1,
+        // Two: the word picked from its meaning, then picked to fill a gap in a sentence -
+        // the sentence showing it with the words it is used with. The third is what a word
+        // dropped here meets when it has no sentence.
+        Level("Recognition", 2,
             ExerciseType.MeaningToWordChoice,
             ExerciseType.ContextToWordChoice,
             ExerciseType.WordToMeaningChoice),
@@ -226,10 +227,10 @@ public static class StudyDefaults
             ExerciseType.MeaningToWordScramble,
             ExerciseType.MeaningToWordCuedType),
 
-        // Where a word stays, taking these in turn.
+        // Where a word stays, taking these in turn. Typing the word (MeaningToWordType) can
+        // be added here when spelling is wanted.
         Level("Production", 0,
             ExerciseType.ContextToWordRecall,
-            ExerciseType.MeaningToWordType,
             ExerciseType.MeaningToWordRecall)
     };
 

@@ -143,6 +143,8 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
             .Where(c => wordIds.Contains(c.WordId))
             .ToDictionaryAsync(c => c.WordId, cancellationToken);
 
+        var examples = await ExamplesFor(wordIds, cancellationToken);
+
         var pool = await _distractorSource.LoadPoolAsync(
             request.Language, _options.DistractorPoolSize, cancellationToken);
 
@@ -151,7 +153,7 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
 
         foreach (var card in due)
         {
-            var outcome = Render(card, card.Word, content, pool, now);
+            var outcome = Render(card, card.Word, content, examples, pool, now);
 
             if (outcome.Card is null)
             {
@@ -176,7 +178,7 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
                 IntroducedAtUtc = now
             };
 
-            var outcome = Render(card, word, content, pool, now);
+            var outcome = Render(card, word, content, examples, pool, now);
 
             if (outcome.Card is null)
             {
@@ -307,11 +309,13 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         ReviewCard card,
         Word word,
         IReadOnlyDictionary<int, WordStudyContent> content,
+        IReadOnlyDictionary<int, StudyExampleSet> examples,
         IReadOnlyList<DistractorCandidate> pool,
         DateTime now)
     {
         content.TryGetValue(word.Id, out var generated);
-        var material = _materialResolver.Resolve(word, generated);
+        var wordExamples = examples.GetValueOrDefault(word.Id) ?? StudyExampleSet.None;
+        var material = _materialResolver.Resolve(word, generated, wordExamples);
 
         var distractors = _distractorPicker.Pick(material, pool);
         var probe = _ladder.SelectProbe(
@@ -350,12 +354,16 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         // either, and a word that cannot be filled would otherwise be asked about on every
         // session for ever. The fill-dictionary sweep is what retries those.
         //
-        // A word with no context sentence is asked for one the same way. Without it the cloze
-        // rung quietly falls back to multiple choice. The same Ready-or-Failed rule means a
-        // model that could not produce a usable sentence is not asked again every session.
-        var enrichmentUnfinished = generated is null || generated.Status == StudyContentStatus.Pending;
+        // Every word is asked, once, for what ties it to things already known - examples
+        // around the words it is used with, its origin, a sound-alike - and asked again when
+        // it is met in a form no example has yet, which reopens its content. The same
+        // Ready-or-Failed rule means a model that could not produce something is not asked
+        // again every session: a Ready row from the current prompt has been tried.
+        var enrichmentUnfinished = generated is null
+            || generated.Status == StudyContentStatus.Pending
+            || (generated.Status == StudyContentStatus.Ready && generated.PromptVersion != StudyContentPrompt.Version);
 
-        if (enrichmentUnfinished && (word.IsMissingDictionaryData() || !material.HasContextSentence))
+        if (enrichmentUnfinished)
         {
             _enrichmentQueue.Enqueue(word.Id);
         }
@@ -364,9 +372,32 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         // inflate a grade that is about to stretch the interval a long way.
         var exercise = _catalog.Get(type).Build(
             material, new ExerciseBuildContext(distractors, AllowHint: !probe.Escalated, CueLevel: probe.CueLevel))
-            with { Article = material.Article };
+            with { Article = material.Article, Connections = material.Connections };
 
         return RenderOutcome.Ready(new RenderedCard(card, word.Headword, probe.Rung, exercise));
+    }
+
+    /// <summary>Each word's stored examples and the forms it has been met in, by word.</summary>
+    private async Task<Dictionary<int, StudyExampleSet>> ExamplesFor(
+        List<int> wordIds, CancellationToken cancellationToken)
+    {
+        var examples = await _context.StudyExamples
+            .AsNoTracking()
+            .Where(e => wordIds.Contains(e.WordId))
+            .ToListAsync(cancellationToken);
+
+        var forms = await _context.WordEncounters
+            .AsNoTracking()
+            .Where(e => wordIds.Contains(e.WordId) && e.Form != null)
+            .Select(e => new { e.WordId, e.Form })
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return wordIds.Distinct().ToDictionary(
+            id => id,
+            id => new StudyExampleSet(
+                examples.Where(e => e.WordId == id).ToList(),
+                forms.Where(f => f.WordId == id).Select(f => f.Form!).ToList()));
     }
 
     private record RenderedCard(

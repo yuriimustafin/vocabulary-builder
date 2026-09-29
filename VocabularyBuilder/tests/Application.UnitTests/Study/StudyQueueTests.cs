@@ -347,9 +347,25 @@ public class StudyQueueTests
     }
 
     [Test]
-    public async Task AWordWithAUsableDictionaryExampleIsNotSentForASentence()
+    public async Task AWordNeverFilledInIsSentOnceForExamplesAndConnections()
     {
+        // Even one the dictionary covers: examples around its collocations, its origin and
+        // a mnemonic are generated for every word.
         await SeedDictionaryWord("Phones are ubiquitous these days.");
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordFilledInForTheCurrentPromptIsNotSentAgain()
+    {
+        // Including one the model could not give a usable sentence for: asking every session
+        // would spend a call each time for the same answer.
+        await SeedDictionaryWord(
+            "Phones are everywhere these days.",
+            new WordStudyContent { Status = StudyContentStatus.Ready, PromptVersion = StudyContentPrompt.Version });
 
         await Queue();
 
@@ -357,17 +373,54 @@ public class StudyQueueTests
     }
 
     [Test]
-    public async Task AWordEnrichmentHasFinishedWithIsNotAskedForASentenceAgain()
+    public async Task AWordFilledInByAnOlderPromptIsSentOnceForWhatTheNewOneAdds()
     {
-        // The model was already asked and gave nothing usable; asking every session would
-        // spend a call each time for the same answer.
         await SeedDictionaryWord(
-            "Phones are everywhere these days.",
-            new WordStudyContent { Status = StudyContentStatus.Ready });
+            "Phones are ubiquitous these days.",
+            new WordStudyContent { Status = StudyContentStatus.Ready, PromptVersion = "v2" });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordEnrichmentGaveUpOnIsNotSentAgain()
+    {
+        await SeedDictionaryWord(
+            "Phones are ubiquitous these days.",
+            new WordStudyContent { Status = StudyContentStatus.Failed, PromptVersion = "v2" });
 
         await Queue();
 
         _enrichment.PendingCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AClozeIsAskedOnAStoredExampleAndCarriesItsId()
+    {
+        await SeedWords(6);
+        var word = await _db.Context.Words.FirstAsync(w => w.Headword == "word00");
+
+        var example = new StudyExample { WordId = word.Id, Sentence = "Nobody expected word00 today.", Form = "word00" };
+        _db.Context.StudyExamples.Add(example);
+        _db.Context.ReviewCards.Add(new ReviewCard
+        {
+            WordId = word.Id,
+            State = CardState.Review,
+            CurrentRung = 3,
+            IntervalDays = 3,
+            IntroducedAtUtc = Start.UtcDateTime.AddDays(-5),
+            LastReviewedAtUtc = Start.UtcDateTime.AddDays(-1),
+            DueAtUtc = Start.UtcDateTime
+        });
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        var card = (await Queue()).Cards.Single(c => c.Headword == "word00");
+
+        card.Exercise.Type.Should().Be(ExerciseType.ContextToWordRecall);
+        card.Exercise.Prompt.Should().Be("Nobody expected _____ today.");
+        card.Exercise.ExampleId.Should().Be(example.Id);
     }
 
     [Test]

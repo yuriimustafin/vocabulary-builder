@@ -34,11 +34,25 @@ public class EnrichWordStudyContentTests
     [TearDown]
     public void TearDown() => _db.Dispose();
 
-    /// <summary>A reply whose sentence contains the headword, as a real one must.</summary>
+    /// <summary>A full reply whose examples contain the headword, as a real one's must.</summary>
     private static string? UsableReply(string prompt)
     {
         var word = System.Text.RegularExpressions.Regex.Match(prompt, @"word:\s*""([^""]+)""").Groups[1].Value;
-        return $$"""{"definition":"a generated definition","sentence":"A line using {{word}} once."}""";
+
+        return $$"""
+            {
+              "definition": "a generated definition",
+              "usage": "said of things found everywhere",
+              "examples": [
+                {"sentence": "A line using {{word}} once.", "translation": "Рядок.", "form": "{{word}}", "collocation": "using {{word}}"},
+                {"sentence": "Coffee shops are {{word}} here.", "translation": "Кав'ярні.", "form": "{{word}}", "collocation": "{{word}} here"},
+                {"sentence": "The {{word}} smartphone changed us.", "translation": "Смартфон.", "form": "{{word}}", "collocation": "the {{word}} smartphone"}
+              ],
+              "etymology": "From Latin ubique, everywhere.",
+              "cognates": null,
+              "mnemonic": "Sounds like 'you bake it us': bread baked everywhere."
+            }
+            """;
     }
 
     /// <summary>
@@ -84,51 +98,164 @@ public class EnrichWordStudyContentTests
     private Task<WordStudyContent?> Content(int wordId) =>
         _db.Context.WordStudyContents.AsNoTracking().FirstOrDefaultAsync(c => c.WordId == wordId);
 
+    private Task<List<StudyExample>> Examples(int wordId) =>
+        _db.Context.StudyExamples.AsNoTracking().Where(e => e.WordId == wordId).OrderBy(e => e.Id).ToListAsync();
+
+    /// <summary>Content already generated from the current prompt, with its three examples.</summary>
+    private async Task FillCurrent(int wordId)
+    {
+        _db.Context.WordStudyContents.Add(new WordStudyContent
+        {
+            WordId = wordId,
+            Status = StudyContentStatus.Ready,
+            PromptVersion = StudyContentPrompt.Version
+        });
+
+        foreach (var sentence in new[] { "Screens are ubiquitous.", "Ubiquitous ads.", "It is ubiquitous here." })
+        {
+            _db.Context.StudyExamples.Add(new StudyExample { WordId = wordId, Sentence = sentence, Form = "ubiquitous" });
+        }
+
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+    }
+
     // --- doing nothing where nothing is needed -----------------------------
 
     [Test]
-    public async Task AWordWithDictionaryDataCostsNoCallAtAll()
+    public async Task AWordFilledInForTheCurrentPromptCostsNoCallAtAll()
     {
         var word = await AddWord(senses: new List<Sense> { Sense("found everywhere", "Screens are ubiquitous.") });
+        await FillCurrent(word.Id);
 
         var outcome = await Enrich(word.Id);
 
-        outcome.Should().Be(EnrichmentOutcome.NothingMissing);
+        outcome.Should().Be(EnrichmentOutcome.AlreadyFilled);
         _gpt.CallCount.Should().Be(0);
-        (await Content(word.Id)).Should().BeNull("a word missing nothing needs no row");
     }
 
     [Test]
-    public async Task OnlyTheMissingFieldsAreAskedFor()
+    public async Task AWordWithDictionaryDataIsAskedForExamplesAndConnectionsButNotADefinition()
     {
-        // Has a definition, but no example containing the headword.
-        var word = await AddWord(senses: new List<Sense> { Sense("found everywhere") });
+        var word = await AddWord(senses: new List<Sense> { Sense("found everywhere", "Screens are ubiquitous.") });
 
-        await Enrich(word.Id);
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
 
-        _gpt.LastPrompt.Should().Contain("sentence");
-        _gpt.LastPrompt.Should().NotContain("definition");
+        _gpt.LastPrompt.Should().Contain("\"examples\"").And.Contain("\"etymology\"").And.Contain("\"mnemonic\"");
+        _gpt.LastPrompt.Should().NotContain("\"definition\"", "the word already has one");
+        _gpt.LastPrompt.Should().Contain("meaning: found everywhere", "the examples should be for the sense being studied");
 
         var content = await Content(word.Id);
-        content!.GeneratedDefinition.Should().BeNull("the word already had one");
-        content.GeneratedContextSentence.Should().NotBeNull();
+        content!.GeneratedDefinition.Should().BeNull();
         content.Status.Should().Be(StudyContentStatus.Ready);
+        content.PromptVersion.Should().Be(StudyContentPrompt.Version);
     }
 
     [Test]
-    public async Task AWordWithNothingGetsBothFieldsGenerated()
+    public async Task AWordWithNothingGetsEverythingGenerated()
     {
         var word = await AddWord();
 
         var outcome = await Enrich(word.Id);
 
         outcome.Should().Be(EnrichmentOutcome.Generated);
-        _gpt.LastPrompt.Should().Contain("definition").And.Contain("sentence");
+        _gpt.LastPrompt.Should().Contain("\"definition\"").And.Contain("\"examples\"").And.Contain("\"usage\"");
 
         var content = await Content(word.Id);
         content!.Status.Should().Be(StudyContentStatus.Ready);
         content.GeneratedDefinition.Should().Be("a generated definition");
-        content.GeneratedContextSentence.Should().Be("A line using ubiquitous once.");
+        content.Usage.Should().Be("said of things found everywhere");
+        content.Etymology.Should().Be("From Latin ubique, everywhere.");
+        content.Cognates.Should().BeNull("the model had none, and said so");
+        content.Mnemonic.Should().StartWith("Sounds like");
+    }
+
+    [Test]
+    public async Task ExamplesAreStoredWithTheirFormCollocationAndTranslation()
+    {
+        var word = await AddWord();
+
+        await Enrich(word.Id);
+
+        var examples = await Examples(word.Id);
+        examples.Should().HaveCount(3);
+        examples[1].Sentence.Should().Be("Coffee shops are ubiquitous here.");
+        examples[1].Form.Should().Be("ubiquitous");
+        examples[1].Collocation.Should().Be("ubiquitous here");
+        examples[1].Translation.Should().Be("Кав'ярні.");
+        examples.Should().OnlyContain(e => e.Successes == 0);
+    }
+
+    [Test]
+    public async Task AnExampleThatDoesNotContainItsFormIsDropped()
+    {
+        _gpt = new RecordingGptClient(_ => """
+            {"definition": "found everywhere", "examples": [
+              {"sentence": "You see them all over.", "form": "ubiquitous"},
+              {"sentence": "Screens are ubiquitous.", "form": "ubiquitous"},
+              {"sentence": "Screens are ubiquitous.", "form": "ubiquitous"}
+            ]}
+            """);
+        var word = await AddWord();
+
+        await Enrich(word.Id);
+
+        (await Examples(word.Id)).Select(e => e.Sentence).Should().Equal("Screens are ubiquitous.");
+    }
+
+    [Test]
+    public async Task AFormTheWordWasMetInIsAskedForAndItsExampleKept()
+    {
+        _gpt = new RecordingGptClient(_ => """
+            {"examples": [{"sentence": "Elle prend le train.", "translation": "She takes the train.", "form": "prend", "collocation": "prendre le train"}]}
+            """);
+        var word = await AddWord("prendre", senses: new List<Sense> { Sense("to take", "Je vais prendre le bus.") });
+        await FillCurrent(word.Id);
+
+        _db.Context.WordEncounters.Add(new WordEncounter { WordId = word.Id, Source = WordEncounterSource.LingQ, Form = "prend" });
+        var content = await _db.Context.WordStudyContents.FirstAsync(c => c.WordId == word.Id);
+        content.Status = StudyContentStatus.Pending;
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
+
+        _gpt.LastPrompt.Should().Contain("\"prend\"");
+        _gpt.LastPrompt.Should().NotContain("\"etymology\"", "the connections were already generated");
+        (await Examples(word.Id)).Should().Contain(e => e.Form == "prend" && e.Sentence == "Elle prend le train.");
+    }
+
+    [Test]
+    public async Task ContentFromAnOlderPromptIsAskedOnceForWhatTheNewOneAdds()
+    {
+        var word = await AddWord();
+        _db.Context.WordStudyContents.Add(new WordStudyContent
+        {
+            WordId = word.Id,
+            Status = StudyContentStatus.Ready,
+            GeneratedDefinition = "found everywhere",
+            PromptVersion = "v2"
+        });
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.AlreadyFilled);
+
+        _gpt.CallCount.Should().Be(1);
+        _gpt.LastPrompt.Should().NotContain("\"definition\"");
+        (await Content(word.Id))!.Etymology.Should().NotBeNull();
+    }
+
+    [Test]
+    public async Task AFailedFirstAttemptIsStillAskedForEverythingNextTime()
+    {
+        var replies = new Queue<string?>(new[] { null, UsableReply("word: \"ubiquitous\"") });
+        _gpt = new RecordingGptClient(_ => replies.Dequeue());
+        var word = await AddWord();
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Failed);
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
+
+        _gpt.LastPrompt.Should().Contain("\"etymology\"");
+        (await Content(word.Id))!.PromptVersion.Should().Be(StudyContentPrompt.Version);
     }
 
     // --- idempotency -------------------------------------------------------
@@ -248,10 +375,10 @@ public class EnrichWordStudyContentTests
     [Test]
     public async Task ASentenceThatDroppedTheWordStillLeavesAStudiableDefinition()
     {
-        // Losing the sentence only costs the cloze rung, which the ladder skips anyway,
+        // Losing the sentence only costs the cloze exercises, which the ladder skips anyway,
         // so this is not worth a retry.
         _gpt = new RecordingGptClient(_ =>
-            """{"definition":"found everywhere","sentence":"You see them all over the place."}""");
+            """{"definition":"found everywhere","examples":[{"sentence":"You see them all over the place.","form":"ubiquitous"}]}""");
         var word = await AddWord();
 
         (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);

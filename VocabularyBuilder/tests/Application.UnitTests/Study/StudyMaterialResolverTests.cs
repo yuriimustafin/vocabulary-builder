@@ -290,16 +290,164 @@ public class StudyMaterialResolverTests
     public void GapsReportWhatIsStillMissing()
     {
         var resolver = Resolver();
+        const StudyMaterialGaps NeverGenerated = StudyMaterialGaps.Examples | StudyMaterialGaps.Connections;
 
         resolver.FindGaps(Word(), null)
-            .Should().Be(StudyMaterialGaps.Meaning | StudyMaterialGaps.ContextSentence);
+            .Should().Be(StudyMaterialGaps.Meaning | StudyMaterialGaps.ContextSentence | NeverGenerated);
 
         resolver.FindGaps(Word(senses: new List<Sense> { Sense("found everywhere") }), null)
-            .Should().Be(StudyMaterialGaps.ContextSentence);
+            .Should().Be(StudyMaterialGaps.ContextSentence | NeverGenerated);
 
         resolver.FindGaps(
                 Word(senses: new List<Sense> { Sense("found everywhere", "Screens are ubiquitous.") }), null)
+            .Should().Be(NeverGenerated, "every word is asked, once, for examples and connections");
+    }
+
+    [Test]
+    public void AWordFilledInForTheCurrentPromptWithEnoughExamplesMissesNothing()
+    {
+        var content = Generated("found everywhere");
+        content.PromptVersion = VocabularyBuilder.Application.Study.Enrichment.StudyContentPrompt.Version;
+
+        Resolver().FindGaps(Word(), content, Examples(Example(1, "Screens are ubiquitous."), Example(2, "Ubiquitous ads."),
+                Example(3, "It is ubiquitous here.")))
             .Should().Be(StudyMaterialGaps.None);
+    }
+
+    [Test]
+    public void ContentFromAnOlderPromptIsMissingItsConnections()
+    {
+        var content = Generated("found everywhere");
+        content.PromptVersion = "v2";
+
+        Resolver().FindGaps(Word(), content).Should().HaveFlag(StudyMaterialGaps.Connections);
+    }
+
+    // --- stored examples ------------------------------------------------------
+
+    private static StudyExample Example(int id, string sentence, string form = "ubiquitous", int successes = 0,
+        DateTime? lastUsed = null) => new()
+        {
+            Id = id,
+            WordId = 1,
+            Sentence = sentence,
+            Form = form,
+            Translation = $"translation {id}",
+            Successes = successes,
+            LastUsedAtUtc = lastUsed
+        };
+
+    private static StudyExampleSet Examples(params StudyExample[] examples) => new(examples, Array.Empty<string>());
+
+    [Test]
+    public void AStoredExampleComesBeforeADictionaryOne()
+    {
+        var word = Word(senses: new List<Sense> { Sense("found everywhere", "Screens are ubiquitous.") });
+
+        var material = Resolver().Resolve(word, null, Examples(Example(7, "Ubiquitous coffee shops line the street.")));
+
+        material.ContextSentence.Should().Be("Ubiquitous coffee shops line the street.");
+        material.ContextSentenceTranslation.Should().Be("translation 7");
+        material.ExampleId.Should().Be(7);
+    }
+
+    [Test]
+    public void AnExampleNotYetAnsweredComesBeforeOneThatHasBeen()
+    {
+        var material = Resolver().Resolve(Word(), null, Examples(
+            Example(1, "Screens are ubiquitous.", successes: 2),
+            Example(2, "Ubiquitous ads everywhere.")));
+
+        material.ExampleId.Should().Be(2);
+    }
+
+    [Test]
+    public void AnExampleForAFormMetButNotYetPractisedComesFirst()
+    {
+        var word = Word("prendre");
+        var set = new StudyExampleSet(
+            new[]
+            {
+                Example(1, "Je vais prendre le bus.", "prendre"),
+                Example(2, "Elle prend le train.", "prend"),
+                Example(3, "Il a pris froid.", "pris", successes: 1)
+            },
+            new[] { "prend", "pris" });
+
+        Resolver().Resolve(word, null, set).ExampleId.Should().Be(2, "prend was met, and has not been practised");
+    }
+
+    [Test]
+    public void AmongPractisedExamplesTheLeastPractisedAndLongestUnusedComesFirst()
+    {
+        var material = Resolver().Resolve(Word(), null, Examples(
+            Example(1, "Screens are ubiquitous.", successes: 1, lastUsed: new DateTime(2026, 9, 20)),
+            Example(2, "Ubiquitous ads everywhere.", successes: 1, lastUsed: new DateTime(2026, 9, 10)),
+            Example(3, "It is ubiquitous here.", successes: 3, lastUsed: new DateTime(2026, 9, 1))));
+
+        material.ExampleId.Should().Be(2);
+    }
+
+    [Test]
+    public void TheExampleAnExerciseWasAskedOnIsUsedWhenMarkingIt()
+    {
+        var set = new StudyExampleSet(
+            new[] { Example(1, "Screens are ubiquitous."), Example(2, "Ubiquitous ads everywhere.") },
+            Array.Empty<string>(),
+            PreferredId: 2);
+
+        Resolver().Resolve(Word(), null, set).ExampleId.Should().Be(2);
+    }
+
+    [Test]
+    public void AnExampleThatDoesNotContainItsFormIsNeverUsed()
+    {
+        var material = Resolver().Resolve(Word(), null, Examples(Example(1, "You see them everywhere.")));
+
+        material.HasContextSentence.Should().BeFalse();
+        material.ExampleId.Should().BeNull();
+    }
+
+    [Test]
+    public void TheClozeBlanksTheFormTheSentenceUses()
+    {
+        var material = Resolver().Resolve(Word("prendre"), null, Examples(Example(1, "Elle prend le train.", "prend")));
+
+        material.ContextForm.Should().Be("prend");
+        material.BlankedContextSentence.Should().Be("Elle _____ le train.");
+    }
+
+    [Test]
+    public void AFormWithNoExampleIsReportedAsUncovered()
+    {
+        var set = new StudyExampleSet(new[] { Example(1, "Elle prend le train.", "prend") }, new[] { "prend", "pris" });
+
+        Resolver().UncoveredForms(Word("prendre"), set).Should().Equal("pris");
+        Resolver().FindGaps(Word("prendre"), null, set).Should().HaveFlag(StudyMaterialGaps.Forms);
+    }
+
+    [Test]
+    public void TheHeadwordIsCoveredByADictionaryExampleThatUsesIt()
+    {
+        var word = Word(senses: new List<Sense> { Sense("found everywhere", "Screens are ubiquitous.") });
+        var set = new StudyExampleSet(Array.Empty<StudyExample>(), new[] { "ubiquitous" });
+
+        Resolver().UncoveredForms(word, set).Should().BeEmpty();
+    }
+
+    [Test]
+    public void TheConnectionsComeFromTheGeneratedContent()
+    {
+        var content = Generated("found everywhere");
+        content.Etymology = "From Latin ubique, everywhere.";
+        content.Mnemonic = "Sounds like 'you-bick'.";
+
+        var connections = Resolver().Resolve(Word(), content).Connections;
+
+        connections!.Etymology.Should().Be("From Latin ubique, everywhere.");
+        connections.Mnemonic.Should().Be("Sounds like 'you-bick'.");
+        connections.Usage.Should().BeNull();
+        Resolver().Resolve(Word(), Generated("found everywhere")).Connections.Should().BeNull("there is nothing to show");
     }
 
     [Test]

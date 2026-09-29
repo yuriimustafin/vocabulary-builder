@@ -66,6 +66,7 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
             GradingMode = GradingMode,
             WordId = material.WordId,
             Prompt = Stimulus(material)!,
+            ExampleId = ExampleId(material),
             Options = options,
             Transcription = ShowTranscription ? material.Transcription : null,
             PartOfSpeech = material.PartOfSpeech
@@ -88,6 +89,9 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
 
     /// <summary>Showing the pronunciation would give away a word the learner is meant to pick.</summary>
     protected virtual bool ShowTranscription => true;
+
+    /// <summary>The stored example the question is asked from, for the one that asks from a sentence.</summary>
+    protected virtual int? ExampleId(StudyMaterial material) => null;
 
     private int RequiredDistractors => Math.Max(1, _options.ChoiceOptionCount - 1);
 }
@@ -154,7 +158,9 @@ public class ContextToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
     public override ExerciseType Type => ExerciseType.ContextToWordChoice;
 
     protected override string? Stimulus(StudyMaterial material) =>
-        material.HasContextSentence ? HeadwordText.Blankify(material.ContextSentence!, material.Headword) : null;
+        material.HasContextSentence ? material.BlankedContextSentence : null;
+
+    protected override int? ExampleId(StudyMaterial material) => material.ExampleId;
 
     protected override string? Target(StudyMaterial material) => material.Headword;
 

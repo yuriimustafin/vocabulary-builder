@@ -410,6 +410,21 @@ article are ignored; a missing accent, one slipped letter (words of five or more
 noun under the wrong gender's article is accepted as Hard with a note. `SubmitReview` turns a
 "slip" that spells another word in the collection back into a miss (poison/poisson).
 
+**Example sentences live in `StudyExample`**, one row per sentence, with the form of the word it
+uses (what a cloze blanks - "prend" in a sentence for "prendre") and how often it was answered
+correctly. The resolver asks from these before dictionary examples: first a form the word was
+met in (`WordEncounter.Form`) but not yet practised, then any not yet practised, then the least
+practised. The payload carries `ExampleId`, the page sends it back with the answer, and
+`SubmitReview` counts it only when it matches the sentence the material resolved to.
+
+**Every word is enriched once per `StudyContentPrompt.Version`**, not only words missing a
+definition: examples built around its collocations, plus usage, etymology, cognates and a
+mnemonic on `WordStudyContent`. The version is written only when a generation succeeds, so
+bumping it asks every word once more. Meeting a word in a form no example uses reopens its
+Ready content (`UpsertWord.CoverForm`); an import that keeps the sentence the word was read in
+(LingQ's phrase) stores that as the example instead. The mock writes three examples for any
+word and one per form the prompt asks for.
+
 In e2e specs, seed a card by exercise with `seedCardFor(type)`, not by rung number. It
 assumes the word is too short for syllable tiles - the syllable scramble needs three
 syllables - unless told `{ syllables: true }`. `StudyOptionsBindingTests` reads the real

@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Button } from 'reactstrap';
 import { NounArticle } from '../NounArticle';
 import { BilingualText } from './BilingualText';
+import { WordConnections } from './WordConnections';
 
 /**
  * What happened after an automatically graded answer.
@@ -67,6 +68,9 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language, typ
         native={feedback.contextSentenceTranslation}
         learnedTestId="feedback-context"
       />
+
+      {/* The mnemonic is for a word that did not come back on its own */}
+      <WordConnections connections={feedback.connections} showMnemonic={!correct} />
 
       {chosen && (
         <div className="border-start border-3 border-danger ps-3 mt-4" data-testid="feedback-chosen">

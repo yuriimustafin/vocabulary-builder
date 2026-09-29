@@ -76,16 +76,17 @@ test.describe('Study ladder', () => {
 
       expect(seen).toEqual([
         ExerciseType.WordToMeaningReveal,           // met
-        ExerciseType.MeaningToWordChoice,           // recognised once
+        ExerciseType.MeaningToWordChoice,           // recognised: the word, then in a sentence
+        ExerciseType.ContextToWordChoice,
         ExerciseType.MeaningToWordSyllableScramble, // support fading over three
         ExerciseType.MeaningToWordScramble,
         ExerciseType.MeaningToWordCuedType,
         ExerciseType.ContextToWordRecall,           // produced twice, spaced
-        ExerciseType.MeaningToWordType
+        ExerciseType.MeaningToWordRecall
       ]);
 
       const card = await getCard(request, 'remember');
-      expect(card.gradedReviews).toBe(6);
+      expect(card.gradedReviews).toBe(7);
       expect(card.intervalDays).toBe(1);
     });
 
@@ -95,7 +96,7 @@ test.describe('Study ladder', () => {
 
       const seen = await studyUntilLearned(request, 'lad00');
 
-      expect(seen.slice(2, 5)).toEqual([
+      expect(seen.slice(3, 6)).toEqual([
         ExerciseType.MeaningToWordScramble,
         ExerciseType.MeaningToWordCuedType,
         ExerciseType.MeaningToWordScramble
@@ -117,7 +118,7 @@ test.describe('Study ladder', () => {
 
     const missAt = seen.indexOf(ExerciseType.ContextToWordRecall);
     expect(rungOf(seen[missAt + 1])).toBe(rungOf(ExerciseType.ContextToWordRecall) - 1);
-    expect(seen.length, 'the slip is paid for in more practice').toBeGreaterThan(7);
+    expect(seen.length, 'the slip is paid for in more practice').toBeGreaterThan(8);
 
     for (let i = 1; i < seen.length; i++) {
       expect(seen[i], `no exercise twice running (step ${i + 1})`).not.toBe(seen[i - 1]);
@@ -175,11 +176,6 @@ test.describe('Study ladder', () => {
         expect(card.exercise.prompt).toContain('_____');
         expect(card.exercise.hint).toBeTruthy();
       },
-      [ExerciseType.MeaningToWordType]: card => {
-        expect(card.exercise.prompt).toBe('the meaning of rung00');
-        expect(card.exercise.letterMask).toBeNull();
-        expect(card.exercise.answer).toBeNull();
-      },
       [ExerciseType.MeaningToWordRecall]: card => {
         expect(card.exercise.answer).toBe('rung00');
         expect(card.exercise.hint).toBeNull();
@@ -206,14 +202,22 @@ test.describe('Study ladder', () => {
     expect(card.exercise.tiles.slice().sort()).toEqual(['cho', 'co', 'late']);
   });
 
-  test('one clean success moves a word out of recognition', async ({ request }) => {
+  test('two clean successes move a word out of recognition', async ({ request }) => {
     await seedWords(request, ['rec00', ...distractors]);
     await seedCardFor(request, 'rec00', ExerciseType.MeaningToWordChoice);
 
-    const card = cardFor(await getQueue(request), 'rec00');
+    let card = cardFor(await getQueue(request), 'rec00');
     await submitReview(request, card, correctAnswer(card));
 
-    const after = await getCard(request, 'rec00');
+    let after = await getCard(request, 'rec00');
+    expect(after.rung, 'one is not yet enough').toBe(rungOf(ExerciseType.MeaningToWordChoice));
+
+    await advanceToDue(request, 'rec00');
+    card = cardFor(await getQueue(request), 'rec00');
+    expect(card.exercise.type, 'then the word in a sentence').toBe(ExerciseType.ContextToWordChoice);
+    await submitReview(request, card, correctAnswer(card));
+
+    after = await getCard(request, 'rec00');
     expect(after.rung).toBe(rungOf(ExerciseType.MeaningToWordScramble));
     expect(after.rungStreak).toBe(0);
   });

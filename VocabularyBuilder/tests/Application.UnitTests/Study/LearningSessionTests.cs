@@ -60,18 +60,19 @@ public class LearningSessionTests
 
         seen.Should().Equal(
             ExerciseType.WordToMeaningReveal,           // met
-            ExerciseType.MeaningToWordChoice,           // recognition: one success
+            ExerciseType.MeaningToWordChoice,           // recognition: the word, then in a sentence
+            ExerciseType.ContextToWordChoice,
             ExerciseType.MeaningToWordSyllableScramble, // scaffolded: support fading over three
             ExerciseType.MeaningToWordScramble,
             ExerciseType.MeaningToWordCuedType,
             ExerciseType.ContextToWordRecall,           // production: two, spaced
-            ExerciseType.MeaningToWordType);
+            ExerciseType.MeaningToWordRecall);
 
         var card = await Card();
         card.State.Should().Be(CardState.Review);
         card.IntervalDays.Should().Be(1);
         card.PhaseRetrievals.Should().Be(0, "the count belongs to the learning phase that has ended");
-        (await GradedReviews()).Should().Be(6);
+        (await GradedReviews()).Should().Be(7);
     }
 
     [Test]
@@ -93,7 +94,7 @@ public class LearningSessionTests
 
         var missAt = seen.IndexOf(ExerciseType.ContextToWordRecall);
         seen[missAt + 1].Should().Be(ExerciseType.MeaningToWordSyllableScramble, "a miss drops one level");
-        seen.Count.Should().BeGreaterThan(7, "the slip is paid for in more practice, not a shorter day");
+        seen.Count.Should().BeGreaterThan(8, "the slip is paid for in more practice, not a shorter day");
         (await Card()).State.Should().Be(CardState.Review);
     }
 
@@ -114,7 +115,7 @@ public class LearningSessionTests
         // met a minute earlier four days away.
         var seen = await StudyUntilLearned(_ => true, elapsedMs: 800);
 
-        seen.Should().HaveCount(7);
+        seen.Should().HaveCount(8);
         (await Card()).State.Should().Be(CardState.Review);
     }
 
@@ -151,20 +152,24 @@ public class LearningSessionTests
 
     // --- typed answers -------------------------------------------------------------
 
+    /// <summary>On the scaffolded level with two clean answers, so it is next asked to type the word.</summary>
+    private Task SeedTypingCard() =>
+        SeedCard(rung: 2, streak: 2, CardState.Learning, last: ExerciseType.MeaningToWordScramble);
+
     [Test]
     public async Task ATypedSlipIsAcceptedButHoldsTheWordAndSaysWhy()
     {
-        await SeedCard(rung: 3, streak: 1, CardState.Learning, last: ExerciseType.ContextToWordRecall);
+        await SeedTypingCard();
 
         var card = await Next();
-        card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordType);
+        card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordCuedType);
 
         var result = await Submit(card, answer: "rememebr");
 
         result.Grade.Should().Be(ReviewGrade.Hard);
         result.Feedback!.Correct.Should().BeTrue();
         result.Feedback.Note.Should().Contain("one letter");
-        (await Card()).RungStreak.Should().Be(1, "a near miss neither counts nor costs");
+        (await Card()).RungStreak.Should().Be(2, "a near miss neither counts nor costs");
         result.State.Should().Be(CardState.Learning);
     }
 
@@ -172,7 +177,7 @@ public class LearningSessionTests
     public async Task ATypedSlipThatSpellsAnotherWordInTheCollectionIsWrong()
     {
         await Seed("remembers", "keeps in mind", null);
-        await SeedCard(rung: 3, streak: 1, CardState.Learning, last: ExerciseType.ContextToWordRecall);
+        await SeedTypingCard();
 
         var result = await Submit(await Next(), answer: "remembers");
 
@@ -184,13 +189,13 @@ public class LearningSessionTests
     [Test]
     public async Task AnExactTypedAnswerCountsInFull()
     {
-        await SeedCard(rung: 3, streak: 1, CardState.Learning, last: ExerciseType.ContextToWordRecall);
+        await SeedTypingCard();
 
         var result = await Submit(await Next(), answer: "Remember");
 
         result.Grade.Should().Be(ReviewGrade.Good);
         result.Feedback!.Note.Should().BeNull();
-        (await Card()).RungStreak.Should().Be(2);
+        (await Card()).CurrentRung.Should().Be(3, "the third clean answer on the level moves it up");
     }
 
     [Test]
@@ -205,6 +210,106 @@ public class LearningSessionTests
         await Answer(card, correct: true);
 
         (await Card()).LastExerciseType.Should().Be(ExerciseType.MeaningToWordChoice);
+    }
+
+    // --- example sentences -----------------------------------------------------------
+
+    private async Task<StudyExample> AddExample(string headword, string sentence, string form)
+    {
+        var word = await _db.Context.Words.SingleAsync(w => w.Headword == headword);
+        var example = new StudyExample { WordId = word.Id, Sentence = sentence, Form = form };
+
+        _db.Context.StudyExamples.Add(example);
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+        return example;
+    }
+
+    private async Task<StudyExample> Reload(StudyExample example)
+    {
+        _db.Context.ChangeTracker.Clear();
+        return await _db.Context.StudyExamples.AsNoTracking().SingleAsync(e => e.Id == example.Id);
+    }
+
+    [Test]
+    public async Task AClozeAnsweredCorrectlyMarksItsSentenceAsPractised()
+    {
+        var first = await AddExample(Word, "I remember her name.", "remember");
+        var second = await AddExample(Word, "Remember to call me.", "Remember");
+        await SeedCard(rung: 3, streak: 0, CardState.Review, interval: 3, last: ExerciseType.MeaningToWordRecall);
+
+        var card = await Next();
+        card.Exercise.Type.Should().Be(ExerciseType.ContextToWordRecall);
+        card.Exercise.ExampleId.Should().Be(first.Id);
+        card.Exercise.Prompt.Should().Be("I _____ her name.");
+
+        var result = await Submit(card, selfGrade: ReviewGrade.Good);
+
+        (await Reload(first)).Successes.Should().Be(1);
+        (await Reload(first)).LastUsedAtUtc.Should().NotBeNull();
+
+        // Next time round it is the sentence not yet practised that is asked
+        var word = await _db.Context.Words.Include(w => w.Senses).AsNoTracking().SingleAsync(w => w.Headword == Word);
+        var examples = await _db.Context.StudyExamples.AsNoTracking().Where(e => e.WordId == word.Id).ToListAsync();
+        new StudyMaterialResolver().Resolve(word, null, new StudyExampleSet(examples, Array.Empty<string>()))
+            .ExampleId.Should().Be(second.Id);
+    }
+
+    [Test]
+    public async Task AMissedClozeKeepsItsSentenceAtTheFront()
+    {
+        var first = await AddExample(Word, "I remember her name.", "remember");
+        await AddExample(Word, "Remember to call me.", "Remember");
+        await SeedCard(rung: 3, streak: 0, CardState.Review, interval: 3, last: ExerciseType.MeaningToWordRecall);
+
+        await Submit(await Next(), selfGrade: ReviewGrade.Again);
+
+        var reloaded = await Reload(first);
+        reloaded.Successes.Should().Be(0);
+        reloaded.LastUsedAtUtc.Should().NotBeNull();
+    }
+
+    [Test]
+    public async Task AnExampleIdBelongingToAnotherWordIsIgnored()
+    {
+        var other = await AddExample("window", "Open the window now.", "window");
+        await SeedCard(rung: 3, streak: 0, CardState.Review, interval: 3, last: ExerciseType.MeaningToWordRecall);
+        var card = await Next();
+
+        _db.Context.ChangeTracker.Clear();
+        await ReviewHandler().Handle(
+            new SubmitReviewCommand
+            {
+                CardId = card.CardId,
+                AttemptId = Guid.NewGuid(),
+                ExerciseType = card.Exercise.Type,
+                SelfGrade = ReviewGrade.Good,
+                ExampleId = other.Id,
+                ElapsedMs = 5000
+            },
+            CancellationToken.None);
+
+        (await Reload(other)).Successes.Should().Be(0);
+    }
+
+    [Test]
+    public async Task TheFeedbackCarriesTheWordsConnections()
+    {
+        var word = await _db.Context.Words.SingleAsync(w => w.Headword == Word);
+        _db.Context.WordStudyContents.Add(new WordStudyContent
+        {
+            WordId = word.Id,
+            Status = StudyContentStatus.Ready,
+            Etymology = "From Latin rememorari, to call to mind again.",
+            Mnemonic = "Sounds like 'ream member'."
+        });
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+        await SeedTypingCard();
+
+        var card = await Next();
+        card.Exercise.Connections!.Etymology.Should().StartWith("From Latin");
+
+        var result = await Submit(card, answer: "remember");
+        result.Feedback!.Connections!.Mnemonic.Should().Be("Sounds like 'ream member'.");
     }
 
     // --- driving a session ---------------------------------------------------------
@@ -296,7 +401,9 @@ public class LearningSessionTests
                 ExerciseType = card.Exercise.Type,
                 Answer = answer,
                 SelfGrade = selfGrade,
-                ElapsedMs = elapsedMs
+                ElapsedMs = elapsedMs,
+                // As the page does: the sentence the exercise was asked on goes back with it
+                ExampleId = card.Exercise.ExampleId
             },
             CancellationToken.None);
     }

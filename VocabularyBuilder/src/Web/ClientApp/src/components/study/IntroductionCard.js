@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from 'reactstrap';
 import { NounArticle } from '../NounArticle';
 import { BilingualText } from './BilingualText';
+import { WordConnections } from './WordConnections';
 
 /**
  * A word being met for the first time.
@@ -36,6 +37,8 @@ export function IntroductionCard({ exercise, onAcknowledge, onAlreadyKnown, subm
         native={exercise.contextSentenceTranslation}
         learnedTestId="introduction-context"
       />
+
+      <WordConnections connections={exercise.connections} />
 
       <div className="d-flex gap-2 flex-wrap mt-4">
         <Button

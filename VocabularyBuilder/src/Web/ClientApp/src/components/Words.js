@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { WordsClient } from '../web-api-client.ts';
 import { IndefiniteArticleHint, NounArticle } from './NounArticle';
 import { WordForms } from './WordForms';
+import { WordConnections } from './study/WordConnections';
 
 // Mirrors VocabularyBuilder.Domain.Enums.GrammaticalGender, which serialises as a number.
 const GRAMMATICAL_GENDERS = [
@@ -913,6 +914,32 @@ export class Words extends Component {
                   </>
                 )}
 
+                {wordDetails.connections && (
+                  <>
+                    <h5 className="mt-4">Connections</h5>
+                    <WordConnections connections={wordDetails.connections} className="mt-2" />
+                  </>
+                )}
+
+                {wordDetails.studyExamples && wordDetails.studyExamples.length > 0 && (
+                  <>
+                    <h5 className="mt-4">Study examples</h5>
+                    <ul data-testid="study-examples">
+                      {wordDetails.studyExamples.map((example, index) => (
+                        <li key={index} data-testid="study-example">
+                          {example.sentence}
+                          {example.collocation && (
+                            <span className="badge bg-light text-dark border ms-2">{example.collocation}</span>
+                          )}
+                          {example.translation && (
+                            <div className="text-muted small fst-italic">{example.translation}</div>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                )}
+
                 <WordForms forms={wordDetails.forms} />
 
                 {wordDetails.encounters && wordDetails.encounters.length > 0 && (
@@ -923,6 +950,7 @@ export class Words extends Component {
                         <thead>
                           <tr>
                             <th>Source</th>
+                            <th>Form</th>
                             <th>Context</th>
                             <th>Notes</th>
                             <th>Date</th>
@@ -932,6 +960,7 @@ export class Words extends Component {
                           {wordDetails.encounters.map((enc, index) => (
                             <tr key={index}>
                               <td><span className="badge bg-secondary">{enc.source}</span></td>
+                              <td data-testid="encounter-form">{enc.form || '-'}</td>
                               <td>{enc.context || '-'}</td>
                               <td>{enc.notes || '-'}</td>
                               <td><small>{new Date(enc.encounteredAt).toLocaleDateString()}</small></td>

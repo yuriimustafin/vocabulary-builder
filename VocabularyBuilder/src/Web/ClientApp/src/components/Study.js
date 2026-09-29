@@ -285,6 +285,8 @@ export class Study extends Component {
           cardId: card.cardId,
           attemptId: card.attemptId,
           exerciseType: card.exercise.type,
+          // The sentence the exercise was asked on, so the answer counts against it
+          exampleId: card.exercise.exampleId,
           elapsedMs: Date.now() - this.state.shownAt,
           hintUsed: this.state.hintUsed,
           ...payload

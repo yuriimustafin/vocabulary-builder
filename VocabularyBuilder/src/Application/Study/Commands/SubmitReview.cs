@@ -26,6 +26,9 @@ public record SubmitReviewCommand : IRequest<ReviewResultDto>
     public int Resets { get; init; }
     public bool HintUsed { get; init; }
     public bool Abandoned { get; init; }
+
+    /// <summary>The example sentence the exercise was built on, as the payload gave it.</summary>
+    public int? ExampleId { get; init; }
 }
 
 public class ReviewResultDto
@@ -84,6 +87,9 @@ public class ReviewFeedbackDto
     /// learner sees why it did not count in full.
     /// </summary>
     public string? Note { get; init; }
+
+    /// <summary>What ties the word to things already known, shown beside the word.</summary>
+    public WordConnectionsDto? Connections { get; init; }
 }
 
 /// <summary>
@@ -177,7 +183,13 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             .AsNoTracking()
             .FirstOrDefaultAsync(c => c.WordId == card.WordId, cancellationToken);
 
-        var material = _materialResolver.Resolve(card.Word, generated);
+        var examples = await _context.StudyExamples
+            .Where(e => e.WordId == card.WordId)
+            .ToListAsync(cancellationToken);
+
+        // Resolved on the sentence that was asked, so the feedback shows that one
+        var material = _materialResolver.Resolve(
+            card.Word, generated, new StudyExampleSet(examples, Array.Empty<string>(), request.ExampleId));
         var definition = _catalog.Get(request.ExerciseType);
 
         var answer = new ExerciseAnswer(
@@ -205,6 +217,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         var scheduling = _scheduler.Schedule(card, grade, now, learningComplete);
 
         Apply(card, grade, move, retrievals, scheduling, request.ExerciseType, now);
+        RecordExampleUse(examples, material, request, grade, now);
 
         _context.ReviewLogs.Add(new ReviewLog
         {
@@ -276,6 +289,30 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         return match;
     }
 
+    /// <summary>
+    /// Records the answer against the example sentence it was asked on. A sentence answered
+    /// correctly goes to the back of the queue, so the word is next asked on one it has not
+    /// yet practised; one that was missed stays at the front.
+    /// </summary>
+    private static void RecordExampleUse(
+        List<StudyExample> examples, StudyMaterial material, SubmitReviewCommand request, ReviewGrade grade, DateTime now)
+    {
+        // Only an id the payload carried, and only for the sentence the material resolved
+        // to - an id for another word's example is ignored rather than trusted
+        if (request.ExampleId is not { } id || material.ExampleId != id)
+        {
+            return;
+        }
+
+        var example = examples.First(e => e.Id == id);
+        example.LastUsedAtUtc = now;
+
+        if (grade >= ReviewGrade.Good)
+        {
+            example.Successes++;
+        }
+    }
+
     private void Apply(
         ReviewCard card,
         ReviewGrade grade,
@@ -342,7 +379,8 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             MeaningGloss = material.MeaningGloss,
             ContextSentenceTranslation = material.ContextSentenceTranslation,
             Chosen = correct ? null : await DescribeChoice(card, request, cancellationToken),
-            Note = typed is null ? null : NoteFor(typed.Kind, material)
+            Note = typed is null ? null : NoteFor(typed.Kind, material),
+            Connections = material.Connections
         };
     }
 

@@ -56,6 +56,9 @@ public class StudyTestingEndpoints : EndpointGroupBase
 
         public int EncounterCount { get; init; }
         public bool IsMarkedForStudy { get; init; }
+
+        /// <summary>Forms the word was met in, each recorded as an encounter of its own.</summary>
+        public List<string>? EncounterForms { get; init; }
     }
 
     public async Task<IResult> SeedWords(
@@ -89,6 +92,16 @@ public class StudyTestingEndpoints : EndpointGroupBase
             else if (seed.Example is not null)
             {
                 word.Examples = new List<string> { seed.Example };
+            }
+
+            foreach (var form in seed.EncounterForms ?? new List<string>())
+            {
+                word.WordEncounters.Add(new WordEncounter
+                {
+                    Source = WordEncounterSource.Manual,
+                    SourceIdentifier = $"seed:{seed.Headword}:form:{form}",
+                    Form = form.Trim().ToLowerInvariant()
+                });
             }
 
             for (var i = 0; i < seed.EncounterCount; i++)

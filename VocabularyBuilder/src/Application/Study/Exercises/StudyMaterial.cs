@@ -38,10 +38,30 @@ public record StudyMaterial
     public string? MeaningGloss { get; init; }
 
     /// <summary>
-    /// An example sentence that is guaranteed to contain the headword - the resolver
-    /// discards any that do not, because a cloze exercise has nothing to blank out.
+    /// An example sentence that is guaranteed to contain <see cref="ContextForm"/> - the
+    /// resolver discards any that do not, because a cloze exercise has nothing to blank out.
     /// </summary>
     public string? ContextSentence { get; init; }
+
+    /// <summary>
+    /// The word as it appears in <see cref="ContextSentence"/>: the headword, or the form
+    /// the example was written with - "prend" in a sentence for "prendre".
+    /// </summary>
+    public string? ContextForm { get; init; }
+
+    /// <summary>The stored example the sentence came from, so answering it can be recorded against it.</summary>
+    public int? ExampleId { get; init; }
+
+    /// <summary>What the word is typically said of or used with.</summary>
+    public string? Usage { get; init; }
+
+    public string? Etymology { get; init; }
+
+    /// <summary>Words in another language sharing its origin, with any false friend flagged.</summary>
+    public string? Cognates { get; init; }
+
+    /// <summary>Sound-alike words and a scene tying them to the meaning.</summary>
+    public string? Mnemonic { get; init; }
 
     /// <summary>
     /// What <see cref="ContextSentence"/> says, in the learner's language. Kept apart from
@@ -52,6 +72,22 @@ public record StudyMaterial
     public bool HasMeaning => !string.IsNullOrWhiteSpace(Meaning);
 
     public bool HasContextSentence => !string.IsNullOrWhiteSpace(ContextSentence);
+
+    /// <summary><see cref="ContextSentence"/> with the word cut out of it.</summary>
+    public string BlankedContextSentence => HeadwordText.Blankify(ContextSentence!, ContextForm ?? Headword);
+
+    /// <summary>Everything that ties the word to something already known, for the card to show.</summary>
+    public WordConnectionsDto? Connections => WordConnectionsDto.From(Usage, Etymology, Cognates, Mnemonic);
+}
+
+/// <summary>What ties a word to things the learner already knows.</summary>
+public record WordConnectionsDto(string? Usage, string? Etymology, string? Cognates, string? Mnemonic)
+{
+    /// <summary>None at all when there is nothing to show, so the card can leave the section out.</summary>
+    public static WordConnectionsDto? From(string? usage, string? etymology, string? cognates, string? mnemonic) =>
+        usage is null && etymology is null && cognates is null && mnemonic is null
+            ? null
+            : new WordConnectionsDto(usage, etymology, cognates, mnemonic);
 }
 
 /// <summary>
@@ -63,7 +99,16 @@ public enum StudyMaterialGaps
 {
     None = 0,
     Meaning = 1,
-    ContextSentence = 2
+    ContextSentence = 2,
+
+    /// <summary>Fewer example sentences than a word is given to practise on.</summary>
+    Examples = 4,
+
+    /// <summary>A form the word was met in that no example sentence uses yet.</summary>
+    Forms = 8,
+
+    /// <summary>Usage, etymology, cognates and a mnemonic, never generated for this word.</summary>
+    Connections = 16
 }
 
 /// <summary>

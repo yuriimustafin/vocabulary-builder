@@ -59,6 +59,8 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
 
     public DbSet<WordStudyContent> WordStudyContents => Set<WordStudyContent>();
 
+    public DbSet<StudyExample> StudyExamples => Set<StudyExample>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         // A headword is unique within one user's vocabulary, not across users: each user
@@ -163,6 +165,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<WordDictionarySource>().HasQueryFilter(s => s.Word.OwnerId == CurrentUserId);
         builder.Entity<WordForm>().HasQueryFilter(f => f.Word.OwnerId == CurrentUserId);
         builder.Entity<WordStudyContent>().HasQueryFilter(c => c.Word.OwnerId == CurrentUserId);
+        builder.Entity<StudyExample>().HasQueryFilter(e => e.Word.OwnerId == CurrentUserId);
         builder.Entity<ReviewCard>().HasQueryFilter(c => c.Word.OwnerId == CurrentUserId);
         builder.Entity<ReviewLog>().HasQueryFilter(l => l.ReviewCard.Word.OwnerId == CurrentUserId);
         builder.Entity<VocabularyListItem>().HasQueryFilter(i => i.List.OwnerId == CurrentUserId);

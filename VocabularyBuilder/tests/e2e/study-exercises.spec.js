@@ -31,29 +31,34 @@ test.describe('Typed answers', () => {
     await seedWords(request, frenchWords());
   });
 
-  async function typed(request, headword, answer) {
-    await seedCardFor(request, headword, ExerciseType.MeaningToWordType);
+  /**
+   * Typing the word from its first letters - the typed exercise on the default ladder.
+   * Typing it with no help at all is marked the same way, and is there to be added to the
+   * production level when spelling is wanted.
+   */
+  async function typed(request, headword, answer, { syllables = false } = {}) {
+    await seedCardFor(request, headword, ExerciseType.MeaningToWordCuedType, {}, { syllables });
     const card = cardFor(await getQueue(request, { lang: 'fr' }), headword);
 
-    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordType);
+    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordCuedType);
     return submitReview(request, card, { answer }, 'fr');
   }
 
   test('the exact word counts in full', async ({ request }) => {
-    const result = await typed(request, 'fenêtre', 'Fenêtre');
+    const result = await typed(request, 'chaise', 'Chaise');
 
     expect(result.feedback.correct).toBe(true);
     expect(result.feedback.note).toBeNull();
-    expect((await getCard(request, 'fenêtre')).rungStreak).toBe(2);
+    expect((await getCard(request, 'chaise')).rungStreak).toBe(2);
   });
 
   test('a missing accent is accepted but does not count towards moving on', async ({ request }) => {
-    const result = await typed(request, 'fenêtre', 'fenetre');
+    const result = await typed(request, 'fenêtre', 'fenetre', { syllables: true });
 
     expect(result.grade).toBe(2);
     expect(result.feedback.correct).toBe(true);
     expect(result.feedback.note).toContain('accents');
-    expect((await getCard(request, 'fenêtre')).rungStreak, 'held where it was').toBe(1);
+    expect((await getCard(request, 'fenêtre')).rungStreak, 'held where it was').toBe(2);
   });
 
   test('the right word under the wrong article is caught', async ({ request }) => {
@@ -78,13 +83,13 @@ test.describe('Typed answers', () => {
   });
 
   test('giving up is a miss and drops the word a level', async ({ request }) => {
-    await seedCardFor(request, 'maison', ExerciseType.MeaningToWordType);
+    await seedCardFor(request, 'maison', ExerciseType.MeaningToWordCuedType);
     const card = cardFor(await getQueue(request, { lang: 'fr' }), 'maison');
 
     const result = await submitReview(request, card, { answer: '', abandoned: true }, 'fr');
 
     expect(result.grade).toBe(1);
-    expect((await getCard(request, 'maison')).rung).toBe(2);
+    expect((await getCard(request, 'maison')).rung).toBe(1);
   });
 });
 
@@ -107,12 +112,11 @@ test.describe('New exercises on the page', () => {
 
   test('a word is typed and checked with enter', async ({ request, page }) => {
     await seedWords(request, ['keyboard']);
-    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordType);
+    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordCuedType);
     await openStudy(page);
 
     await expect(page.getByTestId('typed-exercise')).toBeVisible();
     await expect(page.getByTestId('exercise-prompt')).toHaveText('the meaning of keyboard');
-    await expect(page.getByTestId('letter-mask')).toHaveCount(0);
     await expect(page.getByTestId('accent-bar'), 'no accents to offer in English').toHaveCount(0);
 
     await page.getByTestId('typed-input').fill('keyboard');
@@ -125,7 +129,7 @@ test.describe('New exercises on the page', () => {
 
   test('a near miss says what was off', async ({ request, page }) => {
     await seedWords(request, ['keyboard']);
-    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordType);
+    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordCuedType);
     await openStudy(page);
 
     await page.getByTestId('typed-input').fill('keybaord');
@@ -137,7 +141,7 @@ test.describe('New exercises on the page', () => {
 
   test('a wrong word shows what was typed', async ({ request, page }) => {
     await seedWords(request, ['keyboard']);
-    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordType);
+    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordCuedType);
     await openStudy(page);
 
     await page.getByTestId('typed-input').fill('mouse');
@@ -150,7 +154,7 @@ test.describe('New exercises on the page', () => {
 
   test('French gets a row of accented letters that type where the cursor is', async ({ request, page }) => {
     await seedWords(request, frenchWords());
-    await seedCardFor(request, 'fenêtre', ExerciseType.MeaningToWordType);
+    await seedCardFor(request, 'fenêtre', ExerciseType.MeaningToWordCuedType, {}, { syllables: true });
     await isolateWord(request, 'fenêtre', 'fr');
     await openStudy(page, 'fr');
 
@@ -188,7 +192,7 @@ test.describe('New exercises on the page', () => {
 
   test('giving up on typing is recorded as a miss', async ({ request, page }) => {
     await seedWords(request, ['keyboard']);
-    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordType);
+    await seedCardFor(request, 'keyboard', ExerciseType.MeaningToWordCuedType);
     await openStudy(page);
 
     await page.getByTestId('typed-give-up').click();

@@ -75,7 +75,9 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
             Source = WordEncounterSource.KindleHighlights,
             SourceIdentifier = BuildSourceIdentifier(importedWord, trimmedHeadword),
             Context = importedWord.Book?.Title,
-            Notes = importedWord.Note
+            Notes = importedWord.Note,
+            // A highlight is the word exactly as the book printed it
+            EncounterForm = trimmedHeadword
         };
     }
 

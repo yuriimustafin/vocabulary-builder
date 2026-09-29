@@ -54,7 +54,7 @@ test.describe('Multiple-choice distractors', () => {
   test('an exercise that cannot be built gives way to another on the same level',
     async ({ request }) => {
       // A healthy collection, but this word has no sentence of its own, so cloze cannot be
-      // built - and typing it, from the same level, is asked rather than dropping a level.
+      // built - and recalling it from its meaning, on the same level, is asked instead.
       await seedWords(request, [
         ...Array.from({ length: 10 }, (_, i) => `near${String(i).padStart(2, '0')}`),
         { headword: 'nosentence', example: null }
@@ -62,7 +62,7 @@ test.describe('Multiple-choice distractors', () => {
 
       const card = await serve(request, 'nosentence', ExerciseType.ContextToWordRecall);
 
-      expect(card.exercise.type).toBe(ExerciseType.MeaningToWordType);
+      expect(card.exercise.type).toBe(ExerciseType.MeaningToWordRecall);
     });
 
   test('rungs that need no distractors survive a thin collection', async ({ request }) => {

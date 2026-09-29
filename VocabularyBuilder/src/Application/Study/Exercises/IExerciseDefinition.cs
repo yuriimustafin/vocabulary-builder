@@ -59,6 +59,16 @@ public record ExercisePayload
 
     /// <summary>What <see cref="ContextSentence"/> says, in the learner's language.</summary>
     public string? ContextSentenceTranslation { get; init; }
+
+    /// <summary>
+    /// The stored example the exercise is built on, sent back with the answer so that
+    /// answering it is recorded against that sentence. Set only by exercises that ask
+    /// about a sentence.
+    /// </summary>
+    public int? ExampleId { get; init; }
+
+    /// <summary>What ties the word to things already known: usage, origin, related words, a mnemonic.</summary>
+    public WordConnectionsDto? Connections { get; init; }
 }
 
 /// <summary>

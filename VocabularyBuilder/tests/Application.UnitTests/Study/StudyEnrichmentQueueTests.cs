@@ -66,16 +66,35 @@ public class StudyEnrichmentQueueTests
     }
 
     [Test]
-    public void AskingTwiceForTheSameWordIsHarmless()
+    public void AWordAlreadyWaitingIsNotQueuedAgain()
     {
-        // The enrichment command is idempotent, so a duplicate request costs a lookup
-        // rather than a second generation.
+        // Every fetch of a session asks again for every word on it not yet filled in.
         var queue = new StudyEnrichmentQueue();
 
         queue.Enqueue(7);
         queue.Enqueue(7);
+        queue.Enqueue(8);
 
         queue.PendingCount.Should().Be(2);
+    }
+
+    [Test]
+    public async Task AWordTakenByTheWorkerCanBeAskedForAgain()
+    {
+        var queue = new StudyEnrichmentQueue();
+        queue.Enqueue(7);
+
+        using var cancellation = new CancellationTokenSource();
+
+        await foreach (var _ in queue.ReadAllAsync(cancellation.Token))
+        {
+            cancellation.Cancel();
+            break;
+        }
+
+        queue.Enqueue(7);
+
+        queue.PendingCount.Should().Be(1, "it may have been reopened since it was taken");
     }
 }
 
@@ -93,44 +112,68 @@ public class MockGptClientStudyContentTests
         Language = Language.English
     };
 
-    private static async Task<WordStudyContent> Generate(string headword)
+    private static async Task<(WordStudyContent Content, StudyExampleSet Examples)> Generate(
+        string headword, params string[] forms)
     {
         var prompt = StudyContentPrompt.For(
-            Word(headword), StudyMaterialGaps.Meaning | StudyMaterialGaps.ContextSentence);
+            Word(headword),
+            StudyMaterialGaps.Meaning | StudyMaterialGaps.Examples | StudyMaterialGaps.Connections,
+            forms);
 
         var response = await new MockGptClient().SendMessageAsync(prompt);
 
         var parsed = System.Text.Json.JsonSerializer.Deserialize<Reply>(
             response!, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
 
-        return new WordStudyContent
+        var content = new WordStudyContent
         {
             WordId = 1,
             Status = StudyContentStatus.Ready,
             GeneratedDefinition = parsed.Definition,
-            GeneratedContextSentence = parsed.Sentence
+            Usage = parsed.Usage,
+            Etymology = parsed.Etymology,
+            Cognates = parsed.Cognates,
+            Mnemonic = parsed.Mnemonic,
+            PromptVersion = StudyContentPrompt.Version
         };
+
+        var examples = parsed.Examples!
+            .Select((e, i) => new StudyExample { Id = i + 1, WordId = 1, Sentence = e.Sentence!, Form = e.Form!, Translation = e.Translation })
+            .ToList();
+
+        return (content, new StudyExampleSet(examples, forms));
     }
 
     [Test]
     public async Task TheMockProducesContentTheResolverAccepts()
     {
-        var content = await Generate("ubiquitous");
+        var (content, examples) = await Generate("ubiquitous");
 
-        var material = new StudyMaterialResolver().Resolve(Word("ubiquitous"), content);
+        var material = new StudyMaterialResolver().Resolve(Word("ubiquitous"), content, examples);
 
         material.HasMeaning.Should().BeTrue();
-        material.HasContextSentence.Should().BeTrue("the sentence must contain the headword to be usable");
+        material.HasContextSentence.Should().BeTrue("each sentence must contain the form it names to be usable");
+        material.Connections.Should().NotBeNull();
+        new StudyMaterialResolver().FindGaps(Word("ubiquitous"), content, examples)
+            .Should().Be(StudyMaterialGaps.None);
     }
 
     [Test]
     public async Task TheGeneratedSentenceCanActuallyBeBlankedForACloze()
     {
-        var content = await Generate("ubiquitous");
-        var material = new StudyMaterialResolver().Resolve(Word("ubiquitous"), content);
+        var (content, examples) = await Generate("ubiquitous");
+        var material = new StudyMaterialResolver().Resolve(Word("ubiquitous"), content, examples);
 
-        HeadwordText.Blankify(material.ContextSentence!, "ubiquitous")
-            .Should().Contain(HeadwordText.Blank).And.NotContain("ubiquitous");
+        material.BlankedContextSentence.Should().Contain(HeadwordText.Blank).And.NotContain("ubiquitous");
+    }
+
+    [Test]
+    public async Task TheMockWritesAnExampleForEachFormItIsAskedFor()
+    {
+        var (_, examples) = await Generate("prendre", "prend", "pris");
+
+        examples.Examples.Select(e => e.Form).Should().Contain(new[] { "prend", "pris" });
+        new StudyMaterialResolver().UncoveredForms(Word("prendre"), examples).Should().BeEmpty();
     }
 
     [Test]
@@ -150,5 +193,13 @@ public class MockGptClientStudyContentTests
         response.Should().NotContain("\"sentence\"", "only study prompts get study content");
     }
 
-    private record Reply(string? Definition, string? Sentence);
+    private record Reply(
+        string? Definition,
+        string? Usage,
+        List<ReplyExample>? Examples,
+        string? Etymology,
+        string? Cognates,
+        string? Mnemonic);
+
+    private record ReplyExample(string? Sentence, string? Translation, string? Form, string? Collocation);
 }

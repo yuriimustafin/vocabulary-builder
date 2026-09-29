@@ -111,7 +111,7 @@ public class GptFrenchParserTests
     }
 
     [Test]
-    public async Task ShouldReportItselfAsTheGptSource()
+    public void ShouldReportItselfAsTheGptSource()
     {
         CreateParser().SourceType.Should().Be(DictionarySourceType.Gpt);
     }

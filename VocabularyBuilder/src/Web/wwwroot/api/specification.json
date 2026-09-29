@@ -2703,6 +2703,19 @@
           "contextSentenceTranslation": {
             "type": "string",
             "nullable": true
+          },
+          "exampleId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "connections": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WordConnectionsDto"
+              }
+            ]
           }
         }
       },
@@ -2766,6 +2779,28 @@
           },
           "isPlural": {
             "type": "boolean"
+          }
+        }
+      },
+      "WordConnectionsDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "usage": {
+            "type": "string",
+            "nullable": true
+          },
+          "etymology": {
+            "type": "string",
+            "nullable": true
+          },
+          "cognates": {
+            "type": "string",
+            "nullable": true
+          },
+          "mnemonic": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -2938,6 +2973,14 @@
           "note": {
             "type": "string",
             "nullable": true
+          },
+          "connections": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WordConnectionsDto"
+              }
+            ]
           }
         }
       },
@@ -2998,6 +3041,11 @@
           },
           "abandoned": {
             "type": "boolean"
+          },
+          "exampleId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
           }
         }
       },

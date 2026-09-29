@@ -46,18 +46,27 @@ public class ExerciseLadderTests
             ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice, ExerciseType.WordToMeaningChoice);
         ladder.TypesAt(Scaffolded).Should().Equal(
             ExerciseType.MeaningToWordSyllableScramble, ExerciseType.MeaningToWordScramble, ExerciseType.MeaningToWordCuedType);
-        ladder.TypesAt(Production).Should().Equal(
-            ExerciseType.ContextToWordRecall, ExerciseType.MeaningToWordType, ExerciseType.MeaningToWordRecall);
+        ladder.TypesAt(Production).Should().Equal(ExerciseType.ContextToWordRecall, ExerciseType.MeaningToWordRecall);
     }
 
     // --- moving between levels ---------------------------------------------
 
     [Test]
-    public void OneCleanSuccessMovesAWordOutOfRecognition()
+    public void TwoCleanSuccessesMoveAWordOutOfRecognition()
     {
-        var move = Ladder().NextRung(Card(rung: Recognition), ReviewGrade.Good, hintUsed: false);
+        var ladder = Ladder();
 
-        move.Should().Be(new RungMove(Scaffolded, 0), "the next level starts with a clean slate");
+        ladder.NextRung(Card(rung: Recognition, streak: 0), ReviewGrade.Good, false).Should().Be(new RungMove(Recognition, 1));
+        ladder.NextRung(Card(rung: Recognition, streak: 1), ReviewGrade.Good, false)
+            .Should().Be(new RungMove(Scaffolded, 0), "the next level starts with a clean slate");
+    }
+
+    [Test]
+    public void RecognitionAsksForTheWordThenForTheWordThatFillsASentence()
+    {
+        Probe(Card(rung: Recognition, streak: 0)).Should().Be(ExerciseType.MeaningToWordChoice);
+        Probe(Card(rung: Recognition, streak: 1, last: ExerciseType.MeaningToWordChoice))
+            .Should().Be(ExerciseType.ContextToWordChoice);
     }
 
     [Test]
@@ -136,9 +145,8 @@ public class ExerciseLadderTests
     public void TheTopLevelTakesItsExercisesInTurn()
     {
         Probe(Card(rung: Production, streak: 0)).Should().Be(ExerciseType.ContextToWordRecall);
-        Probe(Card(rung: Production, streak: 1)).Should().Be(ExerciseType.MeaningToWordType);
-        Probe(Card(rung: Production, streak: 2)).Should().Be(ExerciseType.MeaningToWordRecall);
-        Probe(Card(rung: Production, streak: 3)).Should().Be(ExerciseType.ContextToWordRecall);
+        Probe(Card(rung: Production, streak: 1)).Should().Be(ExerciseType.MeaningToWordRecall);
+        Probe(Card(rung: Production, streak: 2)).Should().Be(ExerciseType.ContextToWordRecall);
     }
 
     [Test]
@@ -197,14 +205,14 @@ public class ExerciseLadderTests
     // --- long gaps -----------------------------------------------------------
 
     [Test]
-    public void ALongAbsenceEscalatesToUnhintedTyping()
+    public void ALongAbsenceEscalatesToUnhintedRecall()
     {
         // Eight days away from a three-day card: probe hard, with no hint, so the grade
         // measures memory rather than the cue.
         var probe = Ladder().SelectProbe(
             Card(rung: Production, interval: 3, lastReviewed: Now.AddDays(-8)), "noun", Now, Anything);
 
-        probe.Type.Should().Be(ExerciseType.MeaningToWordType);
+        probe.Type.Should().Be(ExerciseType.MeaningToWordRecall);
         probe.Escalated.Should().BeTrue();
     }
 
@@ -260,7 +268,7 @@ public class ExerciseLadderTests
         options.Ladder[Production].Exercises[0].MinIntervalDays = 10;
 
         Ladder(options).SelectProbe(Card(rung: Production, interval: 3), "noun", Now, Anything).Type
-            .Should().Be(ExerciseType.MeaningToWordType);
+            .Should().Be(ExerciseType.MeaningToWordRecall);
         Ladder(options).SelectProbe(Card(rung: Production, interval: 12), "noun", Now, Anything).Type
             .Should().Be(ExerciseType.ContextToWordRecall);
     }
@@ -272,7 +280,7 @@ public class ExerciseLadderTests
         options.Ladder[Production].Exercises[0].PartsOfSpeech = new List<string> { "verb" };
 
         Ladder(options).SelectProbe(Card(rung: Production), "noun", Now, Anything).Type
-            .Should().Be(ExerciseType.MeaningToWordType);
+            .Should().Be(ExerciseType.MeaningToWordRecall);
         Ladder(options).SelectProbe(Card(rung: Production), "transitive verb", Now, Anything).Type
             .Should().Be(ExerciseType.ContextToWordRecall);
     }
@@ -286,7 +294,7 @@ public class ExerciseLadderTests
         var card = Card(rung: Recognition);
         var seen = new List<ExerciseType>();
 
-        for (var i = 0; i < 6; i++)
+        for (var i = 0; i < 7; i++)
         {
             var probe = ladder.SelectProbe(card, "noun", Now, Anything);
             seen.Add(probe.Type);
@@ -299,18 +307,19 @@ public class ExerciseLadderTests
 
         seen.Should().Equal(
             ExerciseType.MeaningToWordChoice,
+            ExerciseType.ContextToWordChoice,
             ExerciseType.MeaningToWordSyllableScramble,
             ExerciseType.MeaningToWordScramble,
             ExerciseType.MeaningToWordCuedType,
             ExerciseType.ContextToWordRecall,
-            ExerciseType.MeaningToWordType);
+            ExerciseType.MeaningToWordRecall);
     }
 
     [Test]
     public void AMissedWordMeetsTheLevelBelowAndClimbsBack()
     {
         var ladder = Ladder();
-        var card = Card(rung: Production, streak: 1, last: ExerciseType.MeaningToWordType);
+        var card = Card(rung: Production, streak: 1, last: ExerciseType.MeaningToWordRecall);
 
         var move = ladder.NextRung(card, ReviewGrade.Again, false);
         card.CurrentRung = move.Rung;
