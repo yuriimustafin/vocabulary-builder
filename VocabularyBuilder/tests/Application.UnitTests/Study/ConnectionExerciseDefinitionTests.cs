@@ -73,6 +73,35 @@ public class ConnectionExerciseDefinitionTests
             .Should().Be(ReviewGrade.Again);
     }
 
+    [TestCase("interjection")]
+    [TestCase("interj")]
+    [TestCase("exclamation")]
+    [TestCase("preposition")]
+    [TestCase("prép")]
+    [TestCase("conjunction")]
+    [TestCase("pronoun")]
+    [TestCase("article")]
+    [TestCase("determiner")]
+    [TestCase("numeral")]
+    public void AWordWithNoPartnersToSpeakOfIsNeverAskedWhatItGoesWith(string partOfSpeech)
+    {
+        // "What goes with bonjour?" has no honest answer, whatever the model offered for it
+        Collocates().CanBuild(Material() with { PartOfSpeech = partOfSpeech }, null).Should().BeFalse();
+    }
+
+    [TestCase("adjective")]
+    [TestCase("adj")]
+    [TestCase("noun")]
+    [TestCase("nf")]
+    [TestCase("verb")]
+    [TestCase("vtr")]
+    [TestCase("adverb")]
+    [TestCase(null)]
+    public void EveryPartOfSpeechThatCombinesCanBeAsked(string? partOfSpeech)
+    {
+        Collocates().CanBuild(Material() with { PartOfSpeech = partOfSpeech }, null).Should().BeTrue();
+    }
+
     [Test]
     public void ItNeedsSomethingOnBothSides()
     {

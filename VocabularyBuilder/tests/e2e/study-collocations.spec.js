@@ -51,6 +51,20 @@ test.describe('Collocations and mistake-tolerant exercises', () => {
     expect(after.rungStreak).toBe(0);
   });
 
+  test('a greeting is never asked what it goes with', async ({ request }) => {
+    await seedWords(request, [
+      { headword: 'bonjour', partOfSpeech: 'interjection', isMarkedForStudy: true, enrich: true }, ...others
+    ]);
+    await waitForStudyContent(request, 'bonjour');
+
+    // Where its collocates would come on recognition, the level's next exercise is asked
+    await seedCardFor(request, 'bonjour', ExerciseType.WordToCollocatesChoice, {}, { content: true });
+    const card = cardFor(await getQueue(request), 'bonjour');
+
+    expect(card.exercise.type).not.toBe(ExerciseType.WordToCollocatesChoice);
+    expect(card.exercise.type).toBe(ExerciseType.WordToMeaningChoice);
+  });
+
   test('a miss on it costs the word nothing and brings back its connections', async ({ request }) => {
     await wordWithContent(request);
     const card = await serve(request, 'vivid', ExerciseType.WordToCollocatesChoice);

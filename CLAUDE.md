@@ -338,7 +338,7 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially the suite - 221 tests, 5 of them skipped in the source - passes
+suspecting the tests. Serially the suite - 222 tests, 5 of them skipped in the source - passes
 in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
 is why this went unnoticed.
 

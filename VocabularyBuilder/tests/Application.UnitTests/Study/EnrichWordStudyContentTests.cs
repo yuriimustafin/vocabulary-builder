@@ -427,6 +427,21 @@ public class EnrichWordStudyContentTests
     // --- prompt ------------------------------------------------------------
 
     [Test]
+    public void ThePromptSaysWhatKindOfPartnerToGiveForEachPartOfSpeech()
+    {
+        var word = new Word { Headword = "prendre", PartOfSpeech = "verb", Language = Language.French };
+
+        var prompt = StudyContentPrompt.For(word, StudyMaterialGaps.Connections);
+
+        prompt.Should().Contain("for an adjective, what it describes");
+        prompt.Should().Contain("for a noun, the verbs and adjectives used with it");
+        prompt.Should().Contain("for a verb, what it is done to or with");
+        prompt.Should().Contain("for an adverb, what it modifies");
+        prompt.Should().Contain("of the same kind as the collocates", "a wrong option of another kind gives itself away");
+        prompt.Should().Contain("null when it does not combine").And.Contain("\"bonjour\", \"please\"");
+    }
+
+    [Test]
     public void ThePromptCarriesTheMarkerAndTheWordInTheAgreedShape()
     {
         var word = new Word { Headword = "ubiquitous", PartOfSpeech = "adjective", Language = Language.French };

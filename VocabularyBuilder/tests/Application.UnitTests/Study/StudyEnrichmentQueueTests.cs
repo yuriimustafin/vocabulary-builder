@@ -168,6 +168,16 @@ public class MockGptClientStudyContentTests
     }
 
     [Test]
+    public async Task TheMockGivesNoPartnersForAWordThatHasNone()
+    {
+        var word = new Word { Id = 1, Headword = "bonjour", PartOfSpeech = "interjection", Language = Language.French };
+
+        var response = await new MockGptClient().SendMessageAsync(StudyContentPrompt.For(word, StudyMaterialGaps.Connections));
+
+        response.Should().Contain("\"collocates\":null");
+    }
+
+    [Test]
     public async Task TheMockWritesAnExampleForEachFormItIsAskedFor()
     {
         var (_, examples) = await Generate("prendre", "prend", "pris");

@@ -34,9 +34,32 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
 
     public bool CanBeProbe => true;
 
-    /// <summary>Two of each at least, or there is no choice to make.</summary>
+    /// <summary>
+    /// Two of each at least, or there is no choice to make - and never for a word that does
+    /// not combine with a range of partners, whatever the model offered for it.
+    /// </summary>
     public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
-        material.Collocates.Count >= 2 && material.NonCollocates.Count >= 2;
+        CombinesWithPartners(material.PartOfSpeech)
+        && material.Collocates.Count >= 2
+        && material.NonCollocates.Count >= 2;
+
+    /// <summary>
+    /// Parts of speech that have no partners to speak of, as each source spells them - the
+    /// model ("interjection"), WordReference ("interj", "prép") and Oxford ("exclamation").
+    /// "What goes with bonjour?" has no honest answer, so the prompt asks for none and this
+    /// holds even when an answer arrives anyway.
+    /// </summary>
+    private static readonly string[] WithoutPartners =
+    {
+        "interj", "exclam", "greeting", "prep", "prép", "conj", "pron", "art", "det", "dét", "num"
+    };
+
+    public static bool CombinesWithPartners(string? partOfSpeech)
+    {
+        var kind = partOfSpeech?.Trim().ToLowerInvariant();
+
+        return string.IsNullOrEmpty(kind) || !WithoutPartners.Any(prefix => kind.StartsWith(prefix, StringComparison.Ordinal));
+    }
 
     public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context) => new()
     {

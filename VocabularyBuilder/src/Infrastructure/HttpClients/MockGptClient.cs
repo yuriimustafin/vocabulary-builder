@@ -1,6 +1,7 @@
 using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Study.Enrichment;
+using VocabularyBuilder.Application.Study.Exercises.Definitions;
 using VocabularyBuilder.Infrastructure.Ai;
 
 using VocabularyBuilder.Infrastructure.Parsers;
@@ -145,6 +146,9 @@ public class MockGptClient : IGptClient
             return null;
         }
 
+        var partOfSpeech = System.Text.RegularExpressions.Regex.Match(prompt, @"part of speech:\s*(.+)").Groups[1].Value;
+        var combines = WordToCollocatesChoiceExerciseDefinition.CombinesWithPartners(partOfSpeech);
+
         var examples = new List<object>
         {
             Example($"This sentence uses {word} exactly once.", word, $"uses {word}"),
@@ -162,8 +166,11 @@ public class MockGptClient : IGptClient
             etymology = $"From a mock root of {word}.",
             cognates = $"mock{word} (a related English word)",
             mnemonic = $"{word} sounds like mock; picture a mockingbird saying it.",
-            collocates = new[] { "mock partner one", "mock partner two", "mock partner three", "mock partner four" },
-            nonCollocates = new[] { "mock stranger one", "mock stranger two", "mock stranger three" }
+            // None for a word with no partners to speak of, as the prompt asks of a real model
+            collocates = combines
+                ? new[] { "mock partner one", "mock partner two", "mock partner three", "mock partner four" }
+                : null,
+            nonCollocates = combines ? new[] { "mock stranger one", "mock stranger two", "mock stranger three" } : null
         };
 
         return JsonSerializer.Serialize(payload);
