@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -59,6 +60,14 @@ public class StudyTestingEndpoints : EndpointGroupBase
 
         /// <summary>Forms the word was met in, each recorded as an encounter of its own.</summary>
         public List<string>? EncounterForms { get; init; }
+
+        /// <summary>
+        /// Leave the word to be filled in by the enrichment worker - examples, collocates,
+        /// connections - as a real one is. Off by default, so a seeded word is studied exactly
+        /// as seeded and nothing arrives in the background halfway through a test to change
+        /// which exercise it is asked. A word seeded without a definition is always filled in.
+        /// </summary>
+        public bool Enrich { get; init; }
     }
 
     public async Task<IResult> SeedWords(
@@ -115,6 +124,18 @@ public class StudyTestingEndpoints : EndpointGroupBase
 
             context.Words.Add(word);
             await context.SaveChangesAsync();
+
+            if (!seed.Enrich && seed.Definition is not null)
+            {
+                context.WordStudyContents.Add(new WordStudyContent
+                {
+                    WordId = word.Id,
+                    Status = StudyContentStatus.Ready,
+                    PromptVersion = StudyContentPrompt.Version
+                });
+                await context.SaveChangesAsync();
+            }
+
             created.Add(new { word.Id, word.Headword });
         }
 

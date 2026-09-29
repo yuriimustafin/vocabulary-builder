@@ -422,10 +422,10 @@ public class ExerciseDefinitionTests
     }
 
     [Test]
-    public void OnlyThePartialLetterExerciseIsExcludedFromBeingAProbe()
+    public void OnlyTheFollowUpExercisesAreExcludedFromBeingAProbe()
     {
         AllDefinitions().Where(d => !d.CanBeProbe).Select(d => d.Type)
-            .Should().Equal(ExerciseType.MeaningToWordPartialLetters);
+            .Should().Equal(ExerciseType.MeaningToWordPartialLetters, ExerciseType.WordToConnectionsReveal);
     }
 
     private static List<IExerciseDefinition> AllDefinitions() => new()
@@ -440,6 +440,9 @@ public class ExerciseDefinitionTests
         new MeaningToWordSyllableScrambleExerciseDefinition(Options, Grades, Seeded),
         new MeaningToWordTypeExerciseDefinition(Grades),
         new MeaningToWordCuedTypeExerciseDefinition(Grades),
-        new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded)
+        new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded),
+        new WordToCollocatesChoiceExerciseDefinition(Grades, Seeded),
+        new TranslationToSentenceScrambleExerciseDefinition(Grades, Seeded),
+        new WordToConnectionsRevealExerciseDefinition()
     };
 }

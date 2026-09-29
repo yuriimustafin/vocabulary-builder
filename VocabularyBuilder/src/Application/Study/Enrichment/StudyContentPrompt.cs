@@ -29,10 +29,13 @@ public static class StudyContentPrompt
     /// Bumped when what the prompt asks for changes. Content from an older version is asked
     /// again, once, for what the new one adds.
     /// </summary>
-    public const string Version = "v3";
+    public const string Version = "v4";
 
     /// <summary>Examples asked for when a word has fewer than this many.</summary>
-    public const int MinExamples = 3;
+    public const int MinExamples = 2;
+
+    /// <summary>Most examples asked for at once: a few well-chosen sentences, not a page of them.</summary>
+    public const int MaxExamples = 3;
 
     public static string For(
         Word word,
@@ -62,7 +65,7 @@ public static class StudyContentPrompt
 
         if (wantsExamples || forms.Count > 0)
         {
-            var count = wantsExamples ? $"{MinExamples} to 5" : forms.Count.ToString();
+            var count = wantsExamples ? $"{MinExamples} to {MaxExamples}" : forms.Count.ToString();
             var formsLine = forms.Count > 0
                 ? $" Include one example for each of these forms, written exactly like this: {string.Join(", ", forms.Select(f => $"\"{f}\""))}."
                 : string.Empty;
@@ -85,6 +88,8 @@ public static class StudyContentPrompt
                   "etymology": where the word comes from, under 25 words, as far as it links to a word a learner may know. null if you are not sure - never invent one
                   "cognates": {relatedIn} words sharing its origin, with how their meaning differs when it does; mark a false friend with "false friend:". null if there are none
                   "mnemonic": one or two {soundAlikesIn} words that sound like it when spoken (by pronunciation, not spelling), and one vivid sentence under 25 words linking them to its meaning. null when the word is already obvious from a related word
+                  "collocates": an array of 4 to 6 {word.Language} words or short phrases it is most typically used with, most typical first, covering its range - for "bright": "light", "future", "colours", "idea"
+                  "nonCollocates": an array of 3 everyday {word.Language} words it clearly cannot go with, each from a different area - never close in meaning to one of the collocates
                 """.TrimEnd());
         }
 

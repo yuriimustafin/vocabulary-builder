@@ -39,7 +39,7 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language, typ
         data-testid={correct ? 'feedback-correct' : 'feedback-incorrect'}
       >
         <strong>{correct ? (note ? 'Nearly' : 'Correct') : 'Not quite'}</strong>
-        {/* Accepted, but not in full: says what was off, so it is clear why it did not count */}
+        {/* What was off, or - after a miss that costs nothing - that it costs nothing */}
         {note && <span data-testid="feedback-note">{note}</span>}
       </Alert>
 
@@ -71,6 +71,13 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language, typ
 
       {/* The mnemonic is for a word that did not come back on its own */}
       <WordConnections connections={feedback.connections} showMnemonic={!correct} />
+
+      {feedback.expectedOptions && (
+        <div className="mt-3" data-testid="feedback-expected">
+          <span className="text-muted small text-uppercase me-2">Goes with</span>
+          {feedback.expectedOptions.join(', ')}
+        </div>
+      )}
 
       {chosen && (
         <div className="border-start border-3 border-danger ps-3 mt-4" data-testid="feedback-chosen">

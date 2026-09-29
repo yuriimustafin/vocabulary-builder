@@ -63,6 +63,15 @@ public record StudyMaterial
     /// <summary>Sound-alike words and a scene tying them to the meaning.</summary>
     public string? Mnemonic { get; init; }
 
+    /// <summary>What the word is typically used with, most typical first.</summary>
+    public IReadOnlyList<string> Collocates { get; init; } = Array.Empty<string>();
+
+    /// <summary>What it clearly does not go with.</summary>
+    public IReadOnlyList<string> NonCollocates { get; init; } = Array.Empty<string>();
+
+    /// <summary>Whether <see cref="ContextSentence"/> is one of the word's stored examples, practice on it tracked.</summary>
+    public bool HasStoredExample => ExampleId is not null;
+
     /// <summary>
     /// What <see cref="ContextSentence"/> says, in the learner's language. Kept apart from
     /// the sentence so a cloze blanks the sentence alone.

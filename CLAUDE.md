@@ -338,7 +338,7 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially the suite - 207 tests, 5 of them skipped in the source - passes
+suspecting the tests. Serially the suite - 221 tests, 5 of them skipped in the source - passes
 in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
 is why this went unnoticed.
 
@@ -385,6 +385,12 @@ that state. The saved state reaches the `request` fixture as well as the page, s
 make signed-in API calls without knowing about it. The reset keeps that account - deleting it
 would leave the saved session pointing at nobody - and removes every other user.
 
+**Moving the test clock (`advance-clock`) moves it for the sign-in cookie too.** Identity checks
+the cookie's expiry against the same `TimeProvider`, so a spec that advances the clock past the
+cookie's lifetime - a review card answered a few times, each success pushing it weeks out -
+signs the suite out, and every later spec fails with `401`, reset included. Keep day-scale
+jumps short, or drive a card in learning, whose steps are minutes.
+
 `auth.spec.js` is the exception: it overrides `storageState` to start signed out, and does
 its resetting and seeding through a request context of its own built from the saved session.
 It registers from the allowlist in `appsettings.E2ETest.json` (`helpers/auth.js`).
@@ -425,10 +431,30 @@ Ready content (`UpsertWord.CoverForm`); an import that keeps the sentence the wo
 (LingQ's phrase) stores that as the example instead. The mock writes three examples for any
 word and one per form the prompt asks for.
 
+**An exercise can be mistake-tolerant** (`Tolerant: true` on its ladder entry - the collocate
+choice and the sentence rebuild are). A miss on one costs the word nothing: `SubmitReview`
+keeps its level and streak, `IReviewScheduler.Hold` keeps its state, interval and ease and
+brings it back after the first learning step, its success average is left alone, and only the
+connections card follows. A success counts as usual. Every other miss also opens with that
+card (`WordToConnectionsReveal`, follow-up only) before the diminishing cues ask again.
+
+**The end-of-day review** (`GET /api/{lang}/study/day-review`) matches the day's new words to
+their gapped sentences, in the fewest groups of four to six (`DayReviewGroups`). It is practice
+only: nothing is sent back and no schedule moves.
+
+**A seeded e2e word is not enriched unless the spec says `enrich: true`** - the seed hook gives it
+a finished content row, so it is studied exactly as seeded. Without that the worker would add
+collocates and stored sentences partway through a test and change which exercise the word is
+asked; that is how a spec's expected sequence went flaky. A word seeded without a definition is
+always enriched. The mock's collocates are "mock partner …", its wrong ones "mock stranger …",
+and it translates a sentence as "Translated: " and the sentence, which is how
+`correctAnswer` answers those exercises.
+
 In e2e specs, seed a card by exercise with `seedCardFor(type)`, not by rung number. It
 assumes the word is too short for syllable tiles - the syllable scramble needs three
-syllables - unless told `{ syllables: true }`. `StudyOptionsBindingTests` reads the real
-`appsettings.json` and fails if it drifts from `StudyDefaults`.
+syllables - and has no generated content, unless told `{ syllables: true }` or
+`{ content: true }`. `StudyOptionsBindingTests` reads the real `appsettings.json` and fails if
+it drifts from `StudyDefaults`.
 
 ## French support
 

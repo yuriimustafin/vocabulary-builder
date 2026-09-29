@@ -22,7 +22,13 @@ public record ScaffoldStep(ExerciseType Type, int RevealedLetters = 0, IReadOnly
 
 public interface IScaffoldSequencer
 {
-    IReadOnlyList<ScaffoldStep> Build(int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength);
+    /// <param name="tolerated">
+    /// The miss was on a mistake-tolerant exercise and cost the word nothing. Only the
+    /// word's connections follow: the word comes back shortly to be asked another way, so
+    /// there is no need to walk it through its letters now.
+    /// </param>
+    IReadOnlyList<ScaffoldStep> Build(
+        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength, bool tolerated = false);
 }
 
 /// <summary>
@@ -46,11 +52,14 @@ public class ScaffoldSequencer : IScaffoldSequencer
         _ladder = ladder;
     }
 
-    public IReadOnlyList<ScaffoldStep> Build(int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength)
+    public IReadOnlyList<ScaffoldStep> Build(
+        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength, bool tolerated = false)
     {
         if (grade == ReviewGrade.Again)
         {
-            return DiminishingCues(headwordLength);
+            return tolerated
+                ? new List<ScaffoldStep> { new(ExerciseType.WordToConnectionsReveal) }
+                : DiminishingCues(headwordLength);
         }
 
         var count = _options.FollowUpsByTier.For(difficulty);
@@ -74,13 +83,14 @@ public class ScaffoldSequencer : IScaffoldSequencer
     }
 
     /// <summary>
-    /// Cues shrink step by step: a first letter, then roughly half the word, then the
-    /// letters shuffled as tiles, and finally the whole word alongside its meaning.
-    /// The session stops at whichever step the learner finally produces the word.
+    /// First what ties the word to things already known - its mnemonic, where it comes
+    /// from - and then it is asked again with cues that shrink step by step: a first letter,
+    /// then roughly half the word, then the letters shuffled as tiles, and finally the whole
+    /// word alongside its meaning. A word with no connections starts at the cues.
     /// </summary>
     private static List<ScaffoldStep> DiminishingCues(int headwordLength)
     {
-        var steps = new List<ScaffoldStep>();
+        var steps = new List<ScaffoldStep> { new(ExerciseType.WordToConnectionsReveal) };
 
         if (headwordLength > 1)
         {

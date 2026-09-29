@@ -17,6 +17,7 @@ import {
   SessionProgress,
   StudyDone
 } from './study/StudyStates';
+import { DayReview } from './study/DayReview';
 
 const DIFFICULTY_BADGES = {
   [CardDifficulty.Shaky]: { label: 'Shaky', colour: 'warning' },
@@ -56,7 +57,9 @@ export class Study extends Component {
       feedback: null,
       hintUsed: false,
       revealed: false,
-      shownAt: Date.now()
+      shownAt: Date.now(),
+      // Today's words in groups for matching, once asked for; null until then
+      dayReview: null
     };
   }
 
@@ -261,8 +264,25 @@ export class Study extends Component {
   grade = selfGrade => this.submit({ selfGrade });
 
   /** Automatically graded: the server marks the answer against the word. */
-  answer = ({ text, resets = 0, abandoned = false }) =>
-    this.submit({ answer: text, resets, abandoned });
+  answer = ({ text, resets = 0, abandoned = false, selections }) =>
+    this.submit({ answer: text, resets, abandoned, selections });
+
+  /** The day's new words matched against their sentences, once the session has run out. */
+  openDayReview = async () => {
+    try {
+      const response = await fetch(this.api('/day-review'));
+
+      if (!response.ok) {
+        throw new Error(`Day review request failed with ${response.status}`);
+      }
+
+      const review = await response.json();
+      this.setState({ dayReview: review.groups });
+    } catch (error) {
+      console.error('Could not load the day review', error);
+      this.setState({ error: "Could not load today's words." });
+    }
+  };
 
   async submit(payload) {
     const card = this.currentCard;
@@ -472,8 +492,23 @@ export class Study extends Component {
 
         {!card && pendingEnrichment === 0 && !hasAnyWords && <NothingToStudy />}
 
-        {!card && pendingEnrichment === 0 && hasAnyWords && (
-          <StudyDone stats={stats} nextDueAtUtc={nextDueAtUtc} onRefresh={() => this.load(true)} />
+        {!card && pendingEnrichment === 0 && hasAnyWords && !this.state.dayReview && (
+          <StudyDone
+            stats={stats}
+            nextDueAtUtc={nextDueAtUtc}
+            onRefresh={() => this.load(true)}
+            onDayReview={stats && stats.newToday >= 2 ? this.openDayReview : null}
+          />
+        )}
+
+        {!card && this.state.dayReview && (
+          this.state.dayReview.length > 0
+            ? <DayReview groups={this.state.dayReview} onDone={() => this.setState({ dayReview: null })} />
+            : (
+              <p className="text-muted" data-testid="day-review-empty">
+                None of today&apos;s words has a sentence to match yet.
+              </p>
+            )
         )}
 
         {card && (

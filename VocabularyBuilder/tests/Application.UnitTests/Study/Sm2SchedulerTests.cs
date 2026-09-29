@@ -127,6 +127,20 @@ public class Sm2SchedulerTests
     }
 
     [Test]
+    public void AHeldCardKeepsEverythingAndComesBackAfterTheFirstStep()
+    {
+        var card = Card(CardState.Review, interval: 12, stepsCompleted: 0, ease: 2.2);
+
+        var result = Scheduler().Hold(card, Now);
+
+        result.State.Should().Be(CardState.Review);
+        result.IntervalDays.Should().Be(12);
+        result.EaseFactor.Should().Be(2.2);
+        result.IsLapse.Should().BeFalse();
+        result.DueAtUtc.Should().Be(Now.AddMinutes(1));
+    }
+
+    [Test]
     public void TheCriterionIsIgnoredForACardInReview()
     {
         var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Good, Now, learningComplete: false);

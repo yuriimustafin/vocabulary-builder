@@ -32,6 +32,7 @@ public class ScaffoldSequencerTests
         steps[0].Candidates.Should().Equal(
             ExerciseType.MeaningToWordSyllableScramble,
             ExerciseType.MeaningToWordScramble,
+            ExerciseType.TranslationToSentenceScramble,
             ExerciseType.MeaningToWordCuedType);
     }
 
@@ -58,16 +59,28 @@ public class ScaffoldSequencerTests
     {
         var steps = Sequencer().Build(3, ReviewGrade.Again, CardDifficulty.Shaky, headwordLength: 10);
 
-        // Cues shrink: one letter, then roughly half the word, then tiles, then the whole thing.
+        // First what ties the word to things already known, then it is asked again with cues
+        // that shrink: one letter, then roughly half the word, then tiles, then the whole thing.
         steps.Select(s => s.Type).Should().Equal(
+            ExerciseType.WordToConnectionsReveal,
             ExerciseType.MeaningToWordPartialLetters,
             ExerciseType.MeaningToWordPartialLetters,
             ExerciseType.MeaningToWordScramble,
             ExerciseType.WordToMeaningReveal);
 
-        steps[0].RevealedLetters.Should().Be(1);
-        steps[1].RevealedLetters.Should().Be(4);
-        steps[1].RevealedLetters.Should().BeLessThan(10, "the word must never be spelled out as its own cue");
+        steps[1].RevealedLetters.Should().Be(1);
+        steps[2].RevealedLetters.Should().Be(4);
+        steps[2].RevealedLetters.Should().BeLessThan(10, "the word must never be spelled out as its own cue");
+    }
+
+    [Test]
+    public void AMissThatCostsNothingIsFollowedOnlyByTheWordsConnections()
+    {
+        // The word comes back shortly to be asked another way, so it is not walked through
+        // its letters now.
+        var steps = Sequencer().Build(2, ReviewGrade.Again, CardDifficulty.Shaky, headwordLength: 8, tolerated: true);
+
+        steps.Select(s => s.Type).Should().Equal(ExerciseType.WordToConnectionsReveal);
     }
 
     [Test]

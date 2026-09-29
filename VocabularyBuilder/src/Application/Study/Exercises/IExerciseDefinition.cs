@@ -94,13 +94,15 @@ public record ExerciseBuildContext(
 /// </summary>
 /// <param name="Text">Chosen option, or the word as assembled.</param>
 /// <param name="SelfGrade">The learner's own judgement, for self-graded exercises.</param>
+/// <param name="Selections">Every option ticked, for an exercise with more than one right answer.</param>
 public record ExerciseAnswer(
     string? Text = null,
     ReviewGrade? SelfGrade = null,
     int ElapsedMs = 0,
     int Resets = 0,
     bool HintUsed = false,
-    bool Abandoned = false);
+    bool Abandoned = false,
+    IReadOnlyList<string>? Selections = null);
 
 /// <summary>
 /// One exercise type. Adding a seventh kind of question means writing one of these,

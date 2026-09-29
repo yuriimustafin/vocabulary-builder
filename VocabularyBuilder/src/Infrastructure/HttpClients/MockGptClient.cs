@@ -148,8 +148,7 @@ public class MockGptClient : IGptClient
         var examples = new List<object>
         {
             Example($"This sentence uses {word} exactly once.", word, $"uses {word}"),
-            Example($"People often pair {word} with good company.", word, $"pair {word}"),
-            Example($"A second line puts {word} in the middle.", word, $"puts {word}")
+            Example($"People often pair {word} with good company.", word, $"pair {word}")
         };
 
         examples.AddRange(RequestedForms(prompt)
@@ -162,7 +161,9 @@ public class MockGptClient : IGptClient
             examples,
             etymology = $"From a mock root of {word}.",
             cognates = $"mock{word} (a related English word)",
-            mnemonic = $"{word} sounds like mock; picture a mockingbird saying it."
+            mnemonic = $"{word} sounds like mock; picture a mockingbird saying it.",
+            collocates = new[] { "mock partner one", "mock partner two", "mock partner three", "mock partner four" },
+            nonCollocates = new[] { "mock stranger one", "mock stranger two", "mock stranger three" }
         };
 
         return JsonSerializer.Serialize(payload);

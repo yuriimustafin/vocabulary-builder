@@ -50,6 +50,19 @@ public class WordStudyContent : BaseAuditableEntity
     public string? Mnemonic { get; set; }
 
     /// <summary>
+    /// Words or short phrases the word is typically used with, most typical first - for
+    /// "bright": light, future, colours, idea. What "what can be bright?" asks for.
+    /// </summary>
+    public IList<string>? Collocates { get; set; }
+
+    /// <summary>
+    /// Words it clearly does not go with, offered beside <see cref="Collocates"/> as the
+    /// wrong answers. Clearly wrong on purpose: a plausible wrong pairing is one a learner
+    /// may keep.
+    /// </summary>
+    public IList<string>? NonCollocates { get; set; }
+
+    /// <summary>
     /// When the current generation attempt was claimed. A claim older than the stale
     /// timeout is retried, so a crash mid-generation does not strand the word.
     /// </summary>

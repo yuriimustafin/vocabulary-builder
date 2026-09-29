@@ -47,4 +47,7 @@ public interface IExerciseLadder
 
     /// <summary>Where the card moves after a graded answer.</summary>
     RungMove NextRung(ReviewCard card, ReviewGrade grade, bool hintUsed);
+
+    /// <summary>Whether a miss on this exercise costs the word nothing - see <see cref="LadderExerciseOptions.Tolerant"/>.</summary>
+    bool IsTolerant(ExerciseType type);
 }

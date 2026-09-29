@@ -66,7 +66,9 @@ public class StudyMaterialResolver : IStudyMaterialResolver
             Usage = Trimmed(generated?.Usage),
             Etymology = Trimmed(generated?.Etymology),
             Cognates = Trimmed(generated?.Cognates),
-            Mnemonic = Trimmed(generated?.Mnemonic)
+            Mnemonic = Trimmed(generated?.Mnemonic),
+            Collocates = generated?.Collocates?.ToList() ?? new List<string>(),
+            NonCollocates = generated?.NonCollocates?.ToList() ?? new List<string>()
         };
     }
 

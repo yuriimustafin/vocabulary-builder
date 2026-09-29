@@ -858,6 +858,44 @@ export class StudyClient {
         return Promise.resolve<StudyStatsDto>(null as any);
     }
 
+    getApiStudyDayReview(lang: string): Promise<DayReviewDto> {
+        let url_ = this.baseUrl + "/api/{lang}/study/day-review";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiStudyDayReview(_response);
+        });
+    }
+
+    protected processGetApiStudyDayReview(response: Response): Promise<DayReviewDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = DayReviewDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<DayReviewDto>(null as any);
+    }
+
     postApiStudyReviews(lang: string, command: SubmitReviewCommand): Promise<ReviewResultDto> {
         let url_ = this.baseUrl + "/api/{lang}/study/reviews";
         if (lang === undefined || lang === null)
@@ -3607,6 +3645,9 @@ export enum ExerciseType {
     MeaningToWordType = 8,
     MeaningToWordCuedType = 9,
     ContextToWordChoice = 10,
+    WordToCollocatesChoice = 11,
+    TranslationToSentenceScramble = 12,
+    WordToConnectionsReveal = 13,
 }
 
 export enum GradingMode {
@@ -3786,6 +3827,150 @@ export interface IStudyStatsDto {
     awaitingContent?: number;
 }
 
+export class DayReviewDto implements IDayReviewDto {
+    groups?: DayReviewGroupDto[];
+
+    constructor(data?: IDayReviewDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["groups"])) {
+                this.groups = [] as any;
+                for (let item of _data["groups"])
+                    this.groups!.push(DayReviewGroupDto.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): DayReviewDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new DayReviewDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.groups)) {
+            data["groups"] = [];
+            for (let item of this.groups)
+                data["groups"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IDayReviewDto {
+    groups?: DayReviewGroupDto[];
+}
+
+export class DayReviewGroupDto implements IDayReviewGroupDto {
+    pairs?: DayReviewPairDto[];
+
+    constructor(data?: IDayReviewGroupDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["pairs"])) {
+                this.pairs = [] as any;
+                for (let item of _data["pairs"])
+                    this.pairs!.push(DayReviewPairDto.fromJS(item));
+            }
+        }
+    }
+
+    static fromJS(data: any): DayReviewGroupDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new DayReviewGroupDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.pairs)) {
+            data["pairs"] = [];
+            for (let item of this.pairs)
+                data["pairs"].push(item ? item.toJSON() : <any>undefined);
+        }
+        return data;
+    }
+}
+
+export interface IDayReviewGroupDto {
+    pairs?: DayReviewPairDto[];
+}
+
+export class DayReviewPairDto implements IDayReviewPairDto {
+    wordId?: number;
+    headword?: string;
+    article?: NounArticleDto | undefined;
+    sentence?: string;
+    form?: string | undefined;
+    translation?: string | undefined;
+
+    constructor(data?: IDayReviewPairDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.wordId = _data["wordId"];
+            this.headword = _data["headword"];
+            this.article = _data["article"] ? NounArticleDto.fromJS(_data["article"]) : <any>undefined;
+            this.sentence = _data["sentence"];
+            this.form = _data["form"];
+            this.translation = _data["translation"];
+        }
+    }
+
+    static fromJS(data: any): DayReviewPairDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new DayReviewPairDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["wordId"] = this.wordId;
+        data["headword"] = this.headword;
+        data["article"] = this.article ? this.article.toJSON() : <any>undefined;
+        data["sentence"] = this.sentence;
+        data["form"] = this.form;
+        data["translation"] = this.translation;
+        return data;
+    }
+}
+
+export interface IDayReviewPairDto {
+    wordId?: number;
+    headword?: string;
+    article?: NounArticleDto | undefined;
+    sentence?: string;
+    form?: string | undefined;
+    translation?: string | undefined;
+}
+
 export class ReviewResultDto implements IReviewResultDto {
     grade?: ReviewGrade;
     state?: CardState;
@@ -3795,6 +3980,7 @@ export class ReviewResultDto implements IReviewResultDto {
     nextDueAtUtc?: Date | undefined;
     followUps?: FollowUpDto[];
     wasDuplicate?: boolean;
+    tolerated?: boolean;
     feedback?: ReviewFeedbackDto | undefined;
 
     constructor(data?: IReviewResultDto) {
@@ -3820,6 +4006,7 @@ export class ReviewResultDto implements IReviewResultDto {
                     this.followUps!.push(FollowUpDto.fromJS(item));
             }
             this.wasDuplicate = _data["wasDuplicate"];
+            this.tolerated = _data["tolerated"];
             this.feedback = _data["feedback"] ? ReviewFeedbackDto.fromJS(_data["feedback"]) : <any>undefined;
         }
     }
@@ -3845,6 +4032,7 @@ export class ReviewResultDto implements IReviewResultDto {
                 data["followUps"].push(item ? item.toJSON() : <any>undefined);
         }
         data["wasDuplicate"] = this.wasDuplicate;
+        data["tolerated"] = this.tolerated;
         data["feedback"] = this.feedback ? this.feedback.toJSON() : <any>undefined;
         return data;
     }
@@ -3859,6 +4047,7 @@ export interface IReviewResultDto {
     nextDueAtUtc?: Date | undefined;
     followUps?: FollowUpDto[];
     wasDuplicate?: boolean;
+    tolerated?: boolean;
     feedback?: ReviewFeedbackDto | undefined;
 }
 
@@ -3918,6 +4107,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
     chosen?: ChosenAnswerDto | undefined;
     note?: string | undefined;
     connections?: WordConnectionsDto | undefined;
+    expectedOptions?: string[] | undefined;
 
     constructor(data?: IReviewFeedbackDto) {
         if (data) {
@@ -3942,6 +4132,11 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
             this.chosen = _data["chosen"] ? ChosenAnswerDto.fromJS(_data["chosen"]) : <any>undefined;
             this.note = _data["note"];
             this.connections = _data["connections"] ? WordConnectionsDto.fromJS(_data["connections"]) : <any>undefined;
+            if (Array.isArray(_data["expectedOptions"])) {
+                this.expectedOptions = [] as any;
+                for (let item of _data["expectedOptions"])
+                    this.expectedOptions!.push(item);
+            }
         }
     }
 
@@ -3966,6 +4161,11 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
         data["chosen"] = this.chosen ? this.chosen.toJSON() : <any>undefined;
         data["note"] = this.note;
         data["connections"] = this.connections ? this.connections.toJSON() : <any>undefined;
+        if (Array.isArray(this.expectedOptions)) {
+            data["expectedOptions"] = [];
+            for (let item of this.expectedOptions)
+                data["expectedOptions"].push(item);
+        }
         return data;
     }
 }
@@ -3983,6 +4183,7 @@ export interface IReviewFeedbackDto {
     chosen?: ChosenAnswerDto | undefined;
     note?: string | undefined;
     connections?: WordConnectionsDto | undefined;
+    expectedOptions?: string[] | undefined;
 }
 
 export class ChosenAnswerDto implements IChosenAnswerDto {
@@ -4040,6 +4241,7 @@ export class SubmitReviewCommand implements ISubmitReviewCommand {
     hintUsed?: boolean;
     abandoned?: boolean;
     exampleId?: number | undefined;
+    selections?: string[] | undefined;
 
     constructor(data?: ISubmitReviewCommand) {
         if (data) {
@@ -4062,6 +4264,11 @@ export class SubmitReviewCommand implements ISubmitReviewCommand {
             this.hintUsed = _data["hintUsed"];
             this.abandoned = _data["abandoned"];
             this.exampleId = _data["exampleId"];
+            if (Array.isArray(_data["selections"])) {
+                this.selections = [] as any;
+                for (let item of _data["selections"])
+                    this.selections!.push(item);
+            }
         }
     }
 
@@ -4084,6 +4291,11 @@ export class SubmitReviewCommand implements ISubmitReviewCommand {
         data["hintUsed"] = this.hintUsed;
         data["abandoned"] = this.abandoned;
         data["exampleId"] = this.exampleId;
+        if (Array.isArray(this.selections)) {
+            data["selections"] = [];
+            for (let item of this.selections)
+                data["selections"].push(item);
+        }
         return data;
     }
 }
@@ -4099,6 +4311,7 @@ export interface ISubmitReviewCommand {
     hintUsed?: boolean;
     abandoned?: boolean;
     exampleId?: number | undefined;
+    selections?: string[] | undefined;
 }
 
 export class IntroductionResultDto implements IIntroductionResultDto {

@@ -73,7 +73,7 @@ export class ScrambleExercise extends Component {
 
   submit = () => {
     this.props.onAnswer({
-      text: this.state.placed.map(tile => tile.letter).join(''),
+      text: this.state.placed.map(tile => tile.letter).join(this.props.separator || ''),
       resets: this.state.resets
     });
   };
@@ -137,4 +137,12 @@ export class ScrambleExercise extends Component {
  */
 export function SyllableScrambleExercise(props) {
   return <ScrambleExercise {...props} placeholder="Tap the syllables in order" />;
+}
+
+/**
+ * One of the word's example sentences rebuilt from its words, from what it says. The words
+ * are joined with spaces, and a slip in the order costs the word nothing.
+ */
+export function SentenceScrambleExercise(props) {
+  return <ScrambleExercise {...props} separator=" " placeholder="Tap the words in order" />;
 }

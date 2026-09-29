@@ -47,5 +47,17 @@ public enum ExerciseType
     MeaningToWordCuedType = 9,
 
     /// <summary>A sentence with the word blanked out; pick the word that fills it from four.</summary>
-    ContextToWordChoice = 10
+    ContextToWordChoice = 10,
+
+    /// <summary>"What can be bright?" - tick the words it goes with among a few it does not.</summary>
+    WordToCollocatesChoice = 11,
+
+    /// <summary>Rebuild one of the word's example sentences from its shuffled words, from its translation.</summary>
+    TranslationToSentenceScramble = 12,
+
+    /// <summary>
+    /// Follow-up only: the word with what ties it to things already known - its mnemonic,
+    /// origin and related words - shown after a miss, before it is asked again.
+    /// </summary>
+    WordToConnectionsReveal = 13
 }

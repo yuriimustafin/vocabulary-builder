@@ -1,6 +1,7 @@
 ﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Study.Exercises;
+using VocabularyBuilder.Application.Study.Exercises.Definitions;
 using VocabularyBuilder.Application.Study.Scheduling;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
@@ -29,6 +30,9 @@ public record SubmitReviewCommand : IRequest<ReviewResultDto>
 
     /// <summary>The example sentence the exercise was built on, as the payload gave it.</summary>
     public int? ExampleId { get; init; }
+
+    /// <summary>Every option ticked, for an exercise with more than one right answer.</summary>
+    public List<string>? Selections { get; init; }
 }
 
 public class ReviewResultDto
@@ -45,6 +49,12 @@ public class ReviewResultDto
 
     /// <summary>True when this submit matched one already recorded and changed nothing.</summary>
     public bool WasDuplicate { get; init; }
+
+    /// <summary>
+    /// A miss on a mistake-tolerant exercise, which cost the word nothing: it keeps its level
+    /// and its schedule and comes back shortly to be asked another way.
+    /// </summary>
+    public bool Tolerated { get; init; }
 
     /// <summary>Set for automatically graded exercises; null when the learner graded themselves.</summary>
     public ReviewFeedbackDto? Feedback { get; init; }
@@ -90,6 +100,9 @@ public class ReviewFeedbackDto
 
     /// <summary>What ties the word to things already known, shown beside the word.</summary>
     public WordConnectionsDto? Connections { get; init; }
+
+    /// <summary>For an exercise with several right answers, what they were.</summary>
+    public List<string>? ExpectedOptions { get; init; }
 }
 
 /// <summary>
@@ -198,7 +211,8 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             request.ElapsedMs,
             request.Resets,
             request.HintUsed,
-            request.Abandoned);
+            request.Abandoned,
+            request.Selections);
 
         var grade = definition.Resolve(answer, material);
         var typed = await CheckTypedAnswer(definition, answer, card, material, cancellationToken);
@@ -209,14 +223,23 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         }
 
         var before = Snapshot(card);
-        var move = _ladder.NextRung(card, grade, request.HintUsed);
+
+        // A miss on a mistake-tolerant exercise costs the word nothing: it stays where it
+        // was, on its level and its schedule, and comes back shortly to be asked another way
+        var tolerated = grade == ReviewGrade.Again && _ladder.IsTolerant(request.ExerciseType);
+
+        var move = tolerated
+            ? new RungMove(card.CurrentRung, card.RungStreak)
+            : _ladder.NextRung(card, grade, request.HintUsed);
         var learning = before.State is CardState.New or CardState.Learning or CardState.Relearning;
         var retrievals = learning ? card.PhaseRetrievals + 1 : 0;
         var learningComplete = learning && _learningExit.IsMet(
             before.State, grade, move, retrievals, card.LastReviewedAtUtc, now);
-        var scheduling = _scheduler.Schedule(card, grade, now, learningComplete);
+        var scheduling = tolerated
+            ? _scheduler.Hold(card, now)
+            : _scheduler.Schedule(card, grade, now, learningComplete);
 
-        Apply(card, grade, move, retrievals, scheduling, request.ExerciseType, now);
+        Apply(card, grade, move, retrievals, scheduling, request.ExerciseType, tolerated, now);
         RecordExampleUse(examples, material, request, grade, now);
 
         _context.ReviewLogs.Add(new ReviewLog
@@ -249,10 +272,11 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             Rung = card.CurrentRung,
             Difficulty = difficulty,
             NextDueAtUtc = card.DueAtUtc,
+            Tolerated = tolerated,
             FollowUps = await BuildFollowUps(
-                card, material, before.Rung, grade, difficulty, cancellationToken),
+                card, material, before.Rung, grade, difficulty, tolerated, cancellationToken),
             Feedback = definition.GradingMode == GradingMode.Automatic
-                ? await BuildFeedback(card, material, request, grade, typed, cancellationToken)
+                ? await BuildFeedback(card, material, request, grade, typed, tolerated, cancellationToken)
                 : null
         };
     }
@@ -320,9 +344,15 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         int retrievals,
         SchedulingResult scheduling,
         ExerciseType exerciseType,
+        bool tolerated,
         DateTime now)
     {
-        card.RecentSuccessRate = _difficulty.NextSuccessRate(card.RecentSuccessRate, grade);
+        // A tolerated miss is not evidence against the word, so it does not reach its record
+        if (!tolerated)
+        {
+            card.RecentSuccessRate = _difficulty.NextSuccessRate(card.RecentSuccessRate, grade);
+        }
+
         card.CurrentRung = move.Rung;
         card.RungStreak = move.Streak;
         card.LastExerciseType = exerciseType;
@@ -363,9 +393,11 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         SubmitReviewCommand request,
         ReviewGrade grade,
         TypedMatch? typed,
+        bool tolerated,
         CancellationToken cancellationToken)
     {
         var correct = grade > ReviewGrade.Again;
+        var multiSelect = request.ExerciseType == ExerciseType.WordToCollocatesChoice;
 
         return new ReviewFeedbackDto
         {
@@ -379,8 +411,11 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             MeaningGloss = material.MeaningGloss,
             ContextSentenceTranslation = material.ContextSentenceTranslation,
             Chosen = correct ? null : await DescribeChoice(card, request, cancellationToken),
-            Note = typed is null ? null : NoteFor(typed.Kind, material),
-            Connections = material.Connections
+            Note = tolerated
+                ? "This one does not count against the word - it will be asked again another way."
+                : typed is null ? null : NoteFor(typed.Kind, material),
+            Connections = material.Connections,
+            ExpectedOptions = multiSelect ? WordToCollocatesChoiceExerciseDefinition.Right(material).ToList() : null
         };
     }
 
@@ -399,6 +434,11 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     private async Task<ChosenAnswerDto?> DescribeChoice(
         ReviewCard card, SubmitReviewCommand request, CancellationToken cancellationToken)
     {
+        if (request.Selections is { Count: > 0 } ticked)
+        {
+            return new ChosenAnswerDto { Text = string.Join(", ", ticked) };
+        }
+
         if (string.IsNullOrWhiteSpace(request.Answer))
         {
             return null;
@@ -433,9 +473,10 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         int probeRung,
         ReviewGrade grade,
         CardDifficulty difficulty,
+        bool tolerated,
         CancellationToken cancellationToken)
     {
-        var steps = _scaffolds.Build(probeRung, grade, difficulty, material.Headword.Length);
+        var steps = _scaffolds.Build(probeRung, grade, difficulty, material.Headword.Length, tolerated);
 
         if (steps.Count == 0)
         {
@@ -467,7 +508,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             {
                 Exercise = _catalog.Get(type.Value).Build(
                     material, new ExerciseBuildContext(distractors, step.RevealedLetters))
-                    with { Article = material.Article }
+                    with { Article = material.Article, Connections = material.Connections }
             });
         }
 

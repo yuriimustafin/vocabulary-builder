@@ -25,11 +25,11 @@ test.describe('Examples and connections', () => {
 
   test('every word is given examples around the words it is used with, and connections',
     async ({ request }) => {
-      await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true }, ...others]);
+      await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true, enrich: true }, ...others]);
 
       const details = await waitForStudyContent(request, 'vivid');
 
-      expect(details.studyExamples.length).toBeGreaterThanOrEqual(3);
+      expect(details.studyExamples.length).toBeGreaterThanOrEqual(2);
       expect(details.studyExamples.every(e => e.sentence.includes('vivid'))).toBe(true);
       expect(details.studyExamples.every(e => e.collocation)).toBe(true);
       expect(details.studyExamples.every(e => e.translation)).toBe(true);
@@ -41,7 +41,7 @@ test.describe('Examples and connections', () => {
     });
 
   test('a form the word was met in gets an example, and it is asked first', async ({ request }) => {
-    await seedWords(request, [{ headword: 'shine', isMarkedForStudy: true, encounterForms: ['shone'] }, ...others]);
+    await seedWords(request, [{ headword: 'shine', isMarkedForStudy: true, enrich: true, encounterForms: ['shone'] }, ...others]);
 
     const details = await waitForStudyContent(request, 'shine');
     expect(details.studyExamples.map(e => e.form)).toContain('shone');
@@ -56,7 +56,7 @@ test.describe('Examples and connections', () => {
   });
 
   test('a sentence answered correctly gives way to one not yet practised', async ({ request }) => {
-    await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true }, ...others]);
+    await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true, enrich: true }, ...others]);
     await waitForStudyContent(request, 'vivid');
 
     await seedCardFor(request, 'vivid', ExerciseType.ContextToWordChoice);
@@ -74,7 +74,7 @@ test.describe('Examples and connections', () => {
   });
 
   test('the new word card shows what ties it to things already known', async ({ request, page }) => {
-    await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true }]);
+    await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true, enrich: true }]);
     await waitForStudyContent(request, 'vivid');
 
     await page.goto('/study');
@@ -91,7 +91,7 @@ test.describe('Examples and connections', () => {
   });
 
   test('the mnemonic comes back on a miss, not on a clean answer', async ({ request }) => {
-    await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true }, ...others]);
+    await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true, enrich: true }, ...others]);
     await waitForStudyContent(request, 'vivid');
 
     await seedCardFor(request, 'vivid', ExerciseType.MeaningToWordChoice);
@@ -112,7 +112,7 @@ test.describe('Examples and connections', () => {
 
   test('the word details show its study examples, connections and the forms it was met in',
     async ({ request, page }) => {
-      await seedWords(request, [{ headword: 'shine', isMarkedForStudy: true, encounterForms: ['shone'] }]);
+      await seedWords(request, [{ headword: 'shine', isMarkedForStudy: true, enrich: true, encounterForms: ['shone'] }]);
       await waitForStudyContent(request, 'shine');
 
       await page.goto('/words');

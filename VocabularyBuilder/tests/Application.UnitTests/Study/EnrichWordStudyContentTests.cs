@@ -50,7 +50,9 @@ public class EnrichWordStudyContentTests
               ],
               "etymology": "From Latin ubique, everywhere.",
               "cognates": null,
-              "mnemonic": "Sounds like 'you bake it us': bread baked everywhere."
+              "mnemonic": "Sounds like 'you bake it us': bread baked everywhere.",
+              "collocates": ["screens", "coffee shops", "  ", "Screens", "advertising"],
+              "nonCollocates": ["silence", "a whisper"]
             }
             """;
     }
@@ -140,7 +142,8 @@ public class EnrichWordStudyContentTests
 
         (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
 
-        _gpt.LastPrompt.Should().Contain("\"examples\"").And.Contain("\"etymology\"").And.Contain("\"mnemonic\"");
+        _gpt.LastPrompt.Should().Contain("\"examples\"").And.Contain("\"etymology\"").And.Contain("\"mnemonic\"")
+            .And.Contain("\"collocates\"").And.Contain("\"nonCollocates\"").And.Contain("2 to 3");
         _gpt.LastPrompt.Should().NotContain("\"definition\"", "the word already has one");
         _gpt.LastPrompt.Should().Contain("meaning: found everywhere", "the examples should be for the sense being studied");
 
@@ -167,6 +170,8 @@ public class EnrichWordStudyContentTests
         content.Etymology.Should().Be("From Latin ubique, everywhere.");
         content.Cognates.Should().BeNull("the model had none, and said so");
         content.Mnemonic.Should().StartWith("Sounds like");
+        content.Collocates.Should().Equal("screens", "coffee shops", "advertising");
+        content.NonCollocates.Should().Equal("silence", "a whisper");
     }
 
     [Test]

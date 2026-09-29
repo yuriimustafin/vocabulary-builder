@@ -81,7 +81,9 @@ test.describe('Multiple-choice distractors', () => {
     await seedBareWords(request, Array.from({ length: 8 }, (_, i) => `gen${String(i).padStart(2, '0')}`));
     await waitForContent(request, 8);
 
-    const card = await serve(request, 'gen00', ExerciseType.WordToMeaningChoice);
+    // Filled in by the model, so it has collocates too, and the level's pool is the full one
+    await seedCardFor(request, 'gen00', ExerciseType.WordToMeaningChoice, {}, { content: true });
+    const card = cardFor(await getQueue(request), 'gen00');
 
     expect(card.exercise.type).toBe(ExerciseType.WordToMeaningChoice);
     expect(card.exercise.options).toHaveLength(4);

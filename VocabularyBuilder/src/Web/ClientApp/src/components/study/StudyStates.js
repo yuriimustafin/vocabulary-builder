@@ -27,7 +27,7 @@ export function PreparingWords({ count, onRefresh, refreshing }) {
 }
 
 /** Nothing due and nothing left of today's new words. */
-export function StudyDone({ stats, nextDueAtUtc, onRefresh }) {
+export function StudyDone({ stats, nextDueAtUtc, onRefresh, onDayReview }) {
   return (
     <Card className="text-center" data-testid="study-done">
       <CardBody className="py-5">
@@ -36,6 +36,12 @@ export function StudyDone({ stats, nextDueAtUtc, onRefresh }) {
           {describeWait(stats, nextDueAtUtc)}
         </p>
         <div className="d-flex gap-2 justify-content-center">
+          {/* Once the day's graded work is done, its new words once more, matched up */}
+          {onDayReview && (
+            <Button color="primary" onClick={onDayReview} data-testid="day-review-start">
+              Review today&apos;s words
+            </Button>
+          )}
           <Button color="primary" outline onClick={onRefresh} data-testid="done-refresh">Check again</Button>
           <Button color="secondary" outline tag={Link} to="/words">Browse words</Button>
         </div>

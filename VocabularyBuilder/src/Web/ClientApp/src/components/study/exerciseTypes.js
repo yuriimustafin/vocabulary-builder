@@ -10,7 +10,10 @@ export const ExerciseType = {
   MeaningToWordSyllableScramble: 7,
   MeaningToWordType: 8,
   MeaningToWordCuedType: 9,
-  ContextToWordChoice: 10
+  ContextToWordChoice: 10,
+  WordToCollocatesChoice: 11,
+  TranslationToSentenceScramble: 12,
+  WordToConnectionsReveal: 13
 };
 
 // Mirrors VocabularyBuilder.Domain.Enums.GradingMode.
@@ -44,7 +47,10 @@ export const EXERCISE_LABELS = {
   [ExerciseType.MeaningToWordSyllableScramble]: 'Put the syllables in order',
   [ExerciseType.MeaningToWordType]: 'Type the word',
   [ExerciseType.MeaningToWordCuedType]: 'Finish the word',
-  [ExerciseType.ContextToWordChoice]: 'Pick the missing word'
+  [ExerciseType.ContextToWordChoice]: 'Pick the missing word',
+  [ExerciseType.WordToCollocatesChoice]: 'What goes with it?',
+  [ExerciseType.TranslationToSentenceScramble]: 'Build the sentence',
+  [ExerciseType.WordToConnectionsReveal]: 'Remember it by'
 };
 
 /** Exercises answered by typing, which need the keyboard to themselves. */

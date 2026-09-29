@@ -56,6 +56,9 @@ public static class DependencyInjection
         services.AddSingleton<IExerciseDefinition, MeaningToWordTypeExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordCuedTypeExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, ContextToWordChoiceExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, WordToCollocatesChoiceExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, TranslationToSentenceScrambleExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, WordToConnectionsRevealExerciseDefinition>();
         services.AddSingleton<IExerciseCatalog, ExerciseCatalog>();
 
         services.AddSingleton<IStudyEnrichmentQueue, StudyEnrichmentQueue>();

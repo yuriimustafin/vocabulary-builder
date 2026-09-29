@@ -41,6 +41,19 @@ public class Sm2Scheduler : IReviewScheduler
     public SchedulingResult Introduce(ReviewCard card, DateTime nowUtc) =>
         ScheduleSteps(card, ReviewGrade.Good, nowUtc, CardState.Learning, learningComplete: false);
 
+    public SchedulingResult Hold(ReviewCard card, DateTime nowUtc)
+    {
+        var steps = Steps();
+
+        return new SchedulingResult(
+            State: card.State,
+            IntervalDays: card.IntervalDays,
+            EaseFactor: card.EaseFactor,
+            LearningStepIndex: card.LearningStepIndex,
+            DueAtUtc: nowUtc.AddMinutes(steps.Length > 0 ? steps[0] : 1),
+            IsLapse: false);
+    }
+
     /// <summary>
     /// New, Learning and Relearning cards walk the same minute-scale steps, and stay on them
     /// until the exit criterion says they have done enough. The steps only set the pace:

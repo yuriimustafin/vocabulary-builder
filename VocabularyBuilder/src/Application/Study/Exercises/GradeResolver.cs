@@ -37,7 +37,9 @@ public class GradeResolver : IGradeResolver
 
         // Assembling the word from tiles is judged on cleanliness first: needing to start
         // over means the spelling was not actually known, however quickly it ended up right.
-        if (type is ExerciseType.MeaningToWordScramble or ExerciseType.MeaningToWordSyllableScramble
+        if (type is ExerciseType.MeaningToWordScramble
+                or ExerciseType.MeaningToWordSyllableScramble
+                or ExerciseType.TranslationToSentenceScramble
             && signals.Resets > 0)
         {
             return ReviewGrade.Hard;
@@ -68,11 +70,13 @@ public class GradeResolver : IGradeResolver
     private static bool IsRecognition(ExerciseType type) =>
         type is ExerciseType.WordToMeaningChoice
             or ExerciseType.MeaningToWordChoice
-            or ExerciseType.ContextToWordChoice;
+            or ExerciseType.ContextToWordChoice
+            or ExerciseType.WordToCollocatesChoice;
 
     private static bool IsBuilt(ExerciseType type) =>
         type is ExerciseType.MeaningToWordScramble
             or ExerciseType.MeaningToWordSyllableScramble
             or ExerciseType.MeaningToWordType
-            or ExerciseType.MeaningToWordCuedType;
+            or ExerciseType.MeaningToWordCuedType
+            or ExerciseType.TranslationToSentenceScramble;
 }

@@ -293,6 +293,8 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
             content.Etymology = Short(generated.Etymology);
             content.Cognates = Short(generated.Cognates);
             content.Mnemonic = Short(generated.Mnemonic);
+            content.Collocates = Phrases(generated.Collocates, 6);
+            content.NonCollocates = Phrases(generated.NonCollocates, 3);
             content.PromptVersion = StudyContentPrompt.Version;
         }
 
@@ -357,6 +359,23 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         }
 
         return added;
+    }
+
+    /// <summary>
+    /// Short phrases only, each once, and no more than are wanted - null when none are left,
+    /// so an exercise that needs them is not offered.
+    /// </summary>
+    private static List<string>? Phrases(IEnumerable<string?>? values, int max)
+    {
+        var phrases = (values ?? Enumerable.Empty<string?>())
+            .Select(v => v?.Trim())
+            .Where(v => !string.IsNullOrEmpty(v) && v.Length <= 40)
+            .Select(v => v!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(max)
+            .ToList();
+
+        return phrases.Count > 0 ? phrases : null;
     }
 
     /// <summary>Trimmed, empty as null, and cut short rather than stored at any length.</summary>
@@ -427,7 +446,9 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         List<GeneratedExample>? Examples,
         string? Etymology,
         string? Cognates,
-        string? Mnemonic);
+        string? Mnemonic,
+        List<string?>? Collocates,
+        List<string?>? NonCollocates);
 
     private record GeneratedExample(string? Sentence, string? Translation, string? Form, string? Collocation);
 }

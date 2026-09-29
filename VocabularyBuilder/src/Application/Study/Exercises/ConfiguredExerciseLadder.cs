@@ -103,6 +103,9 @@ public class ConfiguredExerciseLadder : IExerciseLadder
             : available[index];
     }
 
+    public bool IsTolerant(ExerciseType type) =>
+        _rungs.Any(r => r.Exercises.Any(e => e.Type == type && e.Tolerant));
+
     private int RungOf(ExerciseType type)
     {
         var index = _rungs.ToList().FindIndex(r => r.Exercises.Any(e => e.Type == type));

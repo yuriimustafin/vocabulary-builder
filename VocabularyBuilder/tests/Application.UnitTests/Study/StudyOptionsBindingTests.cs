@@ -102,7 +102,7 @@ public class StudyOptionsBindingTests
     }
 
     private static string Describe(LadderRungOptions level) =>
-        $"{level.PromoteAfter}: {string.Join(", ", level.Exercises.Select(e => e.Type))}";
+        $"{level.PromoteAfter}: {string.Join(", ", level.Exercises.Select(e => e.Tolerant ? $"{e.Type} (tolerant)" : e.Type.ToString()))}";
 
     private static string ShippedSettingsPath()
     {

@@ -20,7 +20,10 @@ const ExerciseType = {
   MeaningToWordSyllableScramble: 7,
   MeaningToWordType: 8,
   MeaningToWordCuedType: 9,
-  ContextToWordChoice: 10
+  ContextToWordChoice: 10,
+  WordToCollocatesChoice: 11,
+  TranslationToSentenceScramble: 12,
+  WordToConnectionsReveal: 13
 };
 
 /**
@@ -30,13 +33,18 @@ const ExerciseType = {
  */
 const Ladder = [
   [ExerciseType.WordToMeaningReveal],
-  [ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice, ExerciseType.WordToMeaningChoice],
-  [ExerciseType.MeaningToWordSyllableScramble, ExerciseType.MeaningToWordScramble, ExerciseType.MeaningToWordCuedType],
+  [ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice, ExerciseType.WordToCollocatesChoice,
+    ExerciseType.WordToMeaningChoice],
+  [ExerciseType.MeaningToWordSyllableScramble, ExerciseType.MeaningToWordScramble,
+    ExerciseType.TranslationToSentenceScramble, ExerciseType.MeaningToWordCuedType],
   [ExerciseType.ContextToWordRecall, ExerciseType.MeaningToWordRecall]
 ];
 
 /** Clean successes that move a word up from each level; zero for the top, which it never leaves. */
-const PromoteAfter = [1, 2, 3, 0];
+const PromoteAfter = [1, 3, 3, 0];
+
+/** Exercises only built from generated content: the collocates, and a stored sentence to rebuild. */
+const NeedsContent = [ExerciseType.WordToCollocatesChoice, ExerciseType.TranslationToSentenceScramble];
 
 /** The level a given exercise sits on. */
 function rungOf(type) {
@@ -52,13 +60,16 @@ function rungOf(type) {
 /**
  * The streak that points a word at this exercise within its level.
  *
- * The syllable scramble is only offered for words of three syllables or more, which the
- * short made-up words most specs use never are - so for those it is not in the pool, and
- * the exercises after it sit one place earlier. Pass syllables: true for a word that has them.
+ * Only the exercises a word can be asked count. The syllable scramble needs three
+ * syllables, which the short made-up words most specs use never have; the collocates and
+ * the sentence to rebuild need generated content, which a word seeded without
+ * `enrich: true` never gets. Pass `syllables` or `content` for a word that has them.
  */
-function streakFor(type, { syllables = false } = {}) {
+function streakFor(type, { syllables = false, content = false } = {}) {
   const pool = Ladder[rungOf(type)].filter(t =>
-    syllables || t === type || t !== ExerciseType.MeaningToWordSyllableScramble);
+    t === type
+    || ((syllables || t !== ExerciseType.MeaningToWordSyllableScramble)
+      && (content || !NeedsContent.includes(t))));
 
   return pool.indexOf(type);
 }
@@ -117,11 +128,11 @@ function seedCard(request, card) {
  * Seeds a card whose next graded exercise will be the one given: a review due now, on that
  * exercise's level with the streak that selects it. Anything in `card` overrides the rest.
  */
-function seedCardFor(request, headword, type, card = {}, { syllables = false } = {}) {
+function seedCardFor(request, headword, type, card = {}, { syllables = false, content = false } = {}) {
   return seedCard(request, {
     headword,
     rung: rungOf(type),
-    rungStreak: streakFor(type, { syllables }),
+    rungStreak: streakFor(type, { syllables, content }),
     state: CardState.Review,
     intervalDays: 3,
     dueInDays: -0.1,
@@ -143,6 +154,16 @@ function correctAnswer(card, grade = ReviewGrade.Good) {
 
   if (exercise.type === ExerciseType.WordToMeaningChoice) {
     return { answer: exercise.options.find(o => o.includes(card.headword)) };
+  }
+
+  // The mock's collocates are the "partner" ones, its wrong ones "stranger"s
+  if (exercise.type === ExerciseType.WordToCollocatesChoice) {
+    return { selections: exercise.options.filter(o => o.includes('partner')) };
+  }
+
+  // The mock translates a sentence as "Translated: " and the sentence itself
+  if (exercise.type === ExerciseType.TranslationToSentenceScramble) {
+    return { answer: exercise.prompt.replace(/^Translated: /, '').replace(/[.,!?]/g, '') };
   }
 
   return { answer: card.headword };

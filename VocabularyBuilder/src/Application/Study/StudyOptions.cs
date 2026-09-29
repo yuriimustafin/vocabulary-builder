@@ -212,19 +212,22 @@ public static class StudyDefaults
         // Met, not graded, the first time; a word dropped this far is graded here once.
         Level("Introduction", 1, ExerciseType.WordToMeaningReveal),
 
-        // Two: the word picked from its meaning, then picked to fill a gap in a sentence -
-        // the sentence showing it with the words it is used with. The third is what a word
-        // dropped here meets when it has no sentence.
-        Level("Recognition", 2,
+        // Three: the word picked from its meaning, then picked to fill a gap in a sentence -
+        // the sentence showing it with a word it is used with - then the words it goes with.
+        // The last is what a word dropped here meets when it has no sentence.
+        Level("Recognition", 3,
             ExerciseType.MeaningToWordChoice,
             ExerciseType.ContextToWordChoice,
+            ExerciseType.WordToCollocatesChoice,
             ExerciseType.WordToMeaningChoice),
 
-        // Three, so the support can fade: the chunks of the word, then its letters, then
-        // typing it from its first letters.
+        // Three, so the support can fade: the chunks of the word, then its letters, then one
+        // of its sentences rebuilt around it. Typing it from its first letters is what a word
+        // without syllables or a sentence meets instead.
         Level("Scaffolded", 3,
             ExerciseType.MeaningToWordSyllableScramble,
             ExerciseType.MeaningToWordScramble,
+            ExerciseType.TranslationToSentenceScramble,
             ExerciseType.MeaningToWordCuedType),
 
         // Where a word stays, taking these in turn. Typing the word (MeaningToWordType) can
@@ -234,11 +237,20 @@ public static class StudyDefaults
             ExerciseType.MeaningToWordRecall)
     };
 
+    /// <summary>Exercises on the default ladder whose misses cost the word nothing.</summary>
+    private static readonly HashSet<ExerciseType> TolerantByDefault = new()
+    {
+        ExerciseType.WordToCollocatesChoice,
+        ExerciseType.TranslationToSentenceScramble
+    };
+
     private static LadderRungOptions Level(string name, int promoteAfter, params ExerciseType[] types) => new()
     {
         Name = name,
         PromoteAfter = promoteAfter,
-        Exercises = types.Select(type => new LadderExerciseOptions { Type = type }).ToList()
+        Exercises = types
+            .Select(type => new LadderExerciseOptions { Type = type, Tolerant = TolerantByDefault.Contains(type) })
+            .ToList()
     };
 }
 
@@ -267,6 +279,14 @@ public class LadderExerciseOptions
 
     /// <summary>Restrict this exercise to words whose part of speech contains one of these, case-insensitively.</summary>
     public List<string>? PartsOfSpeech { get; set; }
+
+    /// <summary>
+    /// Mistake-tolerant: a wrong answer costs the word nothing - not its level, its streak,
+    /// its interval or its ease - and it comes back shortly to be asked another way. A right
+    /// answer counts as usual. For exercises where a slip says more about the exercise than
+    /// about the word: ordering a sentence, judging which words go with it.
+    /// </summary>
+    public bool Tolerant { get; set; }
 }
 
 public class DifficultyTierOptions

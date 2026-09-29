@@ -25,4 +25,10 @@ public interface IReviewScheduler
     /// tested yet, so no judgement of theirs should reach the card's ease or its record.
     /// </summary>
     SchedulingResult Introduce(ReviewCard card, DateTime nowUtc);
+
+    /// <summary>
+    /// Keeps a card exactly where it is after a miss that costs it nothing, and brings it
+    /// back after the first learning step to be asked another way.
+    /// </summary>
+    SchedulingResult Hold(ReviewCard card, DateTime nowUtc);
 }

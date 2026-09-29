@@ -60,11 +60,12 @@ public class LearningSessionTests
 
         seen.Should().Equal(
             ExerciseType.WordToMeaningReveal,           // met
-            ExerciseType.MeaningToWordChoice,           // recognition: the word, then in a sentence
-            ExerciseType.ContextToWordChoice,
-            ExerciseType.MeaningToWordSyllableScramble, // scaffolded: support fading over three
-            ExerciseType.MeaningToWordScramble,
-            ExerciseType.MeaningToWordCuedType,
+            ExerciseType.MeaningToWordChoice,           // recognition: the word, then in a sentence,
+            ExerciseType.ContextToWordChoice,           // then - with no collocates generated here -
+            ExerciseType.WordToMeaningChoice,           // the meaning from the word
+            ExerciseType.MeaningToWordSyllableScramble, // scaffolded: support fading over three -
+            ExerciseType.MeaningToWordScramble,         // typing, with no stored sentence to
+            ExerciseType.MeaningToWordCuedType,         // rebuild
             ExerciseType.ContextToWordRecall,           // production: two, spaced
             ExerciseType.MeaningToWordRecall);
 
@@ -72,7 +73,7 @@ public class LearningSessionTests
         card.State.Should().Be(CardState.Review);
         card.IntervalDays.Should().Be(1);
         card.PhaseRetrievals.Should().Be(0, "the count belongs to the learning phase that has ended");
-        (await GradedReviews()).Should().Be(7);
+        (await GradedReviews()).Should().Be(8);
     }
 
     [Test]
@@ -94,7 +95,7 @@ public class LearningSessionTests
 
         var missAt = seen.IndexOf(ExerciseType.ContextToWordRecall);
         seen[missAt + 1].Should().Be(ExerciseType.MeaningToWordSyllableScramble, "a miss drops one level");
-        seen.Count.Should().BeGreaterThan(8, "the slip is paid for in more practice, not a shorter day");
+        seen.Count.Should().BeGreaterThan(9, "the slip is paid for in more practice, not a shorter day");
         (await Card()).State.Should().Be(CardState.Review);
     }
 
@@ -115,7 +116,7 @@ public class LearningSessionTests
         // met a minute earlier four days away.
         var seen = await StudyUntilLearned(_ => true, elapsedMs: 800);
 
-        seen.Should().HaveCount(8);
+        seen.Should().HaveCount(9);
         (await Card()).State.Should().Be(CardState.Review);
     }
 
@@ -312,6 +313,122 @@ public class LearningSessionTests
         result.Feedback!.Connections!.Mnemonic.Should().Be("Sounds like 'ream member'.");
     }
 
+    // --- mistake-tolerant exercises and connections ---------------------------------
+
+    private async Task AddContent()
+    {
+        var word = await _db.Context.Words.SingleAsync(w => w.Headword == Word);
+        _db.Context.WordStudyContents.Add(new WordStudyContent
+        {
+            WordId = word.Id,
+            Status = StudyContentStatus.Ready,
+            PromptVersion = VocabularyBuilder.Application.Study.Enrichment.StudyContentPrompt.Version,
+            Mnemonic = "Sounds like 'ream member'.",
+            Etymology = "From Latin rememorari.",
+            Collocates = new List<string> { "a name", "a face", "the day", "to call" },
+            NonCollocates = new List<string> { "a spoon", "the weather", "sideways" }
+        });
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+    }
+
+    [Test]
+    public async Task AMissOnAMistakeTolerantExerciseCostsTheWordNothing()
+    {
+        await AddContent();
+        await SeedCard(rung: 1, streak: 2, CardState.Review, interval: 5, last: ExerciseType.ContextToWordChoice);
+        var before = await Card();
+
+        var card = await Next();
+        card.Exercise.Type.Should().Be(ExerciseType.WordToCollocatesChoice);
+
+        var result = await ReviewHandler().Handle(
+            new SubmitReviewCommand
+            {
+                CardId = card.CardId,
+                AttemptId = Guid.NewGuid(),
+                ExerciseType = card.Exercise.Type,
+                Selections = new List<string> { "a spoon", "the weather" },
+                ElapsedMs = 5000
+            },
+            CancellationToken.None);
+
+        result.Grade.Should().Be(ReviewGrade.Again);
+        result.Tolerated.Should().BeTrue();
+        result.Feedback!.ExpectedOptions.Should().Equal("a name", "a face", "the day");
+        result.Feedback.Note.Should().Contain("does not count against");
+        result.FollowUps.Select(f => f.Exercise.Type).Should().Equal(ExerciseType.WordToConnectionsReveal);
+
+        var after = await Card();
+        after.CurrentRung.Should().Be(1);
+        after.RungStreak.Should().Be(2);
+        after.State.Should().Be(CardState.Review);
+        after.IntervalDays.Should().Be(before.IntervalDays);
+        after.EaseFactor.Should().Be(before.EaseFactor);
+        after.Lapses.Should().Be(0);
+        after.RecentSuccessRate.Should().Be(before.RecentSuccessRate);
+        after.DueAtUtc.Should().Be(Now.AddMinutes(1), "it comes back shortly");
+
+        // ...to be asked another way
+        (await Next()).Exercise.Type.Should().NotBe(ExerciseType.WordToCollocatesChoice);
+    }
+
+    [Test]
+    public async Task ASuccessOnAMistakeTolerantExerciseCountsAsUsual()
+    {
+        await AddContent();
+        await SeedCard(rung: 1, streak: 2, CardState.Review, interval: 5, last: ExerciseType.ContextToWordChoice);
+
+        var card = await Next();
+        var result = await ReviewHandler().Handle(
+            new SubmitReviewCommand
+            {
+                CardId = card.CardId,
+                AttemptId = Guid.NewGuid(),
+                ExerciseType = card.Exercise.Type,
+                Selections = new List<string> { "a name", "the day", "a face" },
+                ElapsedMs = 5000
+            },
+            CancellationToken.None);
+
+        result.Tolerated.Should().BeFalse();
+        (await Card()).CurrentRung.Should().Be(2, "the third clean success on recognition moves it up");
+    }
+
+    [Test]
+    public async Task RebuildingASentenceCountsAsPractisingIt()
+    {
+        var example = await AddExample(Word, "I remember her name well.", "remember");
+        await AddExample(Word, "Remember to call me.", "Remember");
+        await SeedCard(rung: 2, streak: 2, CardState.Learning, last: ExerciseType.MeaningToWordScramble);
+
+        var card = await Next();
+        card.Exercise.Type.Should().Be(ExerciseType.TranslationToSentenceScramble);
+        card.Exercise.ExampleId.Should().Be(example.Id);
+
+        var result = await Submit(card, answer: "I remember her name well");
+
+        result.Grade.Should().Be(ReviewGrade.Good);
+        (await Reload(example)).Successes.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AnOrdinaryMissIsFollowedByTheWordsConnectionsBeforeItIsAskedAgain()
+    {
+        await AddContent();
+        await SeedCard(rung: 1, streak: 0, CardState.Review, interval: 5);
+
+        var card = await Next();
+        card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordChoice);
+
+        var result = await Submit(card, answer: card.Exercise.Options!.First(o => o != Word));
+
+        result.Tolerated.Should().BeFalse();
+        result.State.Should().Be(CardState.Relearning, "an ordinary miss is a lapse");
+        result.FollowUps[0].Exercise.Type.Should().Be(ExerciseType.WordToConnectionsReveal);
+        result.FollowUps[0].Exercise.Connections!.Mnemonic.Should().Be("Sounds like 'ream member'.");
+        result.FollowUps.Skip(1).Select(f => f.Exercise.Type).Should().Contain(ExerciseType.MeaningToWordPartialLetters);
+    }
+
     // --- driving a session ---------------------------------------------------------
 
     /// <summary>
@@ -506,7 +623,10 @@ public class LearningSessionTests
             new MeaningToWordRecallExerciseDefinition(),
             new MeaningToWordPartialLettersExerciseDefinition(),
             new MeaningToWordTypeExerciseDefinition(grades),
-            new MeaningToWordCuedTypeExerciseDefinition(grades)
+            new MeaningToWordCuedTypeExerciseDefinition(grades),
+            new WordToCollocatesChoiceExerciseDefinition(grades, random),
+            new TranslationToSentenceScrambleExerciseDefinition(grades, random),
+            new WordToConnectionsRevealExerciseDefinition()
         });
     }
 }
