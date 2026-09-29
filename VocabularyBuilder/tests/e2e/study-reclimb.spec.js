@@ -1,7 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor, advanceClock, getCard
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor, advanceClock, getCard,
+  correctAnswer
 } = require('./helpers/study-helpers');
 const { advanceToDue } = require('./helpers/study-helpers');
 
@@ -22,7 +23,7 @@ test.describe('Re-climbing after a failure', () => {
     await seedWords(request, words());
   });
 
-  test('failing cloze drops the word two rungs', async ({ request }) => {
+  test('failing cloze drops the word one level', async ({ request }) => {
     await seedCard(request, {
       headword: 'rc00', rung: cloze, state: 2, intervalDays: 5,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
@@ -33,7 +34,9 @@ test.describe('Re-climbing after a failure', () => {
 
     await submitReview(request, card, { selfGrade: 1 });
 
-    expect((await getCard(request, 'rc00')).rung).toBe(cloze - 2);
+    const after = await getCard(request, 'rc00');
+    expect(after.rung).toBe(cloze - 1);
+    expect(after.rungStreak).toBe(0);
   });
 
   test('the word walks back up over the following days', async ({ request }) => {
@@ -47,10 +50,9 @@ test.describe('Re-climbing after a failure', () => {
 
     const seen = [];
 
-    // Answering correctly walks the easier rungs and eventually arrives back at cloze.
-    // Not one rung per answer: the success average dropped when the word was missed, and
-    // the 85% rule holds it at a level until that record recovers, so an early success
-    // repeats the rung rather than making the word harder again straight away.
+    // Answering correctly works back through the level below and arrives back at cloze.
+    // Not one exercise per level: the word has to earn its way up again with a run of clean
+    // successes there, meeting that level's exercises in turn.
     for (let step = 0; step < 8; step++) {
       // Intervals grow from minutes to days as the card recovers, so step to whenever it
       // is actually next due rather than guessing a fixed amount.
@@ -64,12 +66,12 @@ test.describe('Re-climbing after a failure', () => {
         break;
       }
 
-      await submitReview(request, card, answerCorrectly(card));
+      await submitReview(request, card, correctAnswer(card));
     }
 
     const rungs = seen.map(rungOf);
 
-    expect(rungs[0]).toBe(cloze - 2);
+    expect(rungs[0]).toBe(cloze - 1);
     expect(seen[seen.length - 1]).toBe(ExerciseType.ContextToWordRecall);
 
     // It only ever climbs back, never skips ahead or slips further.
@@ -90,14 +92,16 @@ test.describe('Re-climbing after a failure', () => {
 
       const failed = cardFor(await getQueue(request), 'rc04');
       await submitReview(request, failed, { selfGrade: 1 });
-      expect((await getCard(request, 'rc04')).rung).toBe(cloze - 2);
+      expect((await getCard(request, 'rc04')).rung).toBe(cloze - 1);
 
       await advanceToDue(request, 'rc04');
       const recovering = cardFor(await getQueue(request), 'rc04');
-      await submitReview(request, recovering, answerCorrectly(recovering));
+      await submitReview(request, recovering, correctAnswer(recovering));
 
-      // One success is not yet enough of a record to be made harder again.
-      expect((await getCard(request, 'rc04')).rung).toBe(cloze - 2);
+      // One success is not yet enough to be made harder again: the level wants a run.
+      const after = await getCard(request, 'rc04');
+      expect(after.rung).toBe(cloze - 1);
+      expect(after.rungStreak).toBe(1);
     });
 
   test('a word failed at the bottom stays at the bottom', async ({ request }) => {
@@ -139,18 +143,3 @@ test.describe('Re-climbing after a failure', () => {
     expect((await getCard(request, 'rc03')).easeFactor).toBeLessThan(2.5);
   });
 });
-
-function answerCorrectly(card) {
-  const { exercise } = card;
-
-  if (exercise.type === ExerciseType.WordToMeaningChoice) {
-    return { answer: exercise.options.find(o => o.includes(card.headword)) };
-  }
-
-  if (exercise.type === ExerciseType.MeaningToWordChoice
-    || exercise.type === ExerciseType.MeaningToWordScramble) {
-    return { answer: card.headword };
-  }
-
-  return { selfGrade: 3 };
-}

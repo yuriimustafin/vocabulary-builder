@@ -16,31 +16,51 @@ const ExerciseType = {
   ContextToWordRecall: 3,
   MeaningToWordScramble: 4,
   MeaningToWordRecall: 5,
-  MeaningToWordPartialLetters: 6
+  MeaningToWordPartialLetters: 6,
+  MeaningToWordSyllableScramble: 7,
+  MeaningToWordType: 8,
+  MeaningToWordCuedType: 9,
+  ContextToWordChoice: 10
 };
 
 /**
- * The shipped ladder (appsettings.json, Study:Ladder), easiest first. A card's rung indexes
- * this, not ExerciseType, so specs seed a rung through rungOf rather than by number.
+ * The shipped ladder (appsettings.json, Study:Ladder): four levels, each a pool of
+ * exercises, easiest first. A card's rung is its level; which exercise it is asked there
+ * depends on its streak on the level and the exercise it was asked last.
  */
 const Ladder = [
-  ExerciseType.WordToMeaningReveal,
-  ExerciseType.WordToMeaningChoice,
-  ExerciseType.MeaningToWordChoice,
-  ExerciseType.MeaningToWordScramble,
-  ExerciseType.ContextToWordRecall,
-  ExerciseType.MeaningToWordRecall
+  [ExerciseType.WordToMeaningReveal],
+  [ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice, ExerciseType.WordToMeaningChoice],
+  [ExerciseType.MeaningToWordSyllableScramble, ExerciseType.MeaningToWordScramble, ExerciseType.MeaningToWordCuedType],
+  [ExerciseType.ContextToWordRecall, ExerciseType.MeaningToWordType, ExerciseType.MeaningToWordRecall]
 ];
 
-/** The rung a given exercise sits on. */
+/** Clean successes that move a word up from each level; zero for the top, which it never leaves. */
+const PromoteAfter = [1, 1, 3, 0];
+
+/** The level a given exercise sits on. */
 function rungOf(type) {
-  const rung = Ladder.indexOf(type);
+  const rung = Ladder.findIndex(level => level.includes(type));
 
   if (rung < 0) {
     throw new Error(`Exercise type ${type} is not on the ladder`);
   }
 
   return rung;
+}
+
+/**
+ * The streak that points a word at this exercise within its level.
+ *
+ * The syllable scramble is only offered for words of three syllables or more, which the
+ * short made-up words most specs use never are - so for those it is not in the pool, and
+ * the exercises after it sit one place earlier. Pass syllables: true for a word that has them.
+ */
+function streakFor(type, { syllables = false } = {}) {
+  const pool = Ladder[rungOf(type)].filter(t =>
+    syllables || t === type || t !== ExerciseType.MeaningToWordSyllableScramble);
+
+  return pool.indexOf(type);
 }
 
 /** Mirrors VocabularyBuilder.Domain.Enums.CardState. */
@@ -91,6 +111,41 @@ function seedBareWords(request, headwords) {
 /** Puts a word's card into an exact state rather than grinding it there through the UI. */
 function seedCard(request, card) {
   return post(request, `${STUDY_API}/seed-card`, card);
+}
+
+/**
+ * Seeds a card whose next graded exercise will be the one given: a review due now, on that
+ * exercise's level with the streak that selects it. Anything in `card` overrides the rest.
+ */
+function seedCardFor(request, headword, type, card = {}, { syllables = false } = {}) {
+  return seedCard(request, {
+    headword,
+    rung: rungOf(type),
+    rungStreak: streakFor(type, { syllables }),
+    state: CardState.Review,
+    intervalDays: 3,
+    dueInDays: -0.1,
+    lastReviewedDaysAgo: 1,
+    ...card
+  });
+}
+
+/**
+ * The right answer to whatever a card is asking: the option that is the word or its
+ * meaning, the word itself for anything built or typed, or a grade for a self-graded card.
+ */
+function correctAnswer(card, grade = ReviewGrade.Good) {
+  const { exercise } = card;
+
+  if (exercise.gradingMode === 0) {
+    return { selfGrade: grade };
+  }
+
+  if (exercise.type === ExerciseType.WordToMeaningChoice) {
+    return { answer: exercise.options.find(o => o.includes(card.headword)) };
+  }
+
+  return { answer: card.headword };
 }
 
 function advanceClock(request, { days = 0, minutes = 0 } = {}) {
@@ -254,7 +309,11 @@ module.exports = {
   STUDY_API,
   ExerciseType,
   Ladder,
+  PromoteAfter,
   rungOf,
+  streakFor,
+  seedCardFor,
+  correctAnswer,
   CardState,
   ReviewGrade,
   seedWords,

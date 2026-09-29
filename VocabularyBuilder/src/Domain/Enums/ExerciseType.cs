@@ -26,8 +26,26 @@ public enum ExerciseType
     MeaningToWordRecall = 5,
 
     /// <summary>
-    /// Follow-up only: meaning plus progressively revealed letters.
+    /// Follow-up only: meaning plus progressively revealed letters, self-graded.
     /// Never scheduled as a probe - used by the diminishing-cues sequence after a failure.
     /// </summary>
-    MeaningToWordPartialLetters = 6
+    MeaningToWordPartialLetters = 6,
+
+    /// <summary>
+    /// Show the meaning, assemble the word from its shuffled syllables. An easier step
+    /// before the letter scramble: the chunks are given, only their order is recalled.
+    /// </summary>
+    MeaningToWordSyllableScramble = 7,
+
+    /// <summary>Show the meaning, type the word. Marked automatically, forgiving accents and one slip.</summary>
+    MeaningToWordType = 8,
+
+    /// <summary>
+    /// Show the meaning and part of the spelling, type the whole word. Fewer letters are
+    /// shown the further the word has got on its level.
+    /// </summary>
+    MeaningToWordCuedType = 9,
+
+    /// <summary>A sentence with the word blanked out; pick the word that fills it from four.</summary>
+    ContextToWordChoice = 10
 }

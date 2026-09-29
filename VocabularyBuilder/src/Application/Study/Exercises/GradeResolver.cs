@@ -9,7 +9,8 @@ namespace VocabularyBuilder.Application.Study.Exercises;
 /// <param name="ElapsedMs">Time from the exercise being shown to the answer being committed.</param>
 /// <param name="Resets">How many times the learner cleared a part-built answer.</param>
 /// <param name="Abandoned">The learner gave up rather than answering.</param>
-public record AutoGradeSignals(bool Correct, int ElapsedMs, int Resets = 0, bool Abandoned = false);
+/// <param name="Length">Letters in the word, which sets how long building it may fairly take.</param>
+public record AutoGradeSignals(bool Correct, int ElapsedMs, int Resets = 0, bool Abandoned = false, int Length = 0);
 
 public interface IGradeResolver
 {
@@ -36,7 +37,8 @@ public class GradeResolver : IGradeResolver
 
         // Assembling the word from tiles is judged on cleanliness first: needing to start
         // over means the spelling was not actually known, however quickly it ended up right.
-        if (type == ExerciseType.MeaningToWordScramble && signals.Resets > 0)
+        if (type is ExerciseType.MeaningToWordScramble or ExerciseType.MeaningToWordSyllableScramble
+            && signals.Resets > 0)
         {
             return ReviewGrade.Hard;
         }
@@ -50,9 +52,27 @@ public class GradeResolver : IGradeResolver
             return IsRecognition(type) ? ReviewGrade.Good : ReviewGrade.Easy;
         }
 
-        return signals.ElapsedMs >= _options.SlowAnswerMs ? ReviewGrade.Hard : ReviewGrade.Good;
+        return signals.ElapsedMs >= SlowThreshold(type, signals.Length) ? ReviewGrade.Hard : ReviewGrade.Good;
     }
 
+    /// <summary>
+    /// Building a word goes piece by piece, so a long word takes longer however well it is
+    /// known. Holding it to the same limit as a click would mark long words down for their
+    /// length and keep them from ever counting as clean.
+    /// </summary>
+    private int SlowThreshold(ExerciseType type, int length) =>
+        IsBuilt(type)
+            ? Math.Max(_options.SlowAnswerMs, length * _options.SlowAnswerMsPerLetter)
+            : _options.SlowAnswerMs;
+
     private static bool IsRecognition(ExerciseType type) =>
-        type is ExerciseType.WordToMeaningChoice or ExerciseType.MeaningToWordChoice;
+        type is ExerciseType.WordToMeaningChoice
+            or ExerciseType.MeaningToWordChoice
+            or ExerciseType.ContextToWordChoice;
+
+    private static bool IsBuilt(ExerciseType type) =>
+        type is ExerciseType.MeaningToWordScramble
+            or ExerciseType.MeaningToWordSyllableScramble
+            or ExerciseType.MeaningToWordType
+            or ExerciseType.MeaningToWordCuedType;
 }

@@ -7,7 +7,7 @@ const {
 /**
  * Coming back to a word after a long absence.
  *
- * The probe escalates to unhinted production, with no hint offered. Retrieval with a weak
+ * The probe escalates to unhinted production - typing the word - with no hint offered. Retrieval with a weak
  * cue is both the larger learning gain and the only honest reading of memory - a cue there
  * would inflate a grade that is about to stretch the interval a long way.
  */
@@ -27,8 +27,8 @@ test.describe('Long-gap escalation', () => {
 
     const card = cardFor(await getQueue(request), 'lg00');
 
-    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordRecall);
-    expect(card.rung).toBe(5);
+    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordType);
+    expect(card.rung).toBe(rungOf(ExerciseType.MeaningToWordType));
   });
 
   test('the escalated probe offers no hint', async ({ request }) => {
@@ -52,7 +52,7 @@ test.describe('Long-gap escalation', () => {
 
     const card = cardFor(await getQueue(request), 'lg02');
 
-    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordRecall);
+    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordType);
   });
 
   test('a word seen on schedule keeps its own rung and its hint', async ({ request }) => {
@@ -76,7 +76,7 @@ test.describe('Long-gap escalation', () => {
     const card = cardFor(await getQueue(request), 'lg04');
 
     expect(card.rung).toBe(1);
-    expect(card.exercise.type).toBe(ExerciseType.WordToMeaningChoice);
+    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordChoice);
   });
 
   test('escalation does not move the rung the word has actually reached', async ({ request }) => {
@@ -86,7 +86,7 @@ test.describe('Long-gap escalation', () => {
     });
 
     const card = cardFor(await getQueue(request), 'lg05');
-    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordRecall);
+    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordType);
 
     const { getCard } = require('./helpers/study-helpers');
     const stored = await getCard(request, 'lg05');

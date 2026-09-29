@@ -70,10 +70,14 @@ public record ExercisePayload
 /// False on a probe that has been escalated after a long absence: a cue there would
 /// inflate the grade and stretch the next interval on evidence that was never earned.
 /// </param>
+/// <param name="CueLevel">
+/// How far the support has faded for this word on its level - see <see cref="ProbeChoice.CueLevel"/>.
+/// </param>
 public record ExerciseBuildContext(
     DistractorSet? Distractors = null,
     int RevealedLetters = 0,
-    bool AllowHint = true);
+    bool AllowHint = true,
+    int CueLevel = 0);
 
 /// <summary>
 /// What the learner did.
@@ -115,6 +119,16 @@ public interface IExerciseDefinition
     /// automatic ones mark the answer against the word.
     /// </summary>
     ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material);
+}
+
+/// <summary>
+/// An exercise where the word is typed. Marked leniently, so the handler asks for the match
+/// itself as well as the grade: to say what was nearly right, and to catch a "typo" that is
+/// really another word.
+/// </summary>
+public interface ITypedExerciseDefinition : IExerciseDefinition
+{
+    TypedMatch Match(ExerciseAnswer answer, StudyMaterial material);
 }
 
 public interface IExerciseCatalog

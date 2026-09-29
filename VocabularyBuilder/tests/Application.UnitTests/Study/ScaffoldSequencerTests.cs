@@ -22,21 +22,27 @@ public class ScaffoldSequencerTests
     }
 
     [Test]
-    public void AShakyWordBringsBackTheRungBelow()
+    public void AShakyWordBringsBackTheLevelBelow()
     {
+        // Probed on production, so the scaffolded level is replayed - its first exercise,
+        // with the rest of the level to fall back on for a word that cannot be built that way.
         var steps = Sequencer().Build(3, ReviewGrade.Good, CardDifficulty.Shaky, headwordLength: 8);
 
-        steps.Select(s => s.Type).Should().Equal(ExerciseType.MeaningToWordChoice);
+        steps.Select(s => s.Type).Should().Equal(ExerciseType.MeaningToWordSyllableScramble);
+        steps[0].Candidates.Should().Equal(
+            ExerciseType.MeaningToWordSyllableScramble,
+            ExerciseType.MeaningToWordScramble,
+            ExerciseType.MeaningToWordCuedType);
     }
 
     [Test]
-    public void ADifficultWordBringsBackTwoRungsInAscendingOrder()
+    public void ADifficultWordBringsBackTwoLevelsInAscendingOrder()
     {
         var steps = Sequencer().Build(3, ReviewGrade.Good, CardDifficulty.Difficult, headwordLength: 8);
 
         steps.Select(s => s.Type).Should().Equal(
-            ExerciseType.WordToMeaningChoice,
-            ExerciseType.MeaningToWordChoice);
+            ExerciseType.MeaningToWordChoice,
+            ExerciseType.MeaningToWordSyllableScramble);
     }
 
     [Test]

@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, rungOf, seedWords, seedBareWords, seedCard, getCard, isolateWord
+  ExerciseType, rungOf, seedWords, seedBareWords, seedCard, seedCardFor, getCard, isolateWord
 } = require('./helpers/study-helpers');
 
 /**
@@ -117,7 +117,7 @@ test.describe('Study page', () => {
   });
 
   test('the whole first day can be worked through in one sitting', async ({ request, page }) => {
-    // Six words is twenty-four interactions once each has been met and tested three times, with a
+    // Six words is over forty interactions once each has been met and tested to criterion, with a
     // refetch between batches, so this needs more than the default budget.
     test.setTimeout(120_000);
 
@@ -132,7 +132,8 @@ test.describe('Study page', () => {
       'choice-option',            // multiple choice
       'reveal-button',            // a self-graded card, revealed first
       'grade-good',               // then judged
-      'scramble-give-up'          // spelling, which this driver does not attempt
+      'scramble-give-up',         // spelling, which this driver does not attempt
+      'typed-give-up'             // nor typing
     ];
 
     for (let step = 0; step < 60; step++) {
@@ -162,9 +163,7 @@ test.describe('Study page', () => {
 
   test('a multiple-choice card is answered by clicking an option', async ({ request, page }) => {
     await seedWords(request, Array.from({ length: 10 }, (_, i) => `mc${String(i).padStart(2, '0')}`));
-    await seedCard(request, {
-      headword: 'mc00', rung: 1, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
-    });
+    await seedCardFor(request, 'mc00', ExerciseType.WordToMeaningChoice);
 
     // Keep the rest out of the way so mc00 is the only card in the session. The others
     // still serve as distractors: the pool is drawn from the words, not from their cards.

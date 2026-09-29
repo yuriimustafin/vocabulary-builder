@@ -78,6 +78,12 @@ public class ReviewFeedbackDto
 
     /// <summary>What was picked instead, when the answer was wrong.</summary>
     public ChosenAnswerDto? Chosen { get; init; }
+
+    /// <summary>
+    /// For a typed answer that was accepted but not exactly right, what was off - so the
+    /// learner sees why it did not count in full.
+    /// </summary>
+    public string? Note { get; init; }
 }
 
 /// <summary>
@@ -105,6 +111,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
 {
     private readonly IApplicationDbContext _context;
     private readonly IReviewScheduler _scheduler;
+    private readonly ILearningExitCriterion _learningExit;
     private readonly IExerciseLadder _ladder;
     private readonly IExerciseCatalog _catalog;
     private readonly IStudyMaterialResolver _materialResolver;
@@ -119,6 +126,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     public SubmitReviewCommandHandler(
         IApplicationDbContext context,
         IReviewScheduler scheduler,
+        ILearningExitCriterion learningExit,
         IExerciseLadder ladder,
         IExerciseCatalog catalog,
         IStudyMaterialResolver materialResolver,
@@ -132,6 +140,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     {
         _context = context;
         _scheduler = scheduler;
+        _learningExit = learningExit;
         _ladder = ladder;
         _catalog = catalog;
         _materialResolver = materialResolver;
@@ -171,20 +180,31 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         var material = _materialResolver.Resolve(card.Word, generated);
         var definition = _catalog.Get(request.ExerciseType);
 
-        var grade = definition.Resolve(
-            new ExerciseAnswer(
-                request.Answer,
-                request.SelfGrade,
-                request.ElapsedMs,
-                request.Resets,
-                request.HintUsed,
-                request.Abandoned),
-            material);
+        var answer = new ExerciseAnswer(
+            request.Answer,
+            request.SelfGrade,
+            request.ElapsedMs,
+            request.Resets,
+            request.HintUsed,
+            request.Abandoned);
+
+        var grade = definition.Resolve(answer, material);
+        var typed = await CheckTypedAnswer(definition, answer, card, material, cancellationToken);
+
+        if (typed is { Accepted: false })
+        {
+            grade = ReviewGrade.Again;
+        }
 
         var before = Snapshot(card);
-        var scheduling = _scheduler.Schedule(card, grade, now);
+        var move = _ladder.NextRung(card, grade, request.HintUsed);
+        var learning = before.State is CardState.New or CardState.Learning or CardState.Relearning;
+        var retrievals = learning ? card.PhaseRetrievals + 1 : 0;
+        var learningComplete = learning && _learningExit.IsMet(
+            before.State, grade, move, retrievals, card.LastReviewedAtUtc, now);
+        var scheduling = _scheduler.Schedule(card, grade, now, learningComplete);
 
-        Apply(card, grade, scheduling, now);
+        Apply(card, grade, move, retrievals, scheduling, request.ExerciseType, now);
 
         _context.ReviewLogs.Add(new ReviewLog
         {
@@ -219,15 +239,60 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             FollowUps = await BuildFollowUps(
                 card, material, before.Rung, grade, difficulty, cancellationToken),
             Feedback = definition.GradingMode == GradingMode.Automatic
-                ? await BuildFeedback(card, material, request, grade, cancellationToken)
+                ? await BuildFeedback(card, material, request, grade, typed, cancellationToken)
                 : null
         };
     }
 
-    private void Apply(ReviewCard card, ReviewGrade grade, SchedulingResult scheduling, DateTime now)
+    /// <summary>
+    /// For a typed exercise, how the answer compared with the word. A one-letter slip is
+    /// forgiven only while it does not spell another word in the collection - poisson typed
+    /// for poison is a different word known, not this one nearly known.
+    /// </summary>
+    private async Task<TypedMatch?> CheckTypedAnswer(
+        IExerciseDefinition definition,
+        ExerciseAnswer answer,
+        ReviewCard card,
+        StudyMaterial material,
+        CancellationToken cancellationToken)
+    {
+        if (definition is not ITypedExerciseDefinition typedDefinition)
+        {
+            return null;
+        }
+
+        var match = typedDefinition.Match(answer, material);
+
+        if (match.Kind is TypedMatchKind.Typo or TypedMatchKind.AccentsOnly)
+        {
+            var other = await _wordLookup.ByHeadwordAsync(card.Word.Language, match.Word, cancellationToken);
+
+            if (other is not null && other.WordId != card.WordId)
+            {
+                return match with { Kind = TypedMatchKind.Wrong };
+            }
+        }
+
+        return match;
+    }
+
+    private void Apply(
+        ReviewCard card,
+        ReviewGrade grade,
+        RungMove move,
+        int retrievals,
+        SchedulingResult scheduling,
+        ExerciseType exerciseType,
+        DateTime now)
     {
         card.RecentSuccessRate = _difficulty.NextSuccessRate(card.RecentSuccessRate, grade);
-        card.CurrentRung = _ladder.NextRung(card.CurrentRung, grade, card.RecentSuccessRate);
+        card.CurrentRung = move.Rung;
+        card.RungStreak = move.Streak;
+        card.LastExerciseType = exerciseType;
+
+        // Counted through one learning phase, and cleared when it ends - by graduating, or
+        // by a lapse starting a new one.
+        card.PhaseRetrievals = scheduling.State == CardState.Review || scheduling.IsLapse ? 0 : retrievals;
 
         if (scheduling.IsLapse)
         {
@@ -260,6 +325,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         StudyMaterial material,
         SubmitReviewCommand request,
         ReviewGrade grade,
+        TypedMatch? typed,
         CancellationToken cancellationToken)
     {
         var correct = grade > ReviewGrade.Again;
@@ -275,9 +341,18 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             ContextSentence = material.ContextSentence,
             MeaningGloss = material.MeaningGloss,
             ContextSentenceTranslation = material.ContextSentenceTranslation,
-            Chosen = correct ? null : await DescribeChoice(card, request, cancellationToken)
+            Chosen = correct ? null : await DescribeChoice(card, request, cancellationToken),
+            Note = typed is null ? null : NoteFor(typed.Kind, material)
         };
     }
+
+    private static string? NoteFor(TypedMatchKind kind, StudyMaterial material) => kind switch
+    {
+        TypedMatchKind.AccentsOnly => "Nearly - mind the accents.",
+        TypedMatchKind.Typo => "Nearly - one letter out.",
+        TypedMatchKind.WrongArticle => $"Right word, other gender: it is {material.Article?.Definite} {material.Headword}.",
+        _ => null
+    };
 
     /// <summary>
     /// Names the option that was picked by mistake. Which way round depends on the
@@ -297,7 +372,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         {
             ExerciseType.WordToMeaningChoice =>
                 await _wordLookup.ByMeaningAsync(language, request.Answer, cancellationToken),
-            ExerciseType.MeaningToWordChoice =>
+            ExerciseType.MeaningToWordChoice or ExerciseType.ContextToWordChoice =>
                 await _wordLookup.ByHeadwordAsync(language, request.Answer, cancellationToken),
             _ => null
         };
@@ -337,14 +412,22 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
 
         foreach (var step in steps)
         {
-            if (!_catalog.CanBuild(step.Type, material, distractors))
+            // A follow-up is not marked, so an exercise that exists to mark a typed answer
+            // has nothing to offer there; the first other one that can be built is used.
+            var type = step.Candidates
+                .Cast<ExerciseType?>()
+                .FirstOrDefault(candidate =>
+                    _catalog.CanBuild(candidate!.Value, material, distractors)
+                    && _catalog.Get(candidate.Value) is not ITypedExerciseDefinition);
+
+            if (type is null)
             {
                 continue;
             }
 
             followUps.Add(new FollowUpDto
             {
-                Exercise = _catalog.Get(step.Type).Build(
+                Exercise = _catalog.Get(type.Value).Build(
                     material, new ExerciseBuildContext(distractors, step.RevealedLetters))
                     with { Article = material.Article }
             });

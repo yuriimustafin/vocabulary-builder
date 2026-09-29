@@ -27,17 +27,19 @@ function describeChoice(chosen) {
   return chosen.headword ? `That is the meaning of ${chosen.headword}` : null;
 }
 
-export function AnswerFeedback({ feedback, onContinue, continuing, language }) {
-  const { correct, chosen } = feedback;
+export function AnswerFeedback({ feedback, onContinue, continuing, language, typed = false }) {
+  const { correct, chosen, note } = feedback;
 
   return (
     <div data-testid="answer-feedback">
       <Alert
-        color={correct ? 'success' : 'danger'}
-        className="d-flex align-items-center gap-2"
+        color={correct ? (note ? 'warning' : 'success') : 'danger'}
+        className="d-flex align-items-center gap-2 flex-wrap"
         data-testid={correct ? 'feedback-correct' : 'feedback-incorrect'}
       >
-        <strong>{correct ? 'Correct' : 'Not quite'}</strong>
+        <strong>{correct ? (note ? 'Nearly' : 'Correct') : 'Not quite'}</strong>
+        {/* Accepted, but not in full: says what was off, so it is clear why it did not count */}
+        {note && <span data-testid="feedback-note">{note}</span>}
       </Alert>
 
       <div className="fs-3 fw-bold">
@@ -68,7 +70,7 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language }) {
 
       {chosen && (
         <div className="border-start border-3 border-danger ps-3 mt-4" data-testid="feedback-chosen">
-          <div className="text-muted small text-uppercase">You chose</div>
+          <div className="text-muted small text-uppercase">{typed ? 'You typed' : 'You chose'}</div>
           <div data-testid="feedback-chosen-text">{chosen.text}</div>
 
           {/*

@@ -17,10 +17,28 @@ public class ReviewCard : BaseAuditableEntity
     public CardState State { get; set; } = CardState.New;
 
     /// <summary>
-    /// Position in the configured exercise ladder. Climbs on success, falls back on failure,
-    /// so a word that starts giving trouble sees its earlier, easier exercises again.
+    /// Level on the configured exercise ladder - the introduction, then recognition,
+    /// scaffolded production and production. Each level holds a pool of exercises. A word
+    /// stays on its level until it has enough clean successes there, and drops back one
+    /// level on a miss, so it meets the easier exercises again.
     /// </summary>
     public int CurrentRung { get; set; }
+
+    /// <summary>
+    /// Clean successes in a row on the current level: correct, no hint, not slow. Moves the
+    /// word up once the level's quota is met, and picks progressively harder exercises from
+    /// the level's pool on the way there. Reset by a miss and by every change of level.
+    /// </summary>
+    public int RungStreak { get; set; }
+
+    /// <summary>The exercise the word was last graded on, so the next one can be different.</summary>
+    public ExerciseType? LastExerciseType { get; set; }
+
+    /// <summary>
+    /// Graded tries since the word last entered learning or relearning. Caps how long one
+    /// word can hold a session; reset when it graduates.
+    /// </summary>
+    public int PhaseRetrievals { get; set; }
 
     /// <summary>SM-2 ease factor. Floored by StudyOptions.MinEaseFactor.</summary>
     public double EaseFactor { get; set; } = 2.5;
@@ -28,7 +46,11 @@ public class ReviewCard : BaseAuditableEntity
     /// <summary>Current scheduling interval in days. Zero while still in learning steps.</summary>
     public int IntervalDays { get; set; }
 
-    /// <summary>Learning steps completed so far, while Learning or Relearning.</summary>
+    /// <summary>
+    /// Position in the learning steps while Learning or Relearning, which sets how long until
+    /// the next try. Back to the start on a miss; the last step repeats until the word
+    /// meets its exit criterion.
+    /// </summary>
     public int LearningStepIndex { get; set; }
 
     /// <summary>Count of graded (non-follow-up) reviews. Statistics only - the ladder uses CurrentRung.</summary>

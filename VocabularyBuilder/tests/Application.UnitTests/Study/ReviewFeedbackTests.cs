@@ -52,11 +52,15 @@ public class ReviewFeedbackTests
             new ContextToWordRecallExerciseDefinition(),
             new MeaningToWordScrambleExerciseDefinition(_options, grades, random),
             new MeaningToWordRecallExerciseDefinition(),
-            new MeaningToWordPartialLettersExerciseDefinition()
+            new MeaningToWordPartialLettersExerciseDefinition(),
+            new MeaningToWordSyllableScrambleExerciseDefinition(_options, grades, random),
+            new MeaningToWordTypeExerciseDefinition(grades),
+            new MeaningToWordCuedTypeExerciseDefinition(grades),
+            new ContextToWordChoiceExerciseDefinition(_options, grades, random)
         });
 
         return new SubmitReviewCommandHandler(
-            _db.Context, new Sm2Scheduler(_options, random), ladder, catalog,
+            _db.Context, new Sm2Scheduler(_options, random), new LearningExitCriterion(_options, ladder), ladder, catalog,
             new StudyMaterialResolver(), new DistractorPicker(_options, random),
             new DistractorSource(_db.Context), new CardDifficultyCalculator(_options),
             new ScaffoldSequencer(_options, ladder), new StudyWordLookup(_db.Context),

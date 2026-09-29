@@ -92,9 +92,13 @@ public class AcknowledgeIntroductionTests
 
         await Acknowledge(card.Id);
 
-        // Rung 1 is the first multiple-choice question, so a minute later the word is being
-        // asked about rather than shown.
-        (await Reload(card.Id)).CurrentRung.Should().Be(1);
+        // Level 1 is recognition, so a minute later the word is being asked about rather
+        // than shown - starting the level afresh, with the flashcard marked as just seen.
+        var after = await Reload(card.Id);
+        after.CurrentRung.Should().Be(1);
+        after.RungStreak.Should().Be(0);
+        after.LastExerciseType.Should().Be(ExerciseType.WordToMeaningReveal);
+        after.PhaseRetrievals.Should().Be(0, "meeting a word is not one of its tries");
     }
 
     [Test]

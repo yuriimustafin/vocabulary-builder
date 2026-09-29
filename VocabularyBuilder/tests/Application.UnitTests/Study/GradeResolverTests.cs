@@ -82,4 +82,41 @@ public class GradeResolverTests
         resolver.Resolve(ExerciseType.WordToMeaningChoice, new AutoGradeSignals(true, 2_500))
             .Should().Be(ReviewGrade.Hard);
     }
+
+    [Test]
+    public void PickingTheMissingWordForASentenceIsRecognitionToo()
+    {
+        Resolver().Resolve(ExerciseType.ContextToWordChoice, new AutoGradeSignals(true, 500))
+            .Should().Be(ReviewGrade.Good);
+    }
+
+    [TestCase(ExerciseType.MeaningToWordScramble)]
+    [TestCase(ExerciseType.MeaningToWordSyllableScramble)]
+    [TestCase(ExerciseType.MeaningToWordType)]
+    [TestCase(ExerciseType.MeaningToWordCuedType)]
+    public void BuildingALongWordIsAllowedTimeInProportionToItsLength(ExerciseType type)
+    {
+        var resolver = Resolver();
+
+        // Fourteen letters at 1.5 seconds each: fifteen seconds is fair, not slow.
+        resolver.Resolve(type, new AutoGradeSignals(true, 15_000, Length: 14)).Should().Be(ReviewGrade.Good);
+        resolver.Resolve(type, new AutoGradeSignals(true, 22_000, Length: 14)).Should().Be(ReviewGrade.Hard);
+
+        // A short word still has the ordinary limit.
+        resolver.Resolve(type, new AutoGradeSignals(true, 11_000, Length: 4)).Should().Be(ReviewGrade.Hard);
+    }
+
+    [Test]
+    public void AClickIsHeldToTheOrdinaryLimitWhateverTheWordsLength()
+    {
+        Resolver().Resolve(ExerciseType.MeaningToWordChoice, new AutoGradeSignals(true, 12_000, Length: 14))
+            .Should().Be(ReviewGrade.Hard);
+    }
+
+    [Test]
+    public void StartingTheSyllablesOverIsHardToo()
+    {
+        Resolver().Resolve(ExerciseType.MeaningToWordSyllableScramble, new AutoGradeSignals(true, 1_000, Resets: 1))
+            .Should().Be(ReviewGrade.Hard);
+    }
 }

@@ -45,6 +45,9 @@ public class StudyTestingEndpoints : EndpointGroupBase
         public int? Frequency { get; init; }
         public Language Language { get; init; } = Language.English;
 
+        /// <summary>For a French noun, which article it is shown and marked with.</summary>
+        public GrammaticalGender? Gender { get; init; }
+
         /// <summary>Set to give the word a dictionary sense, so nothing has to be generated.</summary>
         public string? Definition { get; init; }
 
@@ -68,6 +71,7 @@ public class StudyTestingEndpoints : EndpointGroupBase
                 PartOfSpeech = seed.PartOfSpeech,
                 Frequency = seed.Frequency,
                 Language = seed.Language,
+                Gender = seed.Gender,
                 IsMarkedForStudy = seed.IsMarkedForStudy
             };
 
@@ -109,6 +113,10 @@ public class StudyTestingEndpoints : EndpointGroupBase
         public string Headword { get; init; } = string.Empty;
         public CardState State { get; init; } = CardState.Review;
         public int Rung { get; init; }
+        public int RungStreak { get; init; }
+        public ExerciseType? LastExerciseType { get; init; }
+        public int PhaseRetrievals { get; init; }
+        public int LearningStepIndex { get; init; }
         public int IntervalDays { get; init; } = 1;
         public double EaseFactor { get; init; } = 2.5;
         public int Lapses { get; init; }
@@ -140,6 +148,10 @@ public class StudyTestingEndpoints : EndpointGroupBase
 
         card.State = seed.State;
         card.CurrentRung = seed.Rung;
+        card.RungStreak = seed.RungStreak;
+        card.LastExerciseType = seed.LastExerciseType;
+        card.PhaseRetrievals = seed.PhaseRetrievals;
+        card.LearningStepIndex = seed.LearningStepIndex;
         card.IntervalDays = seed.IntervalDays;
         card.EaseFactor = seed.EaseFactor;
         card.Lapses = seed.Lapses;
@@ -209,6 +221,9 @@ public class StudyTestingEndpoints : EndpointGroupBase
             headword,
             state = card.State,
             rung = card.CurrentRung,
+            card.RungStreak,
+            card.LastExerciseType,
+            card.PhaseRetrievals,
             card.IntervalDays,
             card.EaseFactor,
             card.Lapses,

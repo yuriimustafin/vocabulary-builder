@@ -314,10 +314,11 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         var material = _materialResolver.Resolve(word, generated);
 
         var distractors = _distractorPicker.Pick(material, pool);
-        var rung = _ladder.SelectProbeRung(
-            card, word.PartOfSpeech, now, type => _catalog.CanBuild(type, material, distractors));
+        var probe = _ladder.SelectProbe(
+            card, word.PartOfSpeech, now,
+            type => _catalog.CanBuild(type, material, distractors) && _catalog.Get(type).CanBeProbe);
 
-        var type = _ladder.TypeAt(rung);
+        var type = probe.Type;
 
         if (!_catalog.CanBuild(type, material, distractors))
         {
@@ -359,16 +360,13 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
             _enrichmentQueue.Enqueue(word.Id);
         }
 
-        // A probe raised above the card's own rung was reached by long-gap escalation, and
-        // is deliberately unhinted: a cue there would inflate a grade that is about to
-        // stretch the interval a long way.
-        var escalated = rung > card.CurrentRung;
-
+        // A probe reached by long-gap escalation is deliberately unhinted: a cue there would
+        // inflate a grade that is about to stretch the interval a long way.
         var exercise = _catalog.Get(type).Build(
-            material, new ExerciseBuildContext(distractors, AllowHint: !escalated))
+            material, new ExerciseBuildContext(distractors, AllowHint: !probe.Escalated, CueLevel: probe.CueLevel))
             with { Article = material.Article };
 
-        return RenderOutcome.Ready(new RenderedCard(card, word.Headword, rung, exercise));
+        return RenderOutcome.Ready(new RenderedCard(card, word.Headword, probe.Rung, exercise));
     }
 
     private record RenderedCard(

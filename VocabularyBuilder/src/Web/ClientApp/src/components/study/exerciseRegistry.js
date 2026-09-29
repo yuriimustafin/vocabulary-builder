@@ -1,5 +1,6 @@
 import { ChoiceExercise } from './ChoiceExercise';
-import { ScrambleExercise } from './ScrambleExercise';
+import { ScrambleExercise, SyllableScrambleExercise } from './ScrambleExercise';
+import { TypedExercise } from './TypedExercise';
 import {
   ContextToWordRecallExercise,
   MeaningToWordPartialLettersExercise,
@@ -21,7 +22,11 @@ export const EXERCISE_COMPONENTS = {
   [ExerciseType.ContextToWordRecall]: ContextToWordRecallExercise,
   [ExerciseType.MeaningToWordScramble]: ScrambleExercise,
   [ExerciseType.MeaningToWordRecall]: MeaningToWordRecallExercise,
-  [ExerciseType.MeaningToWordPartialLetters]: MeaningToWordPartialLettersExercise
+  [ExerciseType.MeaningToWordPartialLetters]: MeaningToWordPartialLettersExercise,
+  [ExerciseType.MeaningToWordSyllableScramble]: SyllableScrambleExercise,
+  [ExerciseType.MeaningToWordType]: TypedExercise,
+  [ExerciseType.MeaningToWordCuedType]: TypedExercise,
+  [ExerciseType.ContextToWordChoice]: ChoiceExercise
 };
 
 export function componentFor(exerciseType) {

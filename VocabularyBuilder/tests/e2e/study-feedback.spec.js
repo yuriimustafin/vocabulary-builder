@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor, isolateWord
+  ExerciseType, seedWords, seedCardFor, getQueue, submitReview, cardFor, isolateWord
 } = require('./helpers/study-helpers');
 
 /**
@@ -21,16 +21,14 @@ test.describe('Answer feedback', () => {
     await seedWords(request, pool());
   });
 
-  async function serve(request, headword, rung) {
-    await seedCard(request, {
-      headword, rung, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
-    });
+  async function serve(request, headword, type) {
+    await seedCardFor(request, headword, type);
 
     return cardFor(await getQueue(request), headword);
   }
 
   test('a correct answer still shows the word in full', async ({ request }) => {
-    const card = await serve(request, 'fb00', 1);
+    const card = await serve(request, 'fb00', ExerciseType.WordToMeaningChoice);
     const correct = card.exercise.options.find(o => o.includes('fb00'));
 
     const result = await submitReview(request, card, { answer: correct });
@@ -44,7 +42,7 @@ test.describe('Answer feedback', () => {
   });
 
   test('choosing the wrong meaning names the word it belongs to', async ({ request }) => {
-    const card = await serve(request, 'fb01', 1);
+    const card = await serve(request, 'fb01', ExerciseType.WordToMeaningChoice);
     const wrong = card.exercise.options.find(o => !o.includes('fb01'));
 
     const result = await submitReview(request, card, { answer: wrong });
@@ -60,7 +58,7 @@ test.describe('Answer feedback', () => {
   });
 
   test('choosing the wrong word names what that word means', async ({ request }) => {
-    const card = await serve(request, 'fb02', 2);
+    const card = await serve(request, 'fb02', ExerciseType.MeaningToWordChoice);
     const wrong = card.exercise.options.find(o => o !== 'fb02');
 
     const result = await submitReview(request, card, { answer: wrong });
@@ -74,7 +72,7 @@ test.describe('Answer feedback', () => {
 
   test('a self-graded exercise gets no feedback', async ({ request }) => {
     // The learner revealed the answer themselves, so there is nothing left to tell them.
-    const card = await serve(request, 'fb03', 0);
+    const card = await serve(request, 'fb03', ExerciseType.WordToMeaningReveal);
 
     const result = await submitReview(request, card, { selfGrade: 3 });
 
@@ -83,7 +81,7 @@ test.describe('Answer feedback', () => {
   });
 
   test('a misspelling is marked without blaming another word', async ({ request }) => {
-    const card = await serve(request, 'fb04', rungOf(ExerciseType.MeaningToWordScramble));
+    const card = await serve(request, 'fb04', ExerciseType.MeaningToWordScramble);
 
     const result = await submitReview(request, card, { answer: 'notthisword' });
 
@@ -107,10 +105,8 @@ test.describe('Answer feedback on the page', () => {
   });
 
   /** Puts one word in front of the learner and takes the rest out of the way. */
-  async function studyOnly(request, page, headword, rung) {
-    await seedCard(request, {
-      headword, rung, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
-    });
+  async function studyOnly(request, page, headword, type) {
+    await seedCardFor(request, headword, type);
 
     await isolateWord(request, headword);
 
@@ -120,7 +116,7 @@ test.describe('Answer feedback on the page', () => {
   }
 
   test('a correct choice is confirmed and the word is shown again', async ({ request, page }) => {
-    await studyOnly(request, page, 'pf00', 1);
+    await studyOnly(request, page, 'pf00', ExerciseType.WordToMeaningChoice);
 
     await page.getByTestId('choice-option').filter({ hasText: 'the meaning of pf00' }).click();
 
@@ -132,7 +128,7 @@ test.describe('Answer feedback on the page', () => {
 
   test('a wrong choice shows the right word and what was picked instead',
     async ({ request, page }) => {
-      await studyOnly(request, page, 'pf01', 1);
+      await studyOnly(request, page, 'pf01', ExerciseType.WordToMeaningChoice);
 
       const wrong = page.getByTestId('choice-option')
         .filter({ hasNotText: 'the meaning of pf01' }).first();
@@ -150,7 +146,7 @@ test.describe('Answer feedback on the page', () => {
     });
 
   test('continuing moves on to the next card', async ({ request, page }) => {
-    await studyOnly(request, page, 'pf02', 1);
+    await studyOnly(request, page, 'pf02', ExerciseType.WordToMeaningChoice);
 
     await page.getByTestId('choice-option').first().click();
     await expect(page.getByTestId('answer-feedback')).toBeVisible();
@@ -161,7 +157,7 @@ test.describe('Answer feedback on the page', () => {
   });
 
   test('space continues from the result', async ({ request, page }) => {
-    await studyOnly(request, page, 'pf03', 1);
+    await studyOnly(request, page, 'pf03', ExerciseType.WordToMeaningChoice);
 
     await page.getByTestId('choice-option').first().click();
     await expect(page.getByTestId('answer-feedback')).toBeVisible();
@@ -172,7 +168,7 @@ test.describe('Answer feedback on the page', () => {
   });
 
   test('a self-graded card goes straight on without a result screen', async ({ request, page }) => {
-    await studyOnly(request, page, 'pf04', 0);
+    await studyOnly(request, page, 'pf04', ExerciseType.WordToMeaningReveal);
 
     await page.getByTestId('reveal-button').click();
     await page.getByTestId('grade-good').click();

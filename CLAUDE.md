@@ -338,7 +338,7 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially the suite - 188 tests, 5 of them skipped in the source - passes
+suspecting the tests. Serially the suite - 207 tests, 5 of them skipped in the source - passes
 in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
 is why this went unnoticed.
 
@@ -388,6 +388,32 @@ would leave the saved session pointing at nobody - and removes every other user.
 `auth.spec.js` is the exception: it overrides `storageState` to start signed out, and does
 its resetting and seeding through a request context of its own built from the saved session.
 It registers from the allowlist in `appsettings.E2ETest.json` (`helpers/auth.js`).
+
+## Study (spaced repetition)
+
+**A "rung" is a level, not an exercise.** `Study:Ladder` has four levels - introduction,
+recognition, scaffolded, production - each a pool of exercises with a `PromoteAfter` quota.
+`ReviewCard.CurrentRung` is the level; which exercise is asked there comes from
+`RungStreak` (clean successes on the level, used as an index into the pool, so support fades)
+and `LastExerciseType` (never the same one twice running). A miss drops one level; Hard or a
+used hint holds both level and streak. `ConfiguredExerciseLadder` is the whole of it.
+
+**Learning ends on a criterion, not when the steps run out.** `LearningStepsMinutes` only
+paces the tries; `LearningExitCriterion` lets a word go after two clean successes on the top
+level at least `LearningExitSpacingMinutes` apart (one when relearning), or on its next
+success once it has had `MaxLearningRetrievals`. Easy only earns the easy interval on the
+answer that completes learning - a fast multiple-choice pick is never Easy at all
+(`GradeResolver`), which is what used to send new words four days away after one click.
+
+**Typed answers are marked leniently** (`TypedAnswer`): case, spacing, hyphens and a leading
+article are ignored; a missing accent, one slipped letter (words of five or more) or a French
+noun under the wrong gender's article is accepted as Hard with a note. `SubmitReview` turns a
+"slip" that spells another word in the collection back into a miss (poison/poisson).
+
+In e2e specs, seed a card by exercise with `seedCardFor(type)`, not by rung number. It
+assumes the word is too short for syllable tiles - the syllable scramble needs three
+syllables - unless told `{ syllables: true }`. `StudyOptionsBindingTests` reads the real
+`appsettings.json` and fails if it drifts from `StudyDefaults`.
 
 ## French support
 

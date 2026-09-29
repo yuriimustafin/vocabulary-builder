@@ -135,3 +135,31 @@ public class MeaningToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
     // The transcription belongs to the answer here, so it cannot be shown with the prompt.
     protected override bool ShowTranscription => false;
 }
+
+/// <summary>
+/// A sentence with the word cut out, and four words to fill it from.
+///
+/// Recognition still - the word is on screen - but the learner has to judge which one fits
+/// the context, which asks more of them than matching a definition. It is also what a word
+/// dropped back to recognition meets, so it is not asked the question it has just missed.
+/// </summary>
+public class ContextToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
+{
+    public ContextToWordChoiceExerciseDefinition(StudyOptions options, IGradeResolver gradeResolver)
+        : this(options, gradeResolver, Random.Shared) { }
+
+    public ContextToWordChoiceExerciseDefinition(StudyOptions options, IGradeResolver gradeResolver, Random random)
+        : base(options, gradeResolver, random) { }
+
+    public override ExerciseType Type => ExerciseType.ContextToWordChoice;
+
+    protected override string? Stimulus(StudyMaterial material) =>
+        material.HasContextSentence ? HeadwordText.Blankify(material.ContextSentence!, material.Headword) : null;
+
+    protected override string? Target(StudyMaterial material) => material.Headword;
+
+    protected override IReadOnlyList<string> WrongOptions(DistractorSet distractors) => distractors.Headwords;
+
+    // The pronunciation is of the missing word.
+    protected override bool ShowTranscription => false;
+}

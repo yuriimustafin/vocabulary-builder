@@ -52,20 +52,43 @@ public class StudyOptions
     // --- SM-2 --------------------------------------------------------------
 
     /// <summary>
-    /// Same-day steps before a card graduates. Three steps means the introduction plus three
-    /// graded retrievals on day one, climbing from recognition to assembling the word -
-    /// roughly the three correct recalls a first session needs to stick.
+    /// Minutes until the next try while a word is being learned: the first entry after the
+    /// introduction or a miss, then one step further along per success. The last entry
+    /// repeats. The steps only set the pace - a word leaves learning when it meets its exit
+    /// criterion (<see cref="LearningExitSuccesses"/>), not when the steps run out.
     ///
     /// Left empty on purpose: configuration binding appends to a collection that already
     /// has contents rather than replacing it, so a populated default here would turn the
-    /// configured [1, 5, 15] into [1, 5, 15, 1, 5, 15] and the card would never graduate. Read it
-    /// through <see cref="EffectiveLearningSteps"/>, which supplies the default.
+    /// configured [1, 3, 5, 8] into [1, 3, 5, 8, 1, 3, 5, 8]. Read it through
+    /// <see cref="EffectiveLearningSteps"/>, which supplies the default.
     /// </summary>
     public int[] LearningStepsMinutes { get; set; } = Array.Empty<int>();
 
     /// <summary>The configured steps, or the built-in default when none are configured.</summary>
     public int[] EffectiveLearningSteps =>
         LearningStepsMinutes.Length > 0 ? LearningStepsMinutes : StudyDefaults.LearningStepsMinutes;
+
+    /// <summary>
+    /// Clean successes on the top level a new word needs before it leaves learning. Two, a
+    /// few minutes apart, is the "recall to criterion" the first session is for: the word
+    /// has been produced unaided twice, not just recognised.
+    /// </summary>
+    public int LearningExitSuccesses { get; set; } = 2;
+
+    /// <summary>The same for a word relearning after a lapse. It was known once, so one is enough.</summary>
+    public int RelearningExitSuccesses { get; set; } = 1;
+
+    /// <summary>
+    /// Minimum gap between the last two of those successes. Two correct answers a few
+    /// seconds apart show the word is still in working memory, not that it has been learned.
+    /// </summary>
+    public int LearningExitSpacingMinutes { get; set; } = 4;
+
+    /// <summary>
+    /// Graded tries after which a word leaves learning on its next success regardless, so a
+    /// stubborn word cannot take over the session. It comes back tomorrow either way.
+    /// </summary>
+    public int MaxLearningRetrievals { get; set; } = 10;
 
     public int GraduatingIntervalDays { get; set; } = 1;
     public int EasyIntervalDays { get; set; } = 4;
@@ -92,20 +115,20 @@ public class StudyOptions
     /// <summary>Gap as a multiple of the scheduled interval that also triggers escalation.</summary>
     public double OverdueRatio { get; set; } = 1.5;
 
-    /// <summary>Lowest rung that long-gap escalation applies to; below this the word is still being learned.</summary>
+    /// <summary>Lowest level that long-gap escalation applies to; below this the word is still being learned.</summary>
     public int LongGapEscalationMinRung { get; set; } = 3;
 
-    /// <summary>Probe used after a long gap. Falls back to the last rung when absent from the ladder.</summary>
-    public ExerciseType LongGapProbeType { get; set; } = ExerciseType.MeaningToWordRecall;
-
-    /// <summary>Success rate a card must hold to climb a rung - the "85% rule".</summary>
-    public double TargetSuccessRate { get; set; } = 0.85;
+    /// <summary>Probe used after a long gap. Falls back to the top level's first exercise when absent from the ladder.</summary>
+    public ExerciseType LongGapProbeType { get; set; } = ExerciseType.MeaningToWordType;
 
     /// <summary>Weight of the newest review in the success-rate moving average.</summary>
     public double SuccessEmaAlpha { get; set; } = 0.3;
 
-    /// <summary>Rungs a card falls when a probe is failed, so earlier exercises come back.</summary>
-    public int FailureRungDrop { get; set; } = 2;
+    /// <summary>
+    /// Levels a word falls when a probe is failed. One: the word meets the level below -
+    /// where it was last succeeding - rather than being sent back to the start.
+    /// </summary>
+    public int FailureRungDrop { get; set; } = 1;
 
     // --- automatic grading -------------------------------------------------
 
@@ -117,6 +140,13 @@ public class StudyOptions
 
     /// <summary>A correct answer at or over this is graded Hard.</summary>
     public int SlowAnswerMs { get; set; } = 10000;
+
+    /// <summary>
+    /// Allowance per letter where the learner builds the word piece by piece. A long word
+    /// takes longer to assemble however well it is known, so the slow threshold for those
+    /// exercises is the larger of <see cref="SlowAnswerMs"/> and this times its length.
+    /// </summary>
+    public int SlowAnswerMsPerLetter { get; set; } = 1500;
 
     // --- difficulty --------------------------------------------------------
 
@@ -153,8 +183,10 @@ public class StudyOptions
     // --- the ladder --------------------------------------------------------
 
     /// <summary>
-    /// Ordered easiest to hardest. A card's CurrentRung indexes this list, so reordering
-    /// or inserting a rung is a configuration change.
+    /// Levels, easiest to hardest. A card's CurrentRung indexes this list. Each level has a
+    /// pool of exercises, easiest first: a word on that level is asked the exercise at its
+    /// streak, so the support fades as it succeeds, and never the same one twice running
+    /// when the pool has another.
     ///
     /// Empty by default for the same reason as the learning steps: a populated default
     /// would be appended to, not replaced, leaving a ladder with every rung twice. Read it
@@ -173,27 +205,66 @@ public class StudyOptions
 /// </summary>
 public static class StudyDefaults
 {
-    public static int[] LearningStepsMinutes => new[] { 1, 5, 15 };
+    public static int[] LearningStepsMinutes => new[] { 1, 3, 5, 8 };
 
     public static IReadOnlyList<LadderRungOptions> Ladder => new List<LadderRungOptions>
     {
-        new() { Type = ExerciseType.WordToMeaningReveal },
-        new() { Type = ExerciseType.WordToMeaningChoice },
-        new() { Type = ExerciseType.MeaningToWordChoice },
-        new() { Type = ExerciseType.MeaningToWordScramble },
-        new() { Type = ExerciseType.ContextToWordRecall },
-        new() { Type = ExerciseType.MeaningToWordRecall }
+        // Met, not graded, the first time; a word dropped this far is graded here once.
+        Level("Introduction", 1, ExerciseType.WordToMeaningReveal),
+
+        // One success: recognising a word again adds little once it is recognised. The
+        // other two are what a word dropped here meets, so it is not the question it missed.
+        Level("Recognition", 1,
+            ExerciseType.MeaningToWordChoice,
+            ExerciseType.ContextToWordChoice,
+            ExerciseType.WordToMeaningChoice),
+
+        // Three, so the support can fade: the chunks of the word, then its letters, then
+        // typing it from its first letters.
+        Level("Scaffolded", 3,
+            ExerciseType.MeaningToWordSyllableScramble,
+            ExerciseType.MeaningToWordScramble,
+            ExerciseType.MeaningToWordCuedType),
+
+        // Where a word stays, taking these in turn.
+        Level("Production", 0,
+            ExerciseType.ContextToWordRecall,
+            ExerciseType.MeaningToWordType,
+            ExerciseType.MeaningToWordRecall)
+    };
+
+    private static LadderRungOptions Level(string name, int promoteAfter, params ExerciseType[] types) => new()
+    {
+        Name = name,
+        PromoteAfter = promoteAfter,
+        Exercises = types.Select(type => new LadderExerciseOptions { Type = type }).ToList()
     };
 }
 
+/// <summary>One level of the ladder.</summary>
 public class LadderRungOptions
+{
+    /// <summary>For people reading the configuration; nothing depends on it.</summary>
+    public string? Name { get; set; }
+
+    /// <summary>The exercises this level can ask, easiest first.</summary>
+    public List<LadderExerciseOptions> Exercises { get; set; } = new();
+
+    /// <summary>
+    /// Clean successes in a row that move a word up to the next level. Zero means never:
+    /// the top level is where a word stays, and the introduction is left by being met.
+    /// </summary>
+    public int PromoteAfter { get; set; }
+}
+
+public class LadderExerciseOptions
 {
     public ExerciseType Type { get; set; }
 
-    /// <summary>Withhold this rung until the card's interval reaches this many days.</summary>
+    /// <summary>Withhold this exercise until the card's interval reaches this many days.</summary>
     public int? MinIntervalDays { get; set; }
 
-    /// <summary>Restrict this rung to words whose part of speech contains one of these, case-insensitively.</summary>
+    /// <summary>Restrict this exercise to words whose part of speech contains one of these, case-insensitively.</summary>
     public List<string>? PartsOfSpeech { get; set; }
 }
 

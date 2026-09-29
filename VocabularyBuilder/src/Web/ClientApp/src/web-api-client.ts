@@ -3595,6 +3595,10 @@ export enum ExerciseType {
     MeaningToWordScramble = 4,
     MeaningToWordRecall = 5,
     MeaningToWordPartialLetters = 6,
+    MeaningToWordSyllableScramble = 7,
+    MeaningToWordType = 8,
+    MeaningToWordCuedType = 9,
+    ContextToWordChoice = 10,
 }
 
 export enum GradingMode {
@@ -3856,6 +3860,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
     meaningGloss?: string | undefined;
     contextSentenceTranslation?: string | undefined;
     chosen?: ChosenAnswerDto | undefined;
+    note?: string | undefined;
 
     constructor(data?: IReviewFeedbackDto) {
         if (data) {
@@ -3878,6 +3883,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
             this.meaningGloss = _data["meaningGloss"];
             this.contextSentenceTranslation = _data["contextSentenceTranslation"];
             this.chosen = _data["chosen"] ? ChosenAnswerDto.fromJS(_data["chosen"]) : <any>undefined;
+            this.note = _data["note"];
         }
     }
 
@@ -3900,6 +3906,7 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
         data["meaningGloss"] = this.meaningGloss;
         data["contextSentenceTranslation"] = this.contextSentenceTranslation;
         data["chosen"] = this.chosen ? this.chosen.toJSON() : <any>undefined;
+        data["note"] = this.note;
         return data;
     }
 }
@@ -3915,6 +3922,7 @@ export interface IReviewFeedbackDto {
     meaningGloss?: string | undefined;
     contextSentenceTranslation?: string | undefined;
     chosen?: ChosenAnswerDto | undefined;
+    note?: string | undefined;
 }
 
 export class ChosenAnswerDto implements IChosenAnswerDto {

@@ -8,7 +8,8 @@ import { GRADE_KEYS } from './study/GradeBar';
 import {
   CardDifficulty,
   EXERCISE_LABELS,
-  GradingMode
+  GradingMode,
+  TYPED_EXERCISES
 } from './study/exerciseTypes';
 import {
   NothingToStudy,
@@ -503,6 +504,7 @@ export class Study extends Component {
                   ? (
                     <AnswerFeedback
                       feedback={this.state.feedback}
+                      typed={TYPED_EXERCISES.has(card.exercise.type)}
                       language={this.state.language}
                       continuing={this.busy}
                       onContinue={this.continueFromFeedback}
