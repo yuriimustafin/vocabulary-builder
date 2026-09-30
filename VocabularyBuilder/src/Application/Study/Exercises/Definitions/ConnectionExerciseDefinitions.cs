@@ -40,6 +40,7 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
     /// </summary>
     public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
         CombinesWithPartners(material.PartOfSpeech)
+        && !TooGeneral.Contains(material.Headword.Trim())
         && material.Collocates.Count >= 2
         && material.NonCollocates.Count >= 2;
 
@@ -52,6 +53,18 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
     private static readonly string[] WithoutPartners =
     {
         "interj", "exclam", "greeting", "prep", "prép", "conj", "pron", "art", "det", "dét", "num"
+    };
+
+    /// <summary>
+    /// Verbs so general that almost anything can follow them, so nothing offered beside them
+    /// is certainly wrong. Asked for impossible partners anyway, a real model offered
+    /// "prendre une fourchette" and "prendre une note de musique" - both of them fine French -
+    /// and it does so even when the prompt asks it for none. Held here, whatever the content says.
+    /// </summary>
+    private static readonly HashSet<string> TooGeneral = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "take", "make", "have", "get", "put", "do", "give", "go", "keep", "set",
+        "prendre", "faire", "mettre", "avoir", "être", "donner", "aller", "tenir", "porter", "passer"
     };
 
     public static bool CombinesWithPartners(string? partOfSpeech)

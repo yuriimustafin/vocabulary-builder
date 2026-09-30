@@ -16,10 +16,12 @@ import { WordConnections } from './WordConnections';
  * Names what the chosen option actually was.
  *
  * When the option was a meaning, the useful thing is whose meaning it is. When it was a
- * word, the useful thing is what that word means instead.
+ * word - picked, or typed as another word in the collection - the useful thing is what that
+ * word means instead. A typed word is always a word, whatever case or article it was typed in.
  */
-function describeChoice(chosen) {
-  const choseAWord = chosen.headword && chosen.headword === chosen.text;
+function describeChoice(chosen, typed) {
+  const choseAWord = chosen.headword
+    && (typed || chosen.headword.toLowerCase() === chosen.text.trim().toLowerCase());
 
   if (choseAWord) {
     return chosen.meaning ? `which means: ${chosen.meaning}` : null;
@@ -89,9 +91,9 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language, typ
             word; picking a word names its meaning. Either way the point is the same - the
             wrong option belongs to something, and saying what makes it worth having seen.
           */}
-          {describeChoice(chosen) && (
+          {describeChoice(chosen, typed) && (
             <div className="text-muted small mt-1" data-testid="feedback-chosen-owner">
-              {describeChoice(chosen)}
+              {describeChoice(chosen, typed)}
             </div>
           )}
         </div>

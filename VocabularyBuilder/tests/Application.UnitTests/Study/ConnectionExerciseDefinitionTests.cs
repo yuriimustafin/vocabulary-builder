@@ -102,6 +102,18 @@ public class ConnectionExerciseDefinitionTests
         Collocates().CanBuild(Material() with { PartOfSpeech = partOfSpeech }, null).Should().BeTrue();
     }
 
+    /// <summary>
+    /// A real model offered "une fourchette" and "une note de musique" as things prendre
+    /// cannot go with - both fine French - even when told to offer none for such a verb.
+    /// </summary>
+    [TestCase("prendre")]
+    [TestCase("faire")]
+    [TestCase("Take")]
+    public void AVerbSoGeneralThatAnythingFollowsItIsNeverAskedWhatGoesWithIt(string headword)
+    {
+        Collocates().CanBuild(Material() with { Headword = headword, PartOfSpeech = "verb" }, null).Should().BeFalse();
+    }
+
     [Test]
     public void ItNeedsSomethingOnBothSides()
     {

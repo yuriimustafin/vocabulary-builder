@@ -30,6 +30,46 @@ public class ExerciseDefinitionTests
         new[] { "wrong one", "wrong two", "wrong three" },
         new[] { "alpha", "beta", "gamma" });
 
+    // --- a meaning that is the word itself ----------------------------------
+
+    [TestCase("poison", "poison")]
+    [TestCase("information", "Information")]
+    [TestCase("hôtel", "a hotel")]
+    [TestCase("poison", "poison, venom")]
+    [TestCase("chat", "cat; chat (informal)")]
+    public void AMeaningThatIsTheWordItselfGivesItAway(string headword, string meaning)
+    {
+        Material(headword, meaning).MeaningGivesAwayWord.Should().BeTrue();
+    }
+
+    [TestCase("poisson", "fish")]
+    [TestCase("ubiquitous", "found everywhere")]
+    [TestCase("vivid", "the meaning of vivid", TestName = "AMeaningThatOnlyMentionsTheWordDoesNot")]
+    public void AnOrdinaryMeaningDoesNotGiveTheWordAway(string headword, string meaning)
+    {
+        Material(headword, meaning).MeaningGivesAwayWord.Should().BeFalse();
+    }
+
+    [Test]
+    public void NothingIsAskedFromOrForAMeaningThatIsTheWordItself()
+    {
+        // le poison, "poison": the question would show its own answer
+        var material = Material("poison", "poison", "Le poison de ce serpent est mortel.");
+        var distractors = Distractors();
+
+        new MeaningToWordChoiceExerciseDefinition(Options, Grades, Seeded).CanBuild(material, distractors).Should().BeFalse();
+        new WordToMeaningChoiceExerciseDefinition(Options, Grades, Seeded).CanBuild(material, distractors).Should().BeFalse();
+        new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded).CanBuild(material, null).Should().BeFalse();
+        new MeaningToWordTypeExerciseDefinition(Grades).CanBuild(material, null).Should().BeFalse();
+        new MeaningToWordCuedTypeExerciseDefinition(Grades).CanBuild(material, null).Should().BeFalse();
+        new MeaningToWordRecallExerciseDefinition().CanBuild(material, null).Should().BeFalse();
+
+        // A sentence still asks something, and meeting the word still shows what it means
+        new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded).CanBuild(material, distractors).Should().BeTrue();
+        new ContextToWordRecallExerciseDefinition().CanBuild(material, null).Should().BeTrue();
+        new WordToMeaningRevealExerciseDefinition().CanBuild(material, null).Should().BeTrue();
+    }
+
     // --- flashcard ---------------------------------------------------------
 
     [Test]

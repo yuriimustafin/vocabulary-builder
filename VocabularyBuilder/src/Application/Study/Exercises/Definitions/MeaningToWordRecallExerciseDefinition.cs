@@ -14,7 +14,7 @@ public class MeaningToWordRecallExerciseDefinition : SelfGradedExerciseDefinitio
 {
     public override ExerciseType Type => ExerciseType.MeaningToWordRecall;
 
-    public override bool CanBuild(StudyMaterial material, DistractorSet? distractors) => material.HasMeaning;
+    public override bool CanBuild(StudyMaterial material, DistractorSet? distractors) => material.CanAskFromMeaning;
 
     public override ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context) => new()
     {

@@ -21,7 +21,7 @@ public abstract class TypedExerciseDefinition : ITypedExerciseDefinition
 
     public bool CanBeProbe => true;
 
-    public bool CanBuild(StudyMaterial material, DistractorSet? distractors) => material.HasMeaning;
+    public bool CanBuild(StudyMaterial material, DistractorSet? distractors) => material.CanAskFromMeaning;
 
     public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context) => new()
     {

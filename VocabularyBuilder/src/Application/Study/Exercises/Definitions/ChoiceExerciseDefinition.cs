@@ -111,7 +111,8 @@ public class WordToMeaningChoiceExerciseDefinition : ChoiceExerciseDefinition
 
     protected override string? Stimulus(StudyMaterial material) => material.Headword;
 
-    protected override string? Target(StudyMaterial material) => material.Meaning;
+    // Not offered when the meaning is the word itself: the right option would repeat the prompt
+    protected override string? Target(StudyMaterial material) => material.CanAskFromMeaning ? material.Meaning : null;
 
     protected override IReadOnlyList<string> WrongOptions(DistractorSet distractors) => distractors.Meanings;
 }
@@ -130,7 +131,8 @@ public class MeaningToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
 
     public override ExerciseType Type => ExerciseType.MeaningToWordChoice;
 
-    protected override string? Stimulus(StudyMaterial material) => material.Meaning;
+    // Not offered when the meaning is the word itself: the prompt would be the answer
+    protected override string? Stimulus(StudyMaterial material) => material.CanAskFromMeaning ? material.Meaning : null;
 
     protected override string? Target(StudyMaterial material) => material.Headword;
 

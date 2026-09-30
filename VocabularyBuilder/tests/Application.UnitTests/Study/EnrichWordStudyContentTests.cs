@@ -464,6 +464,29 @@ public class EnrichWordStudyContentTests
         prompt.Should().Contain("null when it does not combine").And.Contain("\"bonjour\", \"please\"");
     }
 
+    /// <summary>
+    /// What a real model got wrong for prendre and fenêtre: it copied the prompt's own
+    /// partners for prendre word for word, offered "une fourchette" and "réparer" as things
+    /// they cannot go with, and wrote a collocation in English.
+    /// </summary>
+    [Test]
+    public void ThePromptGuardsAgainstWhatARealModelGotWrong()
+    {
+        var word = new Word { Headword = "prendre", PartOfSpeech = "verb", Language = Language.French };
+
+        var prompt = StudyContentPrompt.For(word, StudyMaterialGaps.Connections | StudyMaterialGaps.Examples);
+
+        prompt.Should().NotContain("\"le bus\"", "a word the prompt uses as its example gets that example back");
+        prompt.Should().Contain("Never copy them into yours - answer for \"prendre\" itself");
+        prompt.Should().Contain("cannot combine with it in any of its senses")
+            .And.Contain("impossible rather than merely unusual")
+            .And.Contain("null for a very general verb that almost anything can follow")
+            .And.Contain("whenever 3 certainly impossible ones cannot be found");
+        prompt.Should().Contain("\"collocation\" is the French phrase");
+        prompt.Should().Contain("grammatically complete French - articles included");
+        prompt.Should().Contain("including any the etymology names");
+    }
+
     [Test]
     public void ThePromptCarriesTheMarkerAndTheWordInTheAgreedShape()
     {

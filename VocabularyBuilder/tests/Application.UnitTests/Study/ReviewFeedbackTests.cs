@@ -226,6 +226,24 @@ public class ReviewFeedbackTests
         result.Grade.Should().Be(ReviewGrade.Again);
         result.Feedback!.Correct.Should().BeFalse();
         result.Feedback.Note.Should().BeNull("it is not nearly right - it is a different word");
+
+        // And which word it is, so the learner sees what they did know
+        result.Feedback.Chosen!.Text.Should().Be(typed);
+        result.Feedback.Chosen.Headword.Should().Be(otherHeadword);
+        result.Feedback.Chosen.Meaning.Should().Be("something else");
+    }
+
+    [Test]
+    public async Task TypingAnotherStoredWordEntirelyNamesItToo()
+    {
+        await AddWordWithCard("window", "an opening in a wall");
+        var card = await AddWordWithCard("poison", "the word asked");
+
+        var result = await Answer(card, ExerciseType.MeaningToWordType, "the window");
+
+        result.Feedback!.Correct.Should().BeFalse();
+        result.Feedback.Chosen!.Headword.Should().Be("window", "the article typed in front does not hide the word");
+        result.Feedback.Chosen.Meaning.Should().Be("an opening in a wall");
     }
 
     [Test]

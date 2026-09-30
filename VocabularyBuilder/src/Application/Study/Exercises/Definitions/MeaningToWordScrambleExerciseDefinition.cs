@@ -38,9 +38,9 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
 
     public bool CanBeProbe => true;
 
-    /// <summary>A one-letter word has nothing to rearrange.</summary>
+    /// <summary>A one-letter word has nothing to rearrange, and a meaning that is the word itself spells it out.</summary>
     public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
-        material.HasMeaning && Pieces(material).Count >= MinimumPieces;
+        material.CanAskFromMeaning && Pieces(material).Count >= MinimumPieces;
 
     /// <summary>What the word is broken into.</summary>
     protected virtual IReadOnlyList<string> Pieces(StudyMaterial material) => Letters(material.Headword);

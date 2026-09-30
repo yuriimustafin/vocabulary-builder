@@ -80,6 +80,23 @@ public record StudyMaterial
 
     public bool HasMeaning => !string.IsNullOrWhiteSpace(Meaning);
 
+    /// <summary>
+    /// The meaning is the word itself, as a translation sometimes is - "poison" for le poison,
+    /// "information" for l'information. Asking for the word from that meaning, or for that
+    /// meaning from the word, shows the answer in the question.
+    /// </summary>
+    public bool MeaningGivesAwayWord =>
+        HasMeaning && Meaning!.Split(',', ';', '/').Select(Bare).Any(gloss => gloss.Length > 0 && gloss == Bare(Headword));
+
+    /// <summary>Whether an exercise can ask from the meaning, or for it, without giving the word away.</summary>
+    public bool CanAskFromMeaning => HasMeaning && !MeaningGivesAwayWord;
+
+    /// <summary>A meaning or headword as it would be compared: no case, accents, notes in brackets or leading article.</summary>
+    private static string Bare(string text) =>
+        Regex.Replace(
+            TypedAnswer.StripAccents(TypedAnswer.Tidy(Regex.Replace(text, @"\([^)]*\)", " "))),
+            @"^(?:a|an|the|to)\s+", string.Empty);
+
     public bool HasContextSentence => !string.IsNullOrWhiteSpace(ContextSentence);
 
     /// <summary><see cref="ContextSentence"/> with the word cut out of it.</summary>

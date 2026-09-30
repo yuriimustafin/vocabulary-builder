@@ -75,7 +75,7 @@ public static class StudyContentPrompt
             // a French word with an English definition beside it would otherwise invite an
             // English sentence the word has to be forced into.
             fields.Add($"""
-                  "examples": an array of {count} objects {"{"}"sentence", "translation", "form", "collocation"{"}"}. Each sentence is short (6 to 14 words), natural, everyday {word.Language}, and built around a different word it is commonly used with, so that together they show the range of what it means. "form" is the word exactly as it appears in that sentence. "translation" is the sentence in {translationLanguage}. "collocation" is the phrase the sentence is built around, such as "a bright future".{formsLine}
+                  "examples": an array of {count} objects {"{"}"sentence", "translation", "form", "collocation"{"}"}. Each sentence is short (6 to 14 words), natural, everyday and grammatically complete {word.Language} - articles included - and built around a different word it is commonly used with, so that together they show the range of what it means. "form" is the word exactly as it appears in that sentence. "translation" is the sentence in {translationLanguage}. "collocation" is the {word.Language} phrase the sentence is built around, in its dictionary form - for an English sentence about "bright", "a bright future".{formsLine}
                 """.TrimEnd());
         }
 
@@ -86,10 +86,10 @@ public static class StudyContentPrompt
 
             fields.Add($"""
                   "etymology": where the word comes from, under 25 words, as far as it links to a word a learner may know. null if you are not sure - never invent one
-                  "cognates": {relatedIn} words sharing its origin, with how their meaning differs when it does; mark a false friend with "false friend:". null if there are none
+                  "cognates": {relatedIn} words sharing its origin or root - including any the etymology names - with how their meaning differs when it does; mark a false friend with "false friend:". null only if there really are none
                   "mnemonic": one or two {soundAlikesIn} words that sound like it when spoken (by pronunciation, not spelling), and one vivid sentence under 25 words linking them to its meaning. null when the word is already obvious from a related word
-                  "collocates": an array of 4 to 6 {word.Language} words or short phrases that combine directly with it in everyday use, most typical first, covering its range, without the word itself. Which kind depends on what it is: for an adjective, what it describes ("bright": "light", "future", "colours", "idea"); for a noun, the verbs and adjectives used with it ("decision": "make", "take", "final", "tough"); for a verb, what it is done to or with ("prendre": "le bus", "une photo", "une décision", "son temps"); for an adverb, what it modifies ("quickly": "run", "grow", "forget", "spread"). null when it does not combine with a meaningful range of words: greetings, thanks, interjections, pronouns, articles, prepositions, conjunctions, numbers and set expressions such as "bonjour", "please", "merci", "d'accord"
-                  "nonCollocates": an array of 3 everyday {word.Language} words of the same kind as the collocates that clearly cannot combine with it, each from a different area - so the choice cannot be made from the kind of word alone. Never close in meaning to a collocate. null when "collocates" is null
+                  "collocates": an array of 4 to 6 {word.Language} words or short phrases that combine directly with it in everyday use, most typical first, covering its range, without the word itself. Which kind depends on what it is: for an adjective, what it describes ("bright": "light", "future", "colours", "idea"); for a noun, the verbs and adjectives used with it ("decision": "make", "take", "final", "tough"); for a verb, what it is done to or with ("take": "the bus", "a photo", "a decision", "your time"); for an adverb, what it modifies ("quickly": "run", "grow", "forget", "spread"). null when it does not combine with a meaningful range of words: greetings, thanks, interjections, pronouns, articles, prepositions, conjunctions, numbers and set expressions such as "bonjour", "please", "merci", "d'accord"
+                  "nonCollocates": an array of 3 everyday {word.Language} words of the same kind as the collocates that cannot combine with it in any of its senses, each from a different area - so the choice cannot be made from the kind of word alone. Check each one: if a native speaker could say it together with the word at all, even rarely, it is wrong here - pick another. Choose pairings that are impossible rather than merely unusual. Never close in meaning to a collocate. null when "collocates" is null, and null for a very general verb that almost anything can follow (take, make, have, get, put, "prendre", "faire", "mettre", "avoir") - "prendre un chien" is fine French - or whenever 3 certainly impossible ones cannot be found
                 """.TrimEnd());
         }
 
@@ -103,6 +103,8 @@ public static class StudyContentPrompt
 
             Return ONLY a JSON object with these keys:
             {string.Join("\n", fields)}
+
+            The quoted examples above only show the shape of an answer. Never copy them into yours - answer for "{word.Headword}" itself, even when it is one of the words the examples use.
 
             No markdown, no commentary, no code fences. JSON only.
             """;

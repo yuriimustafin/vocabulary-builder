@@ -418,7 +418,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             ContextSentence = material.ContextSentence,
             MeaningGloss = material.MeaningGloss,
             ContextSentenceTranslation = material.ContextSentenceTranslation,
-            Chosen = correct ? null : await DescribeChoice(card, request, cancellationToken),
+            Chosen = correct ? null : await DescribeChoice(card, request, typed, cancellationToken),
             Note = tolerated
                 ? "This one does not count against the word - it will be asked again another way."
                 : typed is null ? null : NoteFor(typed.Kind, material),
@@ -438,9 +438,11 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     /// <summary>
     /// Names the option that was picked by mistake. Which way round depends on the
     /// question: choosing a meaning identifies a word, choosing a word identifies a meaning.
+    /// A typed word that is another one in the collection - poisson for poison - is named
+    /// the same way, so the learner sees which word they did know.
     /// </summary>
     private async Task<ChosenAnswerDto?> DescribeChoice(
-        ReviewCard card, SubmitReviewCommand request, CancellationToken cancellationToken)
+        ReviewCard card, SubmitReviewCommand request, TypedMatch? typed, CancellationToken cancellationToken)
     {
         if (request.Selections is { Count: > 0 } ticked)
         {
@@ -454,14 +456,16 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
 
         var language = card.Word.Language;
 
-        var chosen = request.ExerciseType switch
-        {
-            ExerciseType.WordToMeaningChoice =>
-                await _wordLookup.ByMeaningAsync(language, request.Answer, cancellationToken),
-            ExerciseType.MeaningToWordChoice or ExerciseType.ContextToWordChoice =>
-                await _wordLookup.ByHeadwordAsync(language, request.Answer, cancellationToken),
-            _ => null
-        };
+        var chosen = typed is not null
+            ? await OtherWordTyped(card, typed, cancellationToken)
+            : request.ExerciseType switch
+            {
+                ExerciseType.WordToMeaningChoice =>
+                    await _wordLookup.ByMeaningAsync(language, request.Answer, cancellationToken),
+                ExerciseType.MeaningToWordChoice or ExerciseType.ContextToWordChoice =>
+                    await _wordLookup.ByHeadwordAsync(language, request.Answer, cancellationToken),
+                _ => null
+            };
 
         return new ChosenAnswerDto
         {
@@ -469,6 +473,19 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             Headword = chosen?.Headword,
             Meaning = chosen?.Meaning
         };
+    }
+
+    /// <summary>The word the typed answer spells, when it is a different one from the word asked.</summary>
+    private async Task<StudyWordSummary?> OtherWordTyped(
+        ReviewCard card, TypedMatch typed, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(typed.Word))
+        {
+            return null;
+        }
+
+        var other = await _wordLookup.ByHeadwordAsync(card.Word.Language, typed.Word, cancellationToken);
+        return other is not null && other.WordId != card.WordId ? other : null;
     }
 
     /// <summary>

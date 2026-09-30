@@ -19,6 +19,9 @@ import {
 } from './study/StudyStates';
 import { DayReview } from './study/DayReview';
 
+// Mirrors VocabularyBuilder.Domain.Enums.ReviewGrade.Again.
+const AGAIN = 1;
+
 const DIFFICULTY_BADGES = {
   [CardDifficulty.Shaky]: { label: 'Shaky', colour: 'warning' },
   [CardDifficulty.Difficult]: { label: 'Difficult', colour: 'danger' }
@@ -326,7 +329,8 @@ export class Study extends Component {
         this.setState({
           submitting: false,
           feedback: result.feedback,
-          pendingFollowUps: result.followUps || []
+          pendingFollowUps: result.followUps || [],
+          followUpsAfterMiss: result.grade === AGAIN
         });
         return;
       }
@@ -335,6 +339,7 @@ export class Study extends Component {
         this.setState({
           submitting: false,
           followUps: result.followUps,
+          followUpsAfterMiss: result.grade === AGAIN,
           followUpIndex: 0,
           hintUsed: false,
           revealed: false,
@@ -555,7 +560,10 @@ export class Study extends Component {
 
             {followUp && (
               <p className="text-muted small mt-3 mb-0" data-testid="follow-up-note">
-                Going over a word you missed. This one is not scored.
+                {/* Follow-ups also come after a right but shaky answer, which was not a miss */}
+                {this.state.followUpsAfterMiss
+                  ? 'Going over a word you missed. This one is not scored.'
+                  : 'One more look while it is fresh. This one is not scored.'}
               </p>
             )}
           </>
