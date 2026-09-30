@@ -338,7 +338,7 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially the suite - 222 tests, 5 of them skipped in the source - passes
+suspecting the tests. Serially the suite - 224 tests, 3 of them skipped in the source - passes
 in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
 is why this went unnoticed.
 
@@ -378,6 +378,12 @@ The reset endpoint (`/api/e2e-testing/reset-database`, `E2ETestingEndpoints`) de
 **hardcoded list of tables**. A new table has to be added to it or its rows survive every
 reset and leak into later tests — `WordForms` did exactly that until it was noticed.
 
+**A recorded Oxford page has to be shaped like a real one.** `MockOxfordParser` hands the
+page in `MockData/oxford` to the real `OxfordParser`, which reads `h1`, `.webtop .pos`,
+`.phons_n_am .phon`, `li.sense .def` and `ul.examples li`. The plain-word pages were once
+hand-written in another shape, parsed to nothing, and the import quietly found no word - which
+two bulk-import specs were skipped for as a "hang".
+
 **The suite runs signed in as the E2E administrator** (`e2e@example.com`, from
 `appsettings.E2ETest.json`). The `setup` project (`auth.setup.js`) logs in once and saves the
 cookie to `playwright/.auth/`; the `chromium` project depends on it and starts every spec from
@@ -414,7 +420,15 @@ answer that completes learning - a fast multiple-choice pick is never Easy at al
 **Typed answers are marked leniently** (`TypedAnswer`): case, spacing, hyphens and a leading
 article are ignored; a missing accent, one slipped letter (words of five or more) or a French
 noun under the wrong gender's article is accepted as Hard with a note. `SubmitReview` turns a
-"slip" that spells another word in the collection back into a miss (poison/poisson).
+"slip" that spells another word in the collection back into a miss (poison/poisson), and the
+feedback names that word and its meaning. The lookup compares headwords tidied the way the
+answer is - case, ligatures, hyphens - so `vœu` is found for a typed "voeu".
+
+**A meaning that is the word itself gives it away** - a translation often is: "poison" for *le
+poison*, "information" for *l'information*. `StudyMaterial.CanAskFromMeaning` is false for
+those, and every exercise graded on the meaning (choice either way, scrambles, typing, recall)
+is then not offered; the word is asked from its sentence instead. The introduction and the
+unscored follow-ups still show the meaning.
 
 **Example sentences live in `StudyExample`**, one row per sentence, with the form of the word it
 uses (what a cloze blanks - "prend" in a sentence for "prendre") and how often it was answered
@@ -437,6 +451,13 @@ keeps its level and streak, `IReviewScheduler.Hold` keeps its state, interval an
 brings it back after the first learning step, its success average is left alone, and only the
 connections card follows. A success counts as usual. Every other miss also opens with that
 card (`WordToConnectionsReveal`, follow-up only) before the diminishing cues ask again.
+
+**The collocate choice is only as good as its wrong options**, and a real model's are not
+reliably wrong: it offered *prendre une fourchette* and *réparer la fenêtre* as impossible. The
+prompt asks for pairings impossible in every sense, and for none for a very general verb - which
+the model ignores - so `WordToCollocatesChoiceExerciseDefinition` also refuses a short list of
+such verbs (prendre, faire, take, make...) whatever the content holds. A word the prompt uses as
+its own example gets that example back verbatim, which is why the prompt says not to copy them.
 
 **The end-of-day review** (`GET /api/{lang}/study/day-review`) matches the day's new words to
 their gapped sentences, in the fewest groups of four to six (`DayReviewGroups`). It is practice
