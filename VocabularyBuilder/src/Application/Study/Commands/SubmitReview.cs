@@ -1,7 +1,6 @@
 ﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Study.Exercises;
-using VocabularyBuilder.Application.Study.Exercises.Definitions;
 using VocabularyBuilder.Application.Study.Scheduling;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
@@ -200,9 +199,19 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             .Where(e => e.WordId == card.WordId)
             .ToListAsync(cancellationToken);
 
+        // The forms met in reading weigh the choice of sentence exactly as they did when the
+        // queue built the exercise, so one that carried no example id is still resolved on
+        // the sentence it showed
+        var forms = await _context.WordEncounters
+            .AsNoTracking()
+            .Where(e => e.WordId == card.WordId && e.Form != null)
+            .Select(e => e.Form!)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
         // Resolved on the sentence that was asked, so the feedback shows that one
         var material = _materialResolver.Resolve(
-            card.Word, generated, new StudyExampleSet(examples, Array.Empty<string>(), request.ExampleId));
+            card.Word, generated, new StudyExampleSet(examples, forms, request.ExampleId));
         var definition = _catalog.Get(request.ExerciseType);
 
         var answer = new ExerciseAnswer(
@@ -214,13 +223,15 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             request.Abandoned,
             request.Selections);
 
-        var grade = definition.Resolve(answer, material);
-        var typed = await CheckTypedAnswer(definition, answer, card, material, cancellationToken);
-
-        if (typed is { Accepted: false })
-        {
-            grade = ReviewGrade.Again;
-        }
+        // A typed answer is matched once, and graded on that match - a "slip" that spells
+        // another word included, which the match already says is wrong
+        var typedDefinition = definition as ITypedExerciseDefinition;
+        var typed = typedDefinition is null
+            ? null
+            : await CheckTypedAnswer(typedDefinition, answer, card, material, cancellationToken);
+        var grade = typed is null
+            ? definition.Resolve(answer, material)
+            : typedDefinition!.Resolve(answer, material, typed);
 
         var before = Snapshot(card);
 
@@ -232,7 +243,9 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             ? new RungMove(card.CurrentRung, card.RungStreak)
             : _ladder.NextRung(card, grade, request.HintUsed);
         var learning = before.State is CardState.New or CardState.Learning or CardState.Relearning;
-        var retrievals = learning ? card.PhaseRetrievals + 1 : 0;
+        // A tolerated miss is not a try either, or enough of them would force the word out
+        // of learning without it ever meeting the criterion
+        var retrievals = learning ? card.PhaseRetrievals + (tolerated ? 0 : 1) : 0;
         var learningComplete = learning && _learningExit.IsMet(
             before.State, grade, move, retrievals, card.LastReviewedAtUtc, now);
         var scheduling = tolerated
@@ -276,7 +289,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             FollowUps = await BuildFollowUps(
                 card, material, before.Rung, grade, difficulty, tolerated, cancellationToken),
             Feedback = definition.GradingMode == GradingMode.Automatic
-                ? await BuildFeedback(card, material, request, grade, typed, tolerated, cancellationToken)
+                ? await BuildFeedback(card, definition, material, request, grade, typed, tolerated, cancellationToken)
                 : null
         };
     }
@@ -286,18 +299,13 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     /// forgiven only while it does not spell another word in the collection - poisson typed
     /// for poison is a different word known, not this one nearly known.
     /// </summary>
-    private async Task<TypedMatch?> CheckTypedAnswer(
-        IExerciseDefinition definition,
+    private async Task<TypedMatch> CheckTypedAnswer(
+        ITypedExerciseDefinition typedDefinition,
         ExerciseAnswer answer,
         ReviewCard card,
         StudyMaterial material,
         CancellationToken cancellationToken)
     {
-        if (definition is not ITypedExerciseDefinition typedDefinition)
-        {
-            return null;
-        }
-
         var match = typedDefinition.Match(answer, material);
 
         if (match.Kind is TypedMatchKind.Typo or TypedMatchKind.AccentsOnly)
@@ -389,6 +397,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     /// </summary>
     private async Task<ReviewFeedbackDto> BuildFeedback(
         ReviewCard card,
+        IExerciseDefinition definition,
         StudyMaterial material,
         SubmitReviewCommand request,
         ReviewGrade grade,
@@ -397,7 +406,6 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         CancellationToken cancellationToken)
     {
         var correct = grade > ReviewGrade.Again;
-        var multiSelect = request.ExerciseType == ExerciseType.WordToCollocatesChoice;
 
         return new ReviewFeedbackDto
         {
@@ -415,7 +423,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
                 ? "This one does not count against the word - it will be asked again another way."
                 : typed is null ? null : NoteFor(typed.Kind, material),
             Connections = material.Connections,
-            ExpectedOptions = multiSelect ? WordToCollocatesChoiceExerciseDefinition.Right(material).ToList() : null
+            ExpectedOptions = definition.ExpectedOptions(material)?.ToList()
         };
     }
 

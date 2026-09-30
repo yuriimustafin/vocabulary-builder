@@ -87,7 +87,7 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
 
         return errors switch
         {
-            0 => _gradeResolver.Resolve(Type, new AutoGradeSignals(true, answer.ElapsedMs)),
+            0 => _gradeResolver.Resolve(AnswerKind.Recognised, new AutoGradeSignals(true, answer.ElapsedMs)),
             1 => ReviewGrade.Hard,
             _ => ReviewGrade.Again
         };
@@ -95,6 +95,8 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
 
     /// <summary>The ones that should have been ticked.</summary>
     public static IReadOnlyList<string> Right(StudyMaterial material) => material.Collocates.Take(Shown).ToList();
+
+    public IReadOnlyList<string>? ExpectedOptions(StudyMaterial material) => Right(material);
 
     private static IEnumerable<string> Wrong(StudyMaterial material) => material.NonCollocates.Take(Shown);
 
@@ -140,10 +142,14 @@ public class TranslationToSentenceScrambleExerciseDefinition : IExerciseDefiniti
 
     public bool CanBeProbe => true;
 
-    /// <summary>Only a stored example, so rebuilding it counts as practising that sentence.</summary>
+    /// <summary>
+    /// Only a stored example, so rebuilding it counts as practising that sentence - and only
+    /// one with a translation, which is the whole of what the learner rebuilds it from.
+    /// </summary>
     public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
         material.HasStoredExample
         && material.HasContextSentence
+        && !string.IsNullOrWhiteSpace(material.ContextSentenceTranslation)
         && Words(material.ContextSentence!).Count is >= MinWords and <= MaxWords;
 
     public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context)
@@ -161,8 +167,8 @@ public class TranslationToSentenceScrambleExerciseDefinition : IExerciseDefiniti
             Type = Type,
             GradingMode = GradingMode,
             WordId = material.WordId,
-            // What the sentence says, or failing that what the word means
-            Prompt = material.ContextSentenceTranslation ?? material.Meaning ?? material.Headword,
+            // What the sentence says
+            Prompt = material.ContextSentenceTranslation!,
             Tiles = tiles,
             ExampleId = material.ExampleId,
             PartOfSpeech = material.PartOfSpeech
@@ -177,7 +183,7 @@ public class TranslationToSentenceScrambleExerciseDefinition : IExerciseDefiniti
             && Normalise(answer.Text) == Normalise(material.ContextSentence);
 
         return _gradeResolver.Resolve(
-            Type,
+            AnswerKind.Built,
             new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned,
                 material.ContextSentence?.Count(char.IsLetter) ?? 0));
     }

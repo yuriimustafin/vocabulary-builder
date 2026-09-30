@@ -45,14 +45,15 @@ public abstract class TypedExerciseDefinition : ITypedExerciseDefinition
     /// Only an exact answer is judged on speed. A near miss was known but not cleanly, so it
     /// is Hard: it neither fails the word nor counts towards moving it on.
     /// </summary>
-    public ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material)
-    {
-        var match = Match(answer, material);
+    public ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material) =>
+        Resolve(answer, material, Match(answer, material));
 
+    public ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material, TypedMatch match)
+    {
         return match.Kind switch
         {
             TypedMatchKind.Exact => _gradeResolver.Resolve(
-                Type,
+                AnswerKind.Built,
                 new AutoGradeSignals(true, answer.ElapsedMs, Length: material.Headword.Length)),
             TypedMatchKind.Wrong => ReviewGrade.Again,
             _ => ReviewGrade.Hard

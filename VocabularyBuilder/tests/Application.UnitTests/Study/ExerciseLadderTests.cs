@@ -306,6 +306,33 @@ public class ExerciseLadderTests
             .Should().Be(ExerciseType.ContextToWordRecall);
     }
 
+    [Test]
+    public void ALongAbsenceDoesNotEscalateToAProbeWithheldByItsMinimumInterval()
+    {
+        var options = OptionsWithLadder();
+        options.Ladder[Production].Exercises[1].MinIntervalDays = 7;
+
+        // Eight days away from a three-day card would escalate - but not to an exercise the
+        // configuration withholds from a card on a three-day interval
+        var probe = Ladder(options).SelectProbe(
+            Card(rung: Production, interval: 3, lastReviewed: Now.AddDays(-8)), "noun", Now, Anything);
+
+        probe.Escalated.Should().BeFalse();
+        probe.Type.Should().Be(ExerciseType.ContextToWordRecall);
+    }
+
+    [Test]
+    public void ALongAbsenceDoesNotEscalateToAProbeRestrictedToAnotherPartOfSpeech()
+    {
+        var options = OptionsWithLadder();
+        options.Ladder[Production].Exercises[1].PartsOfSpeech = new List<string> { "verb" };
+
+        var card = Card(rung: Production, interval: 3, lastReviewed: Now.AddDays(-8));
+
+        Ladder(options).SelectProbe(card, "noun", Now, Anything).Escalated.Should().BeFalse();
+        Ladder(options).SelectProbe(card, "verb", Now, Anything).Escalated.Should().BeTrue();
+    }
+
     // --- the whole climb ------------------------------------------------------
 
     [Test]

@@ -131,6 +131,12 @@ public interface IExerciseDefinition
     /// automatic ones mark the answer against the word.
     /// </summary>
     ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material);
+
+    /// <summary>
+    /// For an exercise with several right answers, what they were, for the feedback to list.
+    /// Null for one with a single answer.
+    /// </summary>
+    IReadOnlyList<string>? ExpectedOptions(StudyMaterial material) => null;
 }
 
 /// <summary>
@@ -141,6 +147,9 @@ public interface IExerciseDefinition
 public interface ITypedExerciseDefinition : IExerciseDefinition
 {
     TypedMatch Match(ExerciseAnswer answer, StudyMaterial material);
+
+    /// <summary>Grades an answer already matched, so the match is made once.</summary>
+    ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material, TypedMatch match);
 }
 
 public interface IExerciseCatalog

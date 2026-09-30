@@ -126,9 +126,11 @@ public class ConnectionExerciseDefinitionTests
     }
 
     [Test]
-    public void WithNoTranslationTheWordsMeaningIsTheCue()
+    public void WithNoTranslationThereIsNothingToRebuildItFrom()
     {
-        Sentence().Build(Material(translation: null), new ExerciseBuildContext()).Prompt.Should().Be("full of light");
+        // The word's meaning is no cue to the order of a sentence never seen
+        Sentence().CanBuild(Material(translation: null), null).Should().BeFalse();
+        Sentence().CanBuild(Material(), null).Should().BeTrue();
     }
 
     [Test]

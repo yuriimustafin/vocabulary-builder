@@ -215,10 +215,10 @@ public class LearningSessionTests
 
     // --- example sentences -----------------------------------------------------------
 
-    private async Task<StudyExample> AddExample(string headword, string sentence, string form)
+    private async Task<StudyExample> AddExample(string headword, string sentence, string form, string? translation = null)
     {
         var word = await _db.Context.Words.SingleAsync(w => w.Headword == headword);
-        var example = new StudyExample { WordId = word.Id, Sentence = sentence, Form = form };
+        var example = new StudyExample { WordId = word.Id, Sentence = sentence, Form = form, Translation = translation };
 
         _db.Context.StudyExamples.Add(example);
         await _db.Context.SaveChangesAsync(CancellationToken.None);
@@ -397,7 +397,7 @@ public class LearningSessionTests
     [Test]
     public async Task RebuildingASentenceCountsAsPractisingIt()
     {
-        var example = await AddExample(Word, "I remember her name well.", "remember");
+        var example = await AddExample(Word, "I remember her name well.", "remember", "Я добре пам'ятаю її ім'я.");
         await AddExample(Word, "Remember to call me.", "Remember");
         await SeedCard(rung: 2, streak: 2, CardState.Learning, last: ExerciseType.MeaningToWordScramble);
 

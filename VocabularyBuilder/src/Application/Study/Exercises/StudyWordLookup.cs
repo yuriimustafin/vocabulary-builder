@@ -31,12 +31,36 @@ public class StudyWordLookup : IStudyWordLookup
 
     public StudyWordLookup(IApplicationDbContext context) => _context = context;
 
-    public Task<StudyWordSummary?> ByHeadwordAsync(
+    public async Task<StudyWordSummary?> ByHeadwordAsync(
         Language language, string headword, CancellationToken cancellationToken)
     {
         var trimmed = headword.Trim();
 
-        return FindAsync(language, w => w.Headword == trimmed, cancellationToken);
+        var exact = await FindAsync(language, w => w.Headword == trimmed, cancellationToken);
+
+        if (exact is not null)
+        {
+            return exact;
+        }
+
+        // A typed answer arrives tidied - lower case, œ spelled out, hyphens as spaces - so it
+        // is compared with each headword tidied the same way. Only headwords near its length
+        // can tidy to it: a ligature spelled out adds a letter, and a run of spaces shrinks.
+        var tidied = TypedAnswer.Tidy(trimmed);
+        var shortest = tidied.Length - 4;
+        var longest = tidied.Length + 4;
+
+        var candidates = await _context.Words
+            .AsNoTracking()
+            .Where(w => w.Language == language && w.Headword.Length >= shortest && w.Headword.Length <= longest)
+            .Select(w => new { w.Id, w.Headword })
+            .ToListAsync(cancellationToken);
+
+        var match = candidates
+            .OrderBy(w => w.Id)
+            .FirstOrDefault(w => TypedAnswer.Tidy(w.Headword) == tidied);
+
+        return match is null ? null : await FindAsync(language, w => w.Id == match.Id, cancellationToken);
     }
 
     public Task<StudyWordSummary?> ByMeaningAsync(

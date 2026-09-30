@@ -209,6 +209,36 @@ public class ReviewFeedbackTests
         result.Feedback.Chosen.Headword.Should().BeNull("a misspelling is not another word");
     }
 
+    /// <summary>
+    /// A one-letter slip that spells another word in the collection is that word known, not
+    /// this one nearly known. The typed answer is compared tidied - lower case, ligatures
+    /// spelled out - so the other word has to be found however its headword was stored.
+    /// </summary>
+    [TestCase("Poisson", "poison", "poisson", TestName = "ASlipOntoACapitalisedHeadwordIsAnotherWord")]
+    [TestCase("cœurs", "chœurs", "coeurs", TestName = "ASlipOntoAHeadwordWithALigatureIsAnotherWord")]
+    public async Task ASlipThatSpellsAnotherStoredWordIsWrong(string otherHeadword, string target, string typed)
+    {
+        await AddWordWithCard(otherHeadword, "something else");
+        var card = await AddWordWithCard(target, "the word asked");
+
+        var result = await Answer(card, ExerciseType.MeaningToWordType, typed);
+
+        result.Grade.Should().Be(ReviewGrade.Again);
+        result.Feedback!.Correct.Should().BeFalse();
+        result.Feedback.Note.Should().BeNull("it is not nearly right - it is a different word");
+    }
+
+    [Test]
+    public async Task ASlipThatSpellsNoOtherWordIsNearlyRight()
+    {
+        var card = await AddWordWithCard("poison", "the word asked");
+
+        var result = await Answer(card, ExerciseType.MeaningToWordType, "poisson");
+
+        result.Grade.Should().Be(ReviewGrade.Hard);
+        result.Feedback!.Note.Should().Be("Nearly - one letter out.");
+    }
+
     [Test]
     public async Task ASelfGradedExerciseGetsNoFeedback()
     {

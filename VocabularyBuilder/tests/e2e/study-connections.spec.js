@@ -55,6 +55,24 @@ test.describe('Examples and connections', () => {
     expect(card.exercise.exampleId).toBeTruthy();
   });
 
+  test('the feedback shows the sentence the exercise showed, even one that named no example', async ({ request }) => {
+    // The form's example is not the first one stored, so choosing without the forms met
+    // would land on a different sentence
+    await seedWords(request, [{ headword: 'shine', isMarkedForStudy: true, enrich: true, encounterForms: ['shone'] }, ...others]);
+    await waitForStudyContent(request, 'shine');
+
+    // The letter scramble carries the sentence but no example id to resolve it by
+    await seedCardFor(request, 'shine', ExerciseType.MeaningToWordScramble, {}, { content: true });
+    const card = cardFor(await getQueue(request), 'shine');
+
+    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordScramble);
+    expect(card.exercise.exampleId).toBeFalsy();
+    expect(card.exercise.contextSentence).toBe('Here the form shone appears in a sentence.');
+
+    const result = await submitReview(request, card, correctAnswer(card));
+    expect(result.feedback.contextSentence).toBe(card.exercise.contextSentence);
+  });
+
   test('a sentence answered correctly gives way to one not yet practised', async ({ request }) => {
     await seedWords(request, [{ headword: 'vivid', isMarkedForStudy: true, enrich: true }, ...others]);
     await waitForStudyContent(request, 'vivid');

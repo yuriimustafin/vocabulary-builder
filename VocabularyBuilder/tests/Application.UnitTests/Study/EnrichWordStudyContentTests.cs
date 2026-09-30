@@ -154,6 +154,29 @@ public class EnrichWordStudyContentTests
     }
 
     [Test]
+    public async Task AGenerationWithoutTheDefinitionItNeededIsNotStampedWithThePromptVersion()
+    {
+        // Everything but the one thing the word could not be studied without
+        _gpt = new RecordingGptClient(prompt => UsableReply(prompt)!.Replace("\"a generated definition\"", "null"));
+        var word = await AddWord();
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Failed);
+
+        var content = await Content(word.Id);
+        content!.Status.Should().Be(StudyContentStatus.Pending);
+        content.PromptVersion.Should().NotBe(StudyContentPrompt.Version,
+            "the version is written only when a generation succeeds");
+
+        // So the retry is asked for everything again, the connections included
+        _gpt = new RecordingGptClient(UsableReply);
+        _clock.Advance(TimeSpan.FromMinutes(_options.EnrichmentStaleClaimMinutes + 1));
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
+        _gpt.LastPrompt.Should().Contain("\"definition\"").And.Contain("\"etymology\"");
+        (await Content(word.Id))!.PromptVersion.Should().Be(StudyContentPrompt.Version);
+    }
+
+    [Test]
     public async Task AWordWithNothingGetsEverythingGenerated()
     {
         var word = await AddWord();

@@ -36,7 +36,15 @@ public class ConfiguredExerciseLadder : IExerciseLadder
     {
         var rung = Clamp(card.CurrentRung);
 
-        if (ShouldEscalateForLongGap(card, nowUtc) && canBuild(_options.LongGapProbeType))
+        // The probe's own restrictions still hold: an exercise withheld from this card is not
+        // asked of it just because it has been away. One absent from the ladder has none.
+        var longGapExercise = _rungs
+            .SelectMany(r => r.Exercises)
+            .FirstOrDefault(e => e.Type == _options.LongGapProbeType);
+
+        if (ShouldEscalateForLongGap(card, nowUtc)
+            && (longGapExercise is null || IsEligible(longGapExercise, card, partOfSpeech))
+            && canBuild(_options.LongGapProbeType))
         {
             return new ProbeChoice(RungOf(_options.LongGapProbeType), _options.LongGapProbeType, Escalated: true, 0);
         }

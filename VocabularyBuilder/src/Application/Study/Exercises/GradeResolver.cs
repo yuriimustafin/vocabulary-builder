@@ -12,9 +12,22 @@ namespace VocabularyBuilder.Application.Study.Exercises;
 /// <param name="Length">Letters in the word, which sets how long building it may fairly take.</param>
 public record AutoGradeSignals(bool Correct, int ElapsedMs, int Resets = 0, bool Abandoned = false, int Length = 0);
 
+/// <summary>
+/// How an exercise is answered, which is what grading depends on. Each definition declares
+/// its own, so a new exercise cannot be graded by a list it was never added to.
+/// </summary>
+public enum AnswerKind
+{
+    /// <summary>Picked from options: never Easy, and held to the ordinary time limit.</summary>
+    Recognised,
+
+    /// <summary>Built piece by piece or typed: allowed time by length, and marked down for starting over.</summary>
+    Built
+}
+
 public interface IGradeResolver
 {
-    ReviewGrade Resolve(ExerciseType type, AutoGradeSignals signals);
+    ReviewGrade Resolve(AnswerKind kind, AutoGradeSignals signals);
 }
 
 /// <summary>
@@ -28,7 +41,7 @@ public class GradeResolver : IGradeResolver
 
     public GradeResolver(StudyOptions options) => _options = options;
 
-    public ReviewGrade Resolve(ExerciseType type, AutoGradeSignals signals)
+    public ReviewGrade Resolve(AnswerKind kind, AutoGradeSignals signals)
     {
         if (signals.Abandoned || !signals.Correct)
         {
@@ -37,10 +50,7 @@ public class GradeResolver : IGradeResolver
 
         // Assembling the word from tiles is judged on cleanliness first: needing to start
         // over means the spelling was not actually known, however quickly it ended up right.
-        if (type is ExerciseType.MeaningToWordScramble
-                or ExerciseType.MeaningToWordSyllableScramble
-                or ExerciseType.TranslationToSentenceScramble
-            && signals.Resets > 0)
+        if (kind == AnswerKind.Built && signals.Resets > 0)
         {
             return ReviewGrade.Hard;
         }
@@ -51,10 +61,10 @@ public class GradeResolver : IGradeResolver
         // for exercises where the learner builds the word.
         if (signals.ElapsedMs <= _options.FastAnswerMs)
         {
-            return IsRecognition(type) ? ReviewGrade.Good : ReviewGrade.Easy;
+            return kind == AnswerKind.Recognised ? ReviewGrade.Good : ReviewGrade.Easy;
         }
 
-        return signals.ElapsedMs >= SlowThreshold(type, signals.Length) ? ReviewGrade.Hard : ReviewGrade.Good;
+        return signals.ElapsedMs >= SlowThreshold(kind, signals.Length) ? ReviewGrade.Hard : ReviewGrade.Good;
     }
 
     /// <summary>
@@ -62,21 +72,8 @@ public class GradeResolver : IGradeResolver
     /// known. Holding it to the same limit as a click would mark long words down for their
     /// length and keep them from ever counting as clean.
     /// </summary>
-    private int SlowThreshold(ExerciseType type, int length) =>
-        IsBuilt(type)
+    private int SlowThreshold(AnswerKind kind, int length) =>
+        kind == AnswerKind.Built
             ? Math.Max(_options.SlowAnswerMs, length * _options.SlowAnswerMsPerLetter)
             : _options.SlowAnswerMs;
-
-    private static bool IsRecognition(ExerciseType type) =>
-        type is ExerciseType.WordToMeaningChoice
-            or ExerciseType.MeaningToWordChoice
-            or ExerciseType.ContextToWordChoice
-            or ExerciseType.WordToCollocatesChoice;
-
-    private static bool IsBuilt(ExerciseType type) =>
-        type is ExerciseType.MeaningToWordScramble
-            or ExerciseType.MeaningToWordSyllableScramble
-            or ExerciseType.MeaningToWordType
-            or ExerciseType.MeaningToWordCuedType
-            or ExerciseType.TranslationToSentenceScramble;
 }

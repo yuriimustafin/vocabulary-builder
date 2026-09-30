@@ -85,6 +85,23 @@ test.describe('Collocations and mistake-tolerant exercises', () => {
     expect(after.lapses).toBe(0);
   });
 
+  test('a miss on it is not one of a learning word\'s tries', async ({ request }) => {
+    // Tries count towards the cap that lets a stubborn word out of learning; a miss that
+    // costs nothing must not bring that exit any closer
+    await wordWithContent(request);
+    await seedCardFor(request, 'vivid', ExerciseType.WordToCollocatesChoice,
+      { state: CardState.Learning, intervalDays: 0, phaseRetrievals: 3 }, { content: true });
+    const card = cardFor(await getQueue(request), 'vivid');
+    expect(card.exercise.type).toBe(ExerciseType.WordToCollocatesChoice);
+
+    const result = await submitReview(request, card, { selections: ['mock stranger one', 'mock stranger two'] });
+    expect(result.tolerated).toBe(true);
+
+    const after = await getCard(request, 'vivid');
+    expect(after.state).toBe(CardState.Learning);
+    expect(after.phaseRetrievals).toBe(3);
+  });
+
   test('a sentence rebuilt counts as practising it; a slip in the order costs nothing', async ({ request }) => {
     await wordWithContent(request);
     let card = await serve(request, 'vivid', ExerciseType.TranslationToSentenceScramble);

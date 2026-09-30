@@ -83,7 +83,7 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
             && string.Equals(answer.Text.Trim(), Target(material)?.Trim(), StringComparison.OrdinalIgnoreCase);
 
         return _gradeResolver.Resolve(
-            Type,
+            AnswerKind.Recognised,
             new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned));
     }
 

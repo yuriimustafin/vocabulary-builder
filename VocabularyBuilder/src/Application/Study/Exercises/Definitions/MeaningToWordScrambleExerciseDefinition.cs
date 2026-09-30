@@ -74,7 +74,7 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
             && string.Equals(Normalise(answer.Text), Normalise(material.Headword), StringComparison.OrdinalIgnoreCase);
 
         return _gradeResolver.Resolve(
-            Type,
+            AnswerKind.Built,
             new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned, material.Headword.Length));
     }
 
