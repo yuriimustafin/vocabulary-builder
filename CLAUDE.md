@@ -338,7 +338,7 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially the suite - 224 tests, 3 of them skipped in the source - passes
+suspecting the tests. Serially the suite - 226 tests, 3 of them skipped in the source - passes
 in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
 is why this went unnoticed.
 
@@ -408,14 +408,27 @@ recognition, scaffolded, production - each a pool of exercises with a `PromoteAf
 `ReviewCard.CurrentRung` is the level; which exercise is asked there comes from
 `RungStreak` (clean successes on the level, used as an index into the pool, so support fades)
 and `LastExerciseType` (never the same one twice running). A miss drops one level; Hard or a
-used hint holds both level and streak. `ConfiguredExerciseLadder` is the whole of it.
+used hint holds both level and streak - except a hint the exercise offers for free
+(`IExerciseDefinition.HintIsFree`), which costs nothing, the seconds spent reading it included.
+`ConfiguredExerciseLadder` is the whole of it.
 
 **Learning ends on a criterion, not when the steps run out.** `LearningStepsMinutes` only
-paces the tries; `LearningExitCriterion` lets a word go after two clean successes on the top
-level at least `LearningExitSpacingMinutes` apart (one when relearning), or on its next
-success once it has had `MaxLearningRetrievals`. Easy only earns the easy interval on the
-answer that completes learning - a fast multiple-choice pick is never Easy at all
-(`GradeResolver`), which is what used to send new words four days away after one click.
+paces the tries; `LearningExitCriterion` lets a new word go once it has been built cleanly on
+`LearningExitLevel` (scaffolded) - intro, three recognitions, one build - and it keeps its level,
+so the climb to production carries on in the following days' reviews. A relearning word goes
+on its first clean success wherever the lapse left it, and any word on its next success once it
+has had `MaxLearningRetrievals`. Easy only earns the easy interval on the answer that completes
+learning - a fast multiple-choice pick is never Easy at all (`GradeResolver`), which is what
+used to send new words four days away after one click.
+
+**The first day is sized, and was once far too big.** Requiring two productions before a new
+word could leave meant at least eight clean answers each: a real session of twelve new words
+ran 26 minutes, half of it unscored follow-ups, and no word got out. The levers now: the exit
+level above; no re-exposure after a right answer while a word is still learning (it is back in
+minutes - `ScaffoldSequencer`, `learning`); a miss on a recognition exercise
+(`AsksToRecognise`) gets its connections card only, not the letter cues; and the study day
+rolls over at 08:00 UTC (`DayRolloverHourUtc`), four in the morning on the US east coast - at
+four UTC it rolled over mid-evening and queued a second batch of new words.
 
 **Typed answers are marked leniently** (`TypedAnswer`): case, spacing, hyphens and a leading
 article are ignored; a missing accent, one slipped letter (words of five or more) or a French
@@ -445,8 +458,8 @@ Ready content (`UpsertWord.CoverForm`); an import that keeps the sentence the wo
 (LingQ's phrase) stores that as the example instead. The mock writes three examples for any
 word and one per form the prompt asks for.
 
-**An exercise can be mistake-tolerant** (`Tolerant: true` on its ladder entry - the collocate
-choice and the sentence rebuild are). A miss on one costs the word nothing: `SubmitReview`
+**An exercise can be mistake-tolerant** (`Tolerant: true` on its ladder entry - the letter
+scramble, the collocate choice and the sentence rebuild are). A miss on one costs the word nothing: `SubmitReview`
 keeps its level and streak, `IReviewScheduler.Hold` keeps its state, interval and ease and
 brings it back after the first learning step, its success average is left alone, and only the
 connections card follows. A success counts as usual. Every other miss also opens with that
@@ -458,6 +471,10 @@ prompt asks for pairings impossible in every sense, and for none for a very gene
 the model ignores - so `WordToCollocatesChoiceExerciseDefinition` also refuses a short list of
 such verbs (prendre, faire, take, make...) whatever the content holds. A word the prompt uses as
 its own example gets that example back verbatim, which is why the prompt says not to copy them.
+One slip there still counts (Good), and it is not judged on speed. Each partner comes with its
+translation (`CollocateTranslations`, paired by position), shown as a free hint; "pick the
+missing word" has one too - the missing word's meaning, which settles a sentence such as "Il a
+perdu son _____." that any noun would fit.
 
 **The end-of-day review** (`GET /api/{lang}/study/day-review`) matches the day's new words to
 their gapped sentences, in the fewest groups of four to six (`DayReviewGroups`). It is practice

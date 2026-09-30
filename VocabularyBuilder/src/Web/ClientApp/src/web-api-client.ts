@@ -3532,6 +3532,7 @@ export class ExercisePayload implements IExercisePayload {
     contextSentenceTranslation?: string | undefined;
     exampleId?: number | undefined;
     connections?: WordConnectionsDto | undefined;
+    optionHints?: { [key: string]: string; } | undefined;
 
     constructor(data?: IExercisePayload) {
         if (data) {
@@ -3570,6 +3571,13 @@ export class ExercisePayload implements IExercisePayload {
             this.contextSentenceTranslation = _data["contextSentenceTranslation"];
             this.exampleId = _data["exampleId"];
             this.connections = _data["connections"] ? WordConnectionsDto.fromJS(_data["connections"]) : <any>undefined;
+            if (_data["optionHints"]) {
+                this.optionHints = {} as any;
+                for (let key in _data["optionHints"]) {
+                    if (_data["optionHints"].hasOwnProperty(key))
+                        (<any>this.optionHints)![key] = _data["optionHints"][key];
+                }
+            }
         }
     }
 
@@ -3608,6 +3616,13 @@ export class ExercisePayload implements IExercisePayload {
         data["contextSentenceTranslation"] = this.contextSentenceTranslation;
         data["exampleId"] = this.exampleId;
         data["connections"] = this.connections ? this.connections.toJSON() : <any>undefined;
+        if (this.optionHints) {
+            data["optionHints"] = {};
+            for (let key in this.optionHints) {
+                if (this.optionHints.hasOwnProperty(key))
+                    (<any>data["optionHints"])[key] = (<any>this.optionHints)[key];
+            }
+        }
         return data;
     }
 }
@@ -3631,6 +3646,7 @@ export interface IExercisePayload {
     contextSentenceTranslation?: string | undefined;
     exampleId?: number | undefined;
     connections?: WordConnectionsDto | undefined;
+    optionHints?: { [key: string]: string; } | undefined;
 }
 
 export enum ExerciseType {

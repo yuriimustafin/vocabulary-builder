@@ -22,6 +22,26 @@ public class ScaffoldSequencerTests
     }
 
     [Test]
+    public void AMissPickingTheWordAmongOptionsBringsOnlyItsConnections()
+    {
+        // Not knowing which word it was: walking it through its letters answers another question
+        Sequencer().Build(1, ReviewGrade.Again, CardDifficulty.Shaky, headwordLength: 8, recognition: true)
+            .Select(s => s.Type).Should().Equal(ExerciseType.WordToConnectionsReveal);
+    }
+
+    [Test]
+    public void AWordStillBeingLearnedGetsNoReExposureAfterARightAnswer()
+    {
+        // It is back within minutes anyway
+        Sequencer().Build(2, ReviewGrade.Hard, CardDifficulty.Difficult, headwordLength: 8, learning: true)
+            .Should().BeEmpty();
+
+        // A miss still gets its support
+        Sequencer().Build(2, ReviewGrade.Again, CardDifficulty.Difficult, headwordLength: 8, learning: true)
+            .Should().NotBeEmpty();
+    }
+
+    [Test]
     public void AShakyWordBringsBackTheLevelBelow()
     {
         // Probed on production, so the scaffolded level is replayed - its first exercise,

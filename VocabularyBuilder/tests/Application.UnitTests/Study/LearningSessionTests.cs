@@ -54,26 +54,26 @@ public class LearningSessionTests
     // --- the sessions ----------------------------------------------------------
 
     [Test]
-    public async Task AWordAnsweredCleanlyClimbsThroughEachLevelAndLeavesAfterTwoProductions()
+    public async Task AWordAnsweredCleanlyIsRecognisedThenBuiltOnceAndLeaves()
     {
         var seen = await StudyUntilLearned(_ => true);
 
         seen.Should().Equal(
-            ExerciseType.WordToMeaningReveal,           // met
-            ExerciseType.MeaningToWordChoice,           // recognition: the word, then in a sentence,
-            ExerciseType.ContextToWordChoice,           // then - with no collocates generated here -
-            ExerciseType.WordToMeaningChoice,           // the meaning from the word
-            ExerciseType.MeaningToWordSyllableScramble, // scaffolded: support fading over three -
-            ExerciseType.MeaningToWordScramble,         // typing, with no stored sentence to
-            ExerciseType.MeaningToWordCuedType,         // rebuild
-            ExerciseType.ContextToWordRecall,           // production: two, spaced
-            ExerciseType.MeaningToWordRecall);
+            ExerciseType.WordToMeaningReveal,            // met
+            ExerciseType.MeaningToWordChoice,            // recognition: the word, then in a sentence,
+            ExerciseType.ContextToWordChoice,            // then - with no collocates generated here -
+            ExerciseType.WordToMeaningChoice,            // the meaning from the word
+            ExerciseType.MeaningToWordSyllableScramble); // scaffolded: built once, and that is today
 
         var card = await Card();
         card.State.Should().Be(CardState.Review);
         card.IntervalDays.Should().Be(1);
         card.PhaseRetrievals.Should().Be(0, "the count belongs to the learning phase that has ended");
-        (await GradedReviews()).Should().Be(8);
+        (await GradedReviews()).Should().Be(4);
+
+        // It keeps its place, so the next review carries on up the scaffolded level
+        card.CurrentRung.Should().Be(2);
+        card.RungStreak.Should().Be(1);
     }
 
     [Test]
@@ -83,8 +83,8 @@ public class LearningSessionTests
 
         var seen = await StudyUntilLearned(card =>
         {
-            // The first time it reaches production, it is missed.
-            if (card.Exercise.Type == ExerciseType.ContextToWordRecall && !missed)
+            // The first time it is to be built, it is missed.
+            if (card.Exercise.Type == ExerciseType.MeaningToWordSyllableScramble && !missed)
             {
                 missed = true;
                 return false;
@@ -93,9 +93,9 @@ public class LearningSessionTests
             return true;
         });
 
-        var missAt = seen.IndexOf(ExerciseType.ContextToWordRecall);
-        seen[missAt + 1].Should().Be(ExerciseType.MeaningToWordSyllableScramble, "a miss drops one level");
-        seen.Count.Should().BeGreaterThan(9, "the slip is paid for in more practice, not a shorter day");
+        var missAt = seen.IndexOf(ExerciseType.MeaningToWordSyllableScramble);
+        new ConfiguredExerciseLadder(_options).TypesAt(1).Should().Contain(seen[missAt + 1], "a miss drops one level");
+        seen.Count.Should().BeGreaterThan(5, "the slip is paid for in more practice, not a shorter day");
         (await Card()).State.Should().Be(CardState.Review);
     }
 
@@ -116,7 +116,7 @@ public class LearningSessionTests
         // met a minute earlier four days away.
         var seen = await StudyUntilLearned(_ => true, elapsedMs: 800);
 
-        seen.Should().HaveCount(9);
+        seen.Should().HaveCount(5);
         (await Card()).State.Should().Be(CardState.Review);
     }
 
@@ -133,7 +133,7 @@ public class LearningSessionTests
     }
 
     [Test]
-    public async Task ALapsedWordRelearnsFromTheLevelBelowAndNeedsOneProduction()
+    public async Task ALapsedWordRelearnsWithOneCleanAnswerOnTheLevelBelow()
     {
         await SeedCard(rung: 3, streak: 4, CardState.Review, interval: 10, last: ExerciseType.ContextToWordRecall);
 
@@ -143,12 +143,11 @@ public class LearningSessionTests
 
         var seen = await StudyUntilLearned(_ => true);
 
-        seen.Should().Equal(
-            ExerciseType.MeaningToWordSyllableScramble,
-            ExerciseType.MeaningToWordScramble,
-            ExerciseType.MeaningToWordCuedType,
-            ExerciseType.ContextToWordRecall);
+        // It was known once: it does not climb back to production before it may leave. A
+        // real session had one word take ten answers doing that and still not get out.
+        seen.Should().Equal(ExerciseType.MeaningToWordSyllableScramble);
         (await Card()).State.Should().Be(CardState.Review);
+        (await Card()).CurrentRung.Should().Be(2);
     }
 
     // --- typed answers -------------------------------------------------------------
@@ -412,8 +411,9 @@ public class LearningSessionTests
     }
 
     [Test]
-    public async Task AnOrdinaryMissIsFollowedByTheWordsConnectionsBeforeItIsAskedAgain()
+    public async Task AMissPickingTheWordIsFollowedByItsConnectionsAlone()
     {
+        // Not knowing which word it was is not a spelling problem: no letters to walk through
         await AddContent();
         await SeedCard(rung: 1, streak: 0, CardState.Review, interval: 5);
 
@@ -424,9 +424,69 @@ public class LearningSessionTests
 
         result.Tolerated.Should().BeFalse();
         result.State.Should().Be(CardState.Relearning, "an ordinary miss is a lapse");
-        result.FollowUps[0].Exercise.Type.Should().Be(ExerciseType.WordToConnectionsReveal);
+        result.FollowUps.Select(f => f.Exercise.Type).Should().Equal(ExerciseType.WordToConnectionsReveal);
         result.FollowUps[0].Exercise.Connections!.Mnemonic.Should().Be("Sounds like 'ream member'.");
+    }
+
+    [Test]
+    public async Task AMissProducingTheWordIsFollowedByItsConnectionsThenShrinkingCues()
+    {
+        await AddContent();
+        await SeedTypingCard();
+
+        var card = await Next();
+        card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordCuedType);
+
+        var result = await Submit(card, answer: "nothing like it");
+
+        result.FollowUps[0].Exercise.Type.Should().Be(ExerciseType.WordToConnectionsReveal);
         result.FollowUps.Skip(1).Select(f => f.Exercise.Type).Should().Contain(ExerciseType.MeaningToWordPartialLetters);
+    }
+
+    [Test]
+    public async Task ARightAnswerWhileLearningGetsNoReExposure()
+    {
+        // It is back within minutes anyway. In a real first session these were half of all
+        // the cards shown.
+        await SeedCard(rung: 1, streak: 0, CardState.Learning);
+
+        var card = await Next();
+        card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordChoice);
+
+        var result = await Submit(card, answer: Word, elapsedMs: 20_000);
+
+        result.Grade.Should().Be(ReviewGrade.Hard, "slow enough to be shaky, which used to bring follow-ups");
+        result.State.Should().Be(CardState.Learning);
+        result.FollowUps.Should().BeEmpty();
+    }
+
+    [Test]
+    public async Task TheMissingWordHintIsFree()
+    {
+        // A translation to tell apart words that all fit the sentence: taking it does not hold the word
+        await SeedCard(rung: 1, streak: 1, CardState.Learning, last: ExerciseType.MeaningToWordChoice);
+
+        var card = await Next();
+        card.Exercise.Type.Should().Be(ExerciseType.ContextToWordChoice);
+        card.Exercise.Hint.Should().Be(Meaning);
+
+        _db.Context.ChangeTracker.Clear();
+        var result = await ReviewHandler().Handle(
+            new SubmitReviewCommand
+            {
+                CardId = card.CardId,
+                AttemptId = card.AttemptId,
+                ExerciseType = card.Exercise.Type,
+                Answer = Word,
+                // Slow, as reading the hint makes it: that is not held against the answer either
+                ElapsedMs = 20_000,
+                HintUsed = true,
+                ExampleId = card.Exercise.ExampleId
+            },
+            CancellationToken.None);
+
+        result.Grade.Should().Be(ReviewGrade.Good);
+        (await Card()).RungStreak.Should().Be(2, "the hint was free, so the success counts");
     }
 
     // --- driving a session ---------------------------------------------------------

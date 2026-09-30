@@ -214,14 +214,19 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             card.Word, generated, new StudyExampleSet(examples, forms, request.ExampleId));
         var definition = _catalog.Get(request.ExerciseType);
 
+        // Some exercises offer their hint for free - a translation to make a choice among
+        // real words fair - and taking it neither holds the word nor marks the answer down
+        var hintUsed = request.HintUsed && !definition.HintIsFree;
+
         var answer = new ExerciseAnswer(
             request.Answer,
             request.SelfGrade,
             request.ElapsedMs,
             request.Resets,
-            request.HintUsed,
+            hintUsed,
             request.Abandoned,
-            request.Selections);
+            request.Selections,
+            FreeHintTaken: request.HintUsed && definition.HintIsFree);
 
         // A typed answer is matched once, and graded on that match - a "slip" that spells
         // another word included, which the match already says is wrong
@@ -239,15 +244,14 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         // was, on its level and its schedule, and comes back shortly to be asked another way
         var tolerated = grade == ReviewGrade.Again && _ladder.IsTolerant(request.ExerciseType);
 
-        var move = tolerated
-            ? new RungMove(card.CurrentRung, card.RungStreak)
-            : _ladder.NextRung(card, grade, request.HintUsed);
+        var standing = new RungMove(card.CurrentRung, card.RungStreak);
+        var move = tolerated ? standing : _ladder.NextRung(card, grade, hintUsed);
         var learning = before.State is CardState.New or CardState.Learning or CardState.Relearning;
         // A tolerated miss is not a try either, or enough of them would force the word out
         // of learning without it ever meeting the criterion
         var retrievals = learning ? card.PhaseRetrievals + (tolerated ? 0 : 1) : 0;
         var learningComplete = learning && _learningExit.IsMet(
-            before.State, grade, move, retrievals, card.LastReviewedAtUtc, now);
+            before.State, grade, standing, move, retrievals, card.LastReviewedAtUtc, now);
         var scheduling = tolerated
             ? _scheduler.Hold(card, now)
             : _scheduler.Schedule(card, grade, now, learningComplete);
@@ -265,7 +269,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             GradeWasSelfReported = definition.GradingMode == GradingMode.SelfReported,
             IsScaffold = false,
             ElapsedMs = request.ElapsedMs,
-            HintUsed = request.HintUsed,
+            HintUsed = hintUsed,
             StateBefore = before.State,
             RungBefore = before.Rung,
             IntervalBeforeDays = before.IntervalDays,
@@ -287,7 +291,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             NextDueAtUtc = card.DueAtUtc,
             Tolerated = tolerated,
             FollowUps = await BuildFollowUps(
-                card, material, before.Rung, grade, difficulty, tolerated, cancellationToken),
+                card, material, before.Rung, grade, difficulty, tolerated, definition.AsksToRecognise, cancellationToken),
             Feedback = definition.GradingMode == GradingMode.Automatic
                 ? await BuildFeedback(card, definition, material, request, grade, typed, tolerated, cancellationToken)
                 : null
@@ -499,9 +503,13 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
         ReviewGrade grade,
         CardDifficulty difficulty,
         bool tolerated,
+        bool recognition,
         CancellationToken cancellationToken)
     {
-        var steps = _scaffolds.Build(probeRung, grade, difficulty, material.Headword.Length, tolerated);
+        // Where the answer left the card: still learning means it is back within minutes
+        var learning = card.State is CardState.Learning or CardState.Relearning;
+        var steps = _scaffolds.Build(
+            probeRung, grade, difficulty, material.Headword.Length, tolerated, recognition, learning);
 
         if (steps.Count == 0)
         {

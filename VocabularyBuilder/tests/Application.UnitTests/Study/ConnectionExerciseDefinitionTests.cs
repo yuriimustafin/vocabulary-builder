@@ -59,14 +59,15 @@ public class ConnectionExerciseDefinitionTests
     }
 
     [Test]
-    public void OneSlipIsHardAndMoreIsAMiss()
+    public void OneSlipStillCountsAndMoreIsAMiss()
     {
+        // One slip held the word on three answers in four in a real session
         var definition = Collocates();
 
         definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Selections: new[] { "light", "future" }), Material())
-            .Should().Be(ReviewGrade.Hard, "one right one left unticked");
+            .Should().Be(ReviewGrade.Good, "one right one left unticked");
         definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Selections: new[] { "light", "future", "colours", "debt" }), Material())
-            .Should().Be(ReviewGrade.Hard, "one wrong one ticked");
+            .Should().Be(ReviewGrade.Good, "one wrong one ticked");
         definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Selections: new[] { "light", "debt" }), Material())
             .Should().Be(ReviewGrade.Again);
         definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Abandoned: true), Material())
@@ -112,6 +113,36 @@ public class ConnectionExerciseDefinitionTests
     public void AVerbSoGeneralThatAnythingFollowsItIsNeverAskedWhatGoesWithIt(string headword)
     {
         Collocates().CanBuild(Material() with { Headword = headword, PartOfSpeech = "verb" }, null).Should().BeFalse();
+    }
+
+    [Test]
+    public void EachOptionCarriesItsTranslationForTheFreeHint()
+    {
+        var material = Material() with
+        {
+            PhraseTranslations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                ["light"] = "світло",
+                ["debt"] = "борг"
+            }
+        };
+
+        var definition = Collocates();
+        var payload = definition.Build(material, new ExerciseBuildContext());
+
+        payload.OptionHints.Should().BeEquivalentTo(new Dictionary<string, string>
+        {
+            ["light"] = "світло",
+            ["debt"] = "борг"
+        }, "only the options the model translated");
+        definition.HintIsFree.Should().BeTrue();
+        definition.AsksToRecognise.Should().BeTrue();
+    }
+
+    [Test]
+    public void OptionsWithNoTranslationsOfferNoHint()
+    {
+        Collocates().Build(Material(), new ExerciseBuildContext()).OptionHints.Should().BeNull();
     }
 
     [Test]

@@ -11,14 +11,22 @@ import { NounArticle } from '../NounArticle';
 export class CollocatesExercise extends Component {
   constructor(props) {
     super(props);
-    this.state = { ticked: [] };
+    this.state = { ticked: [], hintShown: false };
   }
 
   componentDidUpdate(previous) {
     if (previous.exercise !== this.props.exercise) {
-      this.setState({ ticked: [] });
+      this.setState({ ticked: [], hintShown: false });
     }
   }
+
+  /** What each option means. Free: it makes the options readable, the choice is still the learner's. */
+  showHint = () => {
+    this.setState({ hintShown: true });
+    if (this.props.onHintUsed) {
+      this.props.onHintUsed();
+    }
+  };
 
   toggle = option => {
     this.setState(state => ({
@@ -34,7 +42,8 @@ export class CollocatesExercise extends Component {
 
   render() {
     const { exercise, submitting } = this.props;
-    const { ticked } = this.state;
+    const { ticked, hintShown } = this.state;
+    const hints = exercise.optionHints || null;
 
     return (
       <div data-testid="collocates-exercise">
@@ -45,6 +54,13 @@ export class CollocatesExercise extends Component {
           <span className="text-muted">?</span>
         </div>
         {exercise.transcription && <div className="text-muted">/{exercise.transcription}/</div>}
+
+        {hints && !hintShown && (
+          <Button color="link" size="sm" className="ps-0 mt-1" data-testid="hint-button"
+                  disabled={submitting} onClick={this.showHint}>
+            Show translations <span className="text-muted">(free)</span>
+          </Button>
+        )}
 
         <div className="d-flex flex-wrap gap-2 mt-4">
           {exercise.options.map(option => (
@@ -58,6 +74,9 @@ export class CollocatesExercise extends Component {
               onClick={() => this.toggle(option)}
             >
               {option}
+              {hintShown && hints && hints[option] && (
+                <div className="small opacity-75 fst-italic" data-testid="option-hint">{hints[option]}</div>
+              )}
             </Button>
           ))}
         </div>

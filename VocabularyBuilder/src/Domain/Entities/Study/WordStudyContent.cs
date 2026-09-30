@@ -63,6 +63,15 @@ public class WordStudyContent : BaseAuditableEntity
     public IList<string>? NonCollocates { get; set; }
 
     /// <summary>
+    /// What each of <see cref="Collocates"/> means, in the learner's language, paired by
+    /// position - empty where the model gave none. The free hint on "what goes with it".
+    /// </summary>
+    public IList<string>? CollocateTranslations { get; set; }
+
+    /// <summary>The same for <see cref="NonCollocates"/>.</summary>
+    public IList<string>? NonCollocateTranslations { get; set; }
+
+    /// <summary>
     /// When the current generation attempt was claimed. A claim older than the stale
     /// timeout is retried, so a crash mid-generation does not strand the word.
     /// </summary>

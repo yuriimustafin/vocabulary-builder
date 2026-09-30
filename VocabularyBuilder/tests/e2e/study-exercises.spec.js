@@ -229,9 +229,19 @@ test.describe('New exercises on the page', () => {
     await expect(page.getByTestId('choice-exercise')).toBeVisible();
     await expect(page.getByTestId('exercise-prompt')).toContainText('_____');
     await expect(page.getByTestId('exercise-label')).toHaveText('Pick the missing word');
+    await expect(page.getByTestId('dictionary-form-note')).toBeVisible();
+
+    // The translation of the missing word, for when the sentence fits more than one option
+    await expect(page.getByTestId('hint-text')).toHaveCount(0);
+    await page.getByTestId('hint-button').click();
+    await expect(page.getByTestId('hint-text')).toHaveText('the meaning of gap00');
 
     await page.getByTestId('choice-option').filter({ hasText: /^gap00$/ }).click();
 
     await expect(page.getByTestId('feedback-correct')).toBeVisible();
+
+    // Free: the success counted as a clean one
+    const after = await getCard(request, 'gap00');
+    expect(after.rungStreak).toBe(2);
   });
 });

@@ -68,7 +68,7 @@ test.describe('Study ladder', () => {
     expect(after.rungStreak).toBe(0);
   });
 
-  test('a word answered cleanly climbs through every level and leaves after two productions',
+  test('a word answered cleanly is recognised, built once, and leaves - its climb goes on in reviews',
     async ({ request }) => {
       await seedWords(request, [{ headword: 'remember', isMarkedForStudy: true }, ...distractors]);
 
@@ -80,16 +80,14 @@ test.describe('Study ladder', () => {
         ExerciseType.MeaningToWordChoice,           // recognised three ways
         ExerciseType.ContextToWordChoice,
         ExerciseType.WordToMeaningChoice,
-        ExerciseType.MeaningToWordSyllableScramble, // support fading over three
-        ExerciseType.MeaningToWordScramble,
-        ExerciseType.MeaningToWordCuedType,
-        ExerciseType.ContextToWordRecall,           // produced twice, spaced
-        ExerciseType.MeaningToWordRecall
+        ExerciseType.MeaningToWordSyllableScramble  // built once: that is the first day
       ]);
 
       const card = await getCard(request, 'remember');
-      expect(card.gradedReviews).toBe(8);
+      expect(card.gradedReviews).toBe(4);
       expect(card.intervalDays).toBe(1);
+      expect(card.rung, 'it keeps its level for tomorrow').toBe(rungOf(ExerciseType.MeaningToWordSyllableScramble));
+      expect(card.rungStreak).toBe(1);
     });
 
   test('with its content generated, a word meets what it goes with and rebuilds a sentence',
@@ -104,33 +102,27 @@ test.describe('Study ladder', () => {
         ExerciseType.MeaningToWordChoice,
         ExerciseType.ContextToWordChoice,
         ExerciseType.WordToCollocatesChoice,        // what can be remembered?
-        ExerciseType.MeaningToWordSyllableScramble,
-        ExerciseType.MeaningToWordScramble,
-        ExerciseType.TranslationToSentenceScramble, // one of its sentences rebuilt
-        ExerciseType.ContextToWordRecall,
-        ExerciseType.MeaningToWordRecall
+        ExerciseType.MeaningToWordSyllableScramble
       ]);
     });
 
-  test('a word too short for syllables goes from the letters to typing and back',
+  test('a word too short for syllables is built from its letters',
     async ({ request }) => {
       await seedWords(request, [{ headword: 'lad00', isMarkedForStudy: true }, ...distractors.slice(1)]);
 
       const seen = await studyUntilLearned(request, 'lad00');
 
-      expect(seen.slice(4, 7)).toEqual([
-        ExerciseType.MeaningToWordScramble,
-        ExerciseType.MeaningToWordCuedType,
-        ExerciseType.MeaningToWordScramble
-      ]);
+      expect(seen[seen.length - 1]).toBe(ExerciseType.MeaningToWordScramble);
+      expect(seen).not.toContain(ExerciseType.MeaningToWordSyllableScramble);
     });
 
   test('a missed word meets the level below, not the same exercise again', async ({ request }) => {
     await seedWords(request, [{ headword: 'remember', isMarkedForStudy: true }, ...distractors]);
     let missed = false;
 
+    // The syllable scramble: the first exercise on the day that is not tolerant of a slip
     const seen = await studyUntilLearned(request, 'remember', card => {
-      if (card.exercise.type === ExerciseType.ContextToWordRecall && !missed) {
+      if (card.exercise.type === ExerciseType.MeaningToWordSyllableScramble && !missed) {
         missed = true;
         return false;
       }
@@ -138,9 +130,9 @@ test.describe('Study ladder', () => {
       return true;
     });
 
-    const missAt = seen.indexOf(ExerciseType.ContextToWordRecall);
-    expect(rungOf(seen[missAt + 1])).toBe(rungOf(ExerciseType.ContextToWordRecall) - 1);
-    expect(seen.length, 'the slip is paid for in more practice').toBeGreaterThan(9);
+    const missAt = seen.indexOf(ExerciseType.MeaningToWordSyllableScramble);
+    expect(rungOf(seen[missAt + 1])).toBe(rungOf(ExerciseType.MeaningToWordSyllableScramble) - 1);
+    expect(seen.length, 'the slip is paid for in more practice').toBeGreaterThan(5);
 
     for (let i = 1; i < seen.length; i++) {
       expect(seen[i], `no exercise twice running (step ${i + 1})`).not.toBe(seen[i - 1]);
@@ -180,6 +172,7 @@ test.describe('Study ladder', () => {
         expect(card.exercise.prompt).toContain('_____');
         expect(card.exercise.prompt).not.toContain('rung00');
         expect(card.exercise.options).toContain('rung00');
+        expect(card.exercise.hint, 'the missing word\'s translation, free to ask for').toBe('the meaning of rung00');
       },
       [ExerciseType.WordToMeaningChoice]: card => {
         expect(card.exercise.options).toHaveLength(4);

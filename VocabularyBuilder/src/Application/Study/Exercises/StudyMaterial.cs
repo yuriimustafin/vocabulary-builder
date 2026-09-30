@@ -69,6 +69,13 @@ public record StudyMaterial
     /// <summary>What it clearly does not go with.</summary>
     public IReadOnlyList<string> NonCollocates { get; init; } = Array.Empty<string>();
 
+    /// <summary>
+    /// What each collocate and non-collocate means, in the learner's language, for those the
+    /// model translated. Keyed without regard to case.
+    /// </summary>
+    public IReadOnlyDictionary<string, string> PhraseTranslations { get; init; } =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>Whether <see cref="ContextSentence"/> is one of the word's stored examples, practice on it tracked.</summary>
     public bool HasStoredExample => ExampleId is not null;
 

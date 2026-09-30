@@ -27,8 +27,18 @@ public interface IScaffoldSequencer
     /// word's connections follow: the word comes back shortly to be asked another way, so
     /// there is no need to walk it through its letters now.
     /// </param>
+    /// <param name="recognition">
+    /// The exercise asked the word to be recognised among options. A miss there is not
+    /// knowing which word it was, not how it is spelled, so only its connections follow -
+    /// walking it through its letters answers a question that was not asked.
+    /// </param>
+    /// <param name="learning">
+    /// The word is still being learned and comes back within minutes anyway, so a right answer
+    /// gets no re-exposure on top: that is what made a first session twice as long.
+    /// </param>
     IReadOnlyList<ScaffoldStep> Build(
-        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength, bool tolerated = false);
+        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength,
+        bool tolerated = false, bool recognition = false, bool learning = false);
 }
 
 /// <summary>
@@ -53,13 +63,19 @@ public class ScaffoldSequencer : IScaffoldSequencer
     }
 
     public IReadOnlyList<ScaffoldStep> Build(
-        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength, bool tolerated = false)
+        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength,
+        bool tolerated = false, bool recognition = false, bool learning = false)
     {
         if (grade == ReviewGrade.Again)
         {
-            return tolerated
+            return tolerated || recognition
                 ? new List<ScaffoldStep> { new(ExerciseType.WordToConnectionsReveal) }
                 : DiminishingCues(headwordLength);
+        }
+
+        if (learning)
+        {
+            return Array.Empty<ScaffoldStep>();
         }
 
         var count = _options.FollowUpsByTier.For(difficulty);

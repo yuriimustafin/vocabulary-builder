@@ -99,6 +99,8 @@ public class StudyOptionsBindingTests
         shipped.LongGapProbeType.Should().Be(defaults.LongGapProbeType);
         shipped.FailureRungDrop.Should().Be(defaults.FailureRungDrop);
         shipped.LearningExitSuccesses.Should().Be(defaults.LearningExitSuccesses);
+        shipped.LearningExitLevel.Should().Be(defaults.LearningExitLevel);
+        shipped.DayRolloverHourUtc.Should().Be(defaults.DayRolloverHourUtc);
     }
 
     private static string Describe(LadderRungOptions level) =>

@@ -46,8 +46,13 @@ public class StudyOptions
     /// </summary>
     public int LearnAheadMinutes { get; set; } = 20;
 
-    /// <summary>Hour (UTC) at which "today" rolls over, so a late-night session counts as one day.</summary>
-    public int DayRolloverHourUtc { get; set; } = 4;
+    /// <summary>
+    /// Hour (UTC) at which "today" rolls over, so a late-night session counts as one day.
+    /// Eight is four in the morning on the US east coast in summer (three in winter). It was
+    /// four - midnight there - which rolled the day over in the middle of an evening session
+    /// and queued a fresh batch of new words on top of an unfinished one.
+    /// </summary>
+    public int DayRolloverHourUtc { get; set; } = 8;
 
     // --- SM-2 --------------------------------------------------------------
 
@@ -69,13 +74,26 @@ public class StudyOptions
         LearningStepsMinutes.Length > 0 ? LearningStepsMinutes : StudyDefaults.LearningStepsMinutes;
 
     /// <summary>
-    /// Clean successes on the top level a new word needs before it leaves learning. Two, a
-    /// few minutes apart, is the "recall to criterion" the first session is for: the word
-    /// has been produced unaided twice, not just recognised.
+    /// The level a new word has to reach before it can leave learning: 2, scaffolded, where it
+    /// is built from its pieces rather than picked from options. It keeps its level when it
+    /// leaves, so the rest of the climb - production - happens over the following days' reviews.
+    ///
+    /// It was the top level. Eight clean answers a word on its first day, times twelve new
+    /// words, was a session of an hour that nobody finished; the old ladder, two or three
+    /// answers a word, was three minutes. This is the balance between them.
     /// </summary>
-    public int LearningExitSuccesses { get; set; } = 2;
+    public int LearningExitLevel { get; set; } = 2;
 
-    /// <summary>The same for a word relearning after a lapse. It was known once, so one is enough.</summary>
+    /// <summary>
+    /// Clean successes on <see cref="LearningExitLevel"/> (or above) a new word needs before it
+    /// leaves learning. One: the word has been built once without help.
+    /// </summary>
+    public int LearningExitSuccesses { get; set; } = 1;
+
+    /// <summary>
+    /// Clean successes a word relearning after a lapse needs, on whatever level the lapse left it.
+    /// It was known once, so one is enough - it does not climb the ladder again first.
+    /// </summary>
     public int RelearningExitSuccesses { get; set; } = 1;
 
     /// <summary>
@@ -240,6 +258,7 @@ public static class StudyDefaults
     /// <summary>Exercises on the default ladder whose misses cost the word nothing.</summary>
     private static readonly HashSet<ExerciseType> TolerantByDefault = new()
     {
+        ExerciseType.MeaningToWordScramble,
         ExerciseType.WordToCollocatesChoice,
         ExerciseType.TranslationToSentenceScramble
     };

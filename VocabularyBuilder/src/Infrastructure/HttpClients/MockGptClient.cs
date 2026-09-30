@@ -168,13 +168,18 @@ public class MockGptClient : IGptClient
             mnemonic = $"{word} sounds like mock; picture a mockingbird saying it.",
             // None for a word with no partners to speak of, as the prompt asks of a real model
             collocates = combines
-                ? new[] { "mock partner one", "mock partner two", "mock partner three", "mock partner four" }
+                ? new[] { "mock partner one", "mock partner two", "mock partner three", "mock partner four" }.Select(Phrase).ToArray()
                 : null,
-            nonCollocates = combines ? new[] { "mock stranger one", "mock stranger two", "mock stranger three" } : null
+            nonCollocates = combines
+                ? new[] { "mock stranger one", "mock stranger two", "mock stranger three" }.Select(Phrase).ToArray()
+                : null
         };
 
         return JsonSerializer.Serialize(payload);
     }
+
+    /// <summary>A partner as the prompt asks for one: the phrase and what it means, "meaning of ..." here.</summary>
+    private static object Phrase(string phrase) => new { phrase, translation = $"meaning of {phrase}" };
 
     private static object Example(string sentence, string form, string collocation) => new
     {

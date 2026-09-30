@@ -69,6 +69,12 @@ public record ExercisePayload
 
     /// <summary>What ties the word to things already known: usage, origin, related words, a mnemonic.</summary>
     public WordConnectionsDto? Connections { get; init; }
+
+    /// <summary>
+    /// For an exercise with several options, what each means - keyed by the option - for the
+    /// learner to ask to see. Only the options the model translated are in it.
+    /// </summary>
+    public Dictionary<string, string>? OptionHints { get; init; }
 }
 
 /// <summary>
@@ -95,6 +101,10 @@ public record ExerciseBuildContext(
 /// <param name="Text">Chosen option, or the word as assembled.</param>
 /// <param name="SelfGrade">The learner's own judgement, for self-graded exercises.</param>
 /// <param name="Selections">Every option ticked, for an exercise with more than one right answer.</param>
+/// <param name="FreeHintTaken">
+/// A hint the exercise offers for free was opened. It costs nothing - including the seconds
+/// spent reading it, which would otherwise mark a right answer down as slow.
+/// </param>
 public record ExerciseAnswer(
     string? Text = null,
     ReviewGrade? SelfGrade = null,
@@ -102,7 +112,8 @@ public record ExerciseAnswer(
     int Resets = 0,
     bool HintUsed = false,
     bool Abandoned = false,
-    IReadOnlyList<string>? Selections = null);
+    IReadOnlyList<string>? Selections = null,
+    bool FreeHintTaken = false);
 
 /// <summary>
 /// One exercise type. Adding a seventh kind of question means writing one of these,
@@ -137,6 +148,18 @@ public interface IExerciseDefinition
     /// Null for one with a single answer.
     /// </summary>
     IReadOnlyList<string>? ExpectedOptions(StudyMaterial material) => null;
+
+    /// <summary>
+    /// The word is picked out among options rather than produced. A miss there is not
+    /// knowing which word it was, so what follows is the word's connections, not its letters.
+    /// </summary>
+    bool AsksToRecognise => false;
+
+    /// <summary>
+    /// The hint only makes a choice among real words fair - a translation - so taking it
+    /// neither holds the word on its level nor marks the answer down.
+    /// </summary>
+    bool HintIsFree => false;
 }
 
 /// <summary>

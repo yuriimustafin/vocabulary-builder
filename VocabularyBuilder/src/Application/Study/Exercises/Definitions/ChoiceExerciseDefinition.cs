@@ -26,6 +26,10 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
 
     public bool CanBeProbe => true;
 
+    public bool AsksToRecognise => true;
+
+    public virtual bool HintIsFree => false;
+
     /// <summary>The text the learner is shown.</summary>
     protected abstract string? Stimulus(StudyMaterial material);
 
@@ -67,6 +71,7 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
             WordId = material.WordId,
             Prompt = Stimulus(material)!,
             ExampleId = ExampleId(material),
+            Hint = Hint(material),
             Options = options,
             Transcription = ShowTranscription ? material.Transcription : null,
             PartOfSpeech = material.PartOfSpeech
@@ -82,6 +87,12 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
         var correct = answer.Text is not null
             && string.Equals(answer.Text.Trim(), Target(material)?.Trim(), StringComparison.OrdinalIgnoreCase);
 
+        // Reading a free hint takes time; a right answer after one is not marked down as slow
+        if (correct && answer.FreeHintTaken && !answer.Abandoned)
+        {
+            return ReviewGrade.Good;
+        }
+
         return _gradeResolver.Resolve(
             AnswerKind.Recognised,
             new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned));
@@ -92,6 +103,9 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
 
     /// <summary>The stored example the question is asked from, for the one that asks from a sentence.</summary>
     protected virtual int? ExampleId(StudyMaterial material) => null;
+
+    /// <summary>What the learner can ask to see, or nothing when the exercise offers no hint.</summary>
+    protected virtual string? Hint(StudyMaterial material) => null;
 
     private int RequiredDistractors => Math.Max(1, _options.ChoiceOptionCount - 1);
 }
@@ -170,4 +184,14 @@ public class ContextToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
 
     // The pronunciation is of the missing word.
     protected override bool ShowTranscription => false;
+
+    /// <summary>
+    /// What the missing word means. A generic sentence - "Il a perdu son _____." - fits any
+    /// noun among the options, and a real session missed a quarter of these for that reason
+    /// rather than for not knowing the word. The meaning settles which one is meant, so asking
+    /// for it costs nothing. None when the meaning is the word itself: that would be the answer.
+    /// </summary>
+    protected override string? Hint(StudyMaterial material) => material.CanAskFromMeaning ? material.Meaning : null;
+
+    public override bool HintIsFree => true;
 }

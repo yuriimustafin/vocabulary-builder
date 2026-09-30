@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using System.Text.Json.Serialization;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Study.Exercises;
@@ -271,8 +272,8 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
             content.Etymology = Short(generated.Etymology);
             content.Cognates = Short(generated.Cognates);
             content.Mnemonic = Short(generated.Mnemonic);
-            content.Collocates = Phrases(generated.Collocates, 6);
-            content.NonCollocates = Phrases(generated.NonCollocates, 3);
+            (content.Collocates, content.CollocateTranslations) = Phrases(generated.Collocates, 6);
+            (content.NonCollocates, content.NonCollocateTranslations) = Phrases(generated.NonCollocates, 3);
         }
 
         // A word needs a meaning to be studied at all. Examples that came back unusable, or
@@ -346,19 +347,22 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
     /// <summary>
     /// Short phrases only, each once, and no more than are wanted - null when none are left,
-    /// so an exercise that needs them is not offered.
+    /// so an exercise that needs them is not offered. Each keeps its translation beside it,
+    /// empty where the model gave none, so the two lists stay paired by position.
     /// </summary>
-    private static List<string>? Phrases(IEnumerable<string?>? values, int max)
+    private static (List<string>? Phrases, List<string>? Translations) Phrases(
+        IEnumerable<GeneratedPhrase?>? values, int max)
     {
-        var phrases = (values ?? Enumerable.Empty<string?>())
-            .Select(v => v?.Trim())
-            .Where(v => !string.IsNullOrEmpty(v) && v.Length <= 40)
-            .Select(v => v!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
+        var kept = (values ?? Enumerable.Empty<GeneratedPhrase?>())
+            .Select(v => (Phrase: v?.Phrase?.Trim(), Translation: Short(v?.Translation, 60)))
+            .Where(v => !string.IsNullOrEmpty(v.Phrase) && v.Phrase.Length <= 40)
+            .DistinctBy(v => v.Phrase!, StringComparer.OrdinalIgnoreCase)
             .Take(max)
             .ToList();
 
-        return phrases.Count > 0 ? phrases : null;
+        return kept.Count == 0
+            ? (null, null)
+            : (kept.Select(v => v.Phrase!).ToList(), kept.Select(v => v.Translation ?? string.Empty).ToList());
     }
 
     /// <summary>Trimmed, empty as null, and cut short rather than stored at any length.</summary>
@@ -430,8 +434,56 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         string? Etymology,
         string? Cognates,
         string? Mnemonic,
-        List<string?>? Collocates,
-        List<string?>? NonCollocates);
+        List<GeneratedPhrase?>? Collocates,
+        List<GeneratedPhrase?>? NonCollocates);
+
+    /// <summary>A partner word and what it means. Read from a plain string as well - the shape before translations.</summary>
+    [JsonConverter(typeof(GeneratedPhraseConverter))]
+    private record GeneratedPhrase(string? Phrase, string? Translation);
+
+    private sealed class GeneratedPhraseConverter : JsonConverter<GeneratedPhrase>
+    {
+        public override GeneratedPhrase? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.String:
+                    return new GeneratedPhrase(reader.GetString(), null);
+
+                case JsonTokenType.StartObject:
+                {
+                    using var document = JsonDocument.ParseValue(ref reader);
+                    string? phrase = null, translation = null;
+
+                    foreach (var property in document.RootElement.EnumerateObject())
+                    {
+                        if (property.Value.ValueKind != JsonValueKind.String)
+                        {
+                            continue;
+                        }
+
+                        if (property.Name.Equals("phrase", StringComparison.OrdinalIgnoreCase))
+                        {
+                            phrase = property.Value.GetString();
+                        }
+                        else if (property.Name.Equals("translation", StringComparison.OrdinalIgnoreCase))
+                        {
+                            translation = property.Value.GetString();
+                        }
+                    }
+
+                    return new GeneratedPhrase(phrase, translation);
+                }
+
+                default:
+                    reader.Skip();
+                    return null;
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, GeneratedPhrase value, JsonSerializerOptions options) =>
+            throw new NotSupportedException();
+    }
 
     private record GeneratedExample(string? Sentence, string? Translation, string? Form, string? Collocation);
 }
