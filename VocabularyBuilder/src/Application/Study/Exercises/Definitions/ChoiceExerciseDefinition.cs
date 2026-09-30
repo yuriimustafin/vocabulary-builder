@@ -66,6 +66,7 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
             GradingMode = GradingMode,
             WordId = material.WordId,
             Prompt = Stimulus(material)!,
+            ExampleId = ExampleId(material),
             Options = options,
             Transcription = ShowTranscription ? material.Transcription : null,
             PartOfSpeech = material.PartOfSpeech
@@ -82,12 +83,15 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
             && string.Equals(answer.Text.Trim(), Target(material)?.Trim(), StringComparison.OrdinalIgnoreCase);
 
         return _gradeResolver.Resolve(
-            Type,
+            AnswerKind.Recognised,
             new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned));
     }
 
     /// <summary>Showing the pronunciation would give away a word the learner is meant to pick.</summary>
     protected virtual bool ShowTranscription => true;
+
+    /// <summary>The stored example the question is asked from, for the one that asks from a sentence.</summary>
+    protected virtual int? ExampleId(StudyMaterial material) => null;
 
     private int RequiredDistractors => Math.Max(1, _options.ChoiceOptionCount - 1);
 }
@@ -107,7 +111,8 @@ public class WordToMeaningChoiceExerciseDefinition : ChoiceExerciseDefinition
 
     protected override string? Stimulus(StudyMaterial material) => material.Headword;
 
-    protected override string? Target(StudyMaterial material) => material.Meaning;
+    // Not offered when the meaning is the word itself: the right option would repeat the prompt
+    protected override string? Target(StudyMaterial material) => material.CanAskFromMeaning ? material.Meaning : null;
 
     protected override IReadOnlyList<string> WrongOptions(DistractorSet distractors) => distractors.Meanings;
 }
@@ -126,12 +131,43 @@ public class MeaningToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
 
     public override ExerciseType Type => ExerciseType.MeaningToWordChoice;
 
-    protected override string? Stimulus(StudyMaterial material) => material.Meaning;
+    // Not offered when the meaning is the word itself: the prompt would be the answer
+    protected override string? Stimulus(StudyMaterial material) => material.CanAskFromMeaning ? material.Meaning : null;
 
     protected override string? Target(StudyMaterial material) => material.Headword;
 
     protected override IReadOnlyList<string> WrongOptions(DistractorSet distractors) => distractors.Headwords;
 
     // The transcription belongs to the answer here, so it cannot be shown with the prompt.
+    protected override bool ShowTranscription => false;
+}
+
+/// <summary>
+/// A sentence with the word cut out, and four words to fill it from.
+///
+/// Recognition still - the word is on screen - but the learner has to judge which one fits
+/// the context, which asks more of them than matching a definition. It is also what a word
+/// dropped back to recognition meets, so it is not asked the question it has just missed.
+/// </summary>
+public class ContextToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
+{
+    public ContextToWordChoiceExerciseDefinition(StudyOptions options, IGradeResolver gradeResolver)
+        : this(options, gradeResolver, Random.Shared) { }
+
+    public ContextToWordChoiceExerciseDefinition(StudyOptions options, IGradeResolver gradeResolver, Random random)
+        : base(options, gradeResolver, random) { }
+
+    public override ExerciseType Type => ExerciseType.ContextToWordChoice;
+
+    protected override string? Stimulus(StudyMaterial material) =>
+        material.HasContextSentence ? material.BlankedContextSentence : null;
+
+    protected override int? ExampleId(StudyMaterial material) => material.ExampleId;
+
+    protected override string? Target(StudyMaterial material) => material.Headword;
+
+    protected override IReadOnlyList<string> WrongOptions(DistractorSet distractors) => distractors.Headwords;
+
+    // The pronunciation is of the missing word.
     protected override bool ShowTranscription => false;
 }

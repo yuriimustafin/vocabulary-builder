@@ -73,7 +73,7 @@ export class ScrambleExercise extends Component {
 
   submit = () => {
     this.props.onAnswer({
-      text: this.state.placed.map(tile => tile.letter).join(''),
+      text: this.state.placed.map(tile => tile.letter).join(this.props.separator || ''),
       resets: this.state.resets
     });
   };
@@ -81,7 +81,7 @@ export class ScrambleExercise extends Component {
   giveUp = () => this.props.onAnswer({ text: '', abandoned: true, resets: this.state.resets });
 
   render() {
-    const { exercise, submitting } = this.props;
+    const { exercise, submitting, placeholder = 'Tap the letters in order' } = this.props;
     const { placed, available } = this.state;
 
     return (
@@ -96,7 +96,7 @@ export class ScrambleExercise extends Component {
               {tile.letter}
             </Button>
           ))}
-          {placed.length === 0 && <span className="text-muted align-self-center">Tap the letters in order</span>}
+          {placed.length === 0 && <span className="text-muted align-self-center">{placeholder}</span>}
         </div>
 
         <div className="d-flex flex-wrap gap-2 mt-3" data-testid="scramble-tiles">
@@ -129,4 +129,20 @@ export class ScrambleExercise extends Component {
       </div>
     );
   }
+}
+
+/**
+ * The same puzzle in bigger pieces: the word's syllables rather than its letters. The
+ * tiles already hold the spelling, so what is being recalled is only their order.
+ */
+export function SyllableScrambleExercise(props) {
+  return <ScrambleExercise {...props} placeholder="Tap the syllables in order" />;
+}
+
+/**
+ * One of the word's example sentences rebuilt from its words, from what it says. The words
+ * are joined with spaces, and a slip in the order costs the word nothing.
+ */
+export function SentenceScrambleExercise(props) {
+  return <ScrambleExercise {...props} separator=" " placeholder="Tap the words in order" />;
 }

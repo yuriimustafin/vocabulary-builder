@@ -1,5 +1,7 @@
 ﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Application.Words.Queries;
+using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -30,6 +32,19 @@ public record UpsertWordCommand : IRequest<int>
     public string? SourceIdentifier { get; init; }
     public string? Context { get; init; }
     public string? Notes { get; init; }
+
+    /// <summary>
+    /// The word as it was met, when that may differ from the headword - "prend" for
+    /// "prendre". Recorded on the encounter, and a form no example sentence has yet is
+    /// asked for when the word's study content is next filled in.
+    /// </summary>
+    public string? EncounterForm { get; init; }
+
+    /// <summary>
+    /// The sentence the word was met in, when the source keeps one. Kept as an example for
+    /// the form it was met in - there is no better example than the one actually read.
+    /// </summary>
+    public string? EncounterSentence { get; init; }
 
     /// <summary>
     /// False when the upsert only fills the word in - a dictionary lookup is not a meeting
@@ -249,15 +264,68 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             return;
         }
 
+        var form = NormaliseForm(request.EncounterForm);
+
         var encounter = new WordEncounter
         {
             WordId = wordId,
             Source = request.Source,
             SourceIdentifier = sourceIdentifier,
             Context = request.Context,
-            Notes = request.Notes
+            Notes = request.Notes,
+            Form = form
         };
 
         _context.WordEncounters.Add(encounter);
+
+        if (form is not null)
+        {
+            await CoverForm(wordId, form, request.EncounterSentence, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Makes sure the form a word was met in will have an example to be practised on: the
+    /// sentence it was met in when that contains it, and otherwise a request for one the
+    /// next time the word's study content is filled in.
+    /// </summary>
+    private async Task CoverForm(int wordId, string form, string? sentence, CancellationToken cancellationToken)
+    {
+        var examples = await _context.StudyExamples
+            .Where(e => e.WordId == wordId)
+            .ToListAsync(cancellationToken);
+
+        var trimmed = sentence?.Trim();
+
+        if (!string.IsNullOrEmpty(trimmed)
+            && HeadwordText.Contains(trimmed, form)
+            && !examples.Any(e => string.Equals(e.Sentence, trimmed, StringComparison.OrdinalIgnoreCase)))
+        {
+            _context.StudyExamples.Add(new StudyExample { WordId = wordId, Sentence = trimmed, Form = form });
+            return;
+        }
+
+        if (examples.Any(e => string.Equals(e.Form, form, StringComparison.OrdinalIgnoreCase)))
+        {
+            return;
+        }
+
+        // Content already filled in is opened again, so the missing form is asked for. A
+        // word enrichment gave up on stays given up; a word never filled in will be, form
+        // included, the first time it is studied.
+        var content = await _context.WordStudyContents
+            .FirstOrDefaultAsync(c => c.WordId == wordId, cancellationToken);
+
+        if (content is { Status: StudyContentStatus.Ready })
+        {
+            content.Status = StudyContentStatus.Pending;
+            content.ClaimedAtUtc = null;
+        }
+    }
+
+    private static string? NormaliseForm(string? form)
+    {
+        var trimmed = form?.Trim().ToLowerInvariant();
+        return string.IsNullOrEmpty(trimmed) ? null : trimmed;
     }
 }

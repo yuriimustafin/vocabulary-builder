@@ -6,7 +6,14 @@ export const ExerciseType = {
   ContextToWordRecall: 3,
   MeaningToWordScramble: 4,
   MeaningToWordRecall: 5,
-  MeaningToWordPartialLetters: 6
+  MeaningToWordPartialLetters: 6,
+  MeaningToWordSyllableScramble: 7,
+  MeaningToWordType: 8,
+  MeaningToWordCuedType: 9,
+  ContextToWordChoice: 10,
+  WordToCollocatesChoice: 11,
+  TranslationToSentenceScramble: 12,
+  WordToConnectionsReveal: 13
 };
 
 // Mirrors VocabularyBuilder.Domain.Enums.GradingMode.
@@ -36,5 +43,15 @@ export const EXERCISE_LABELS = {
   [ExerciseType.ContextToWordRecall]: 'Fill the gap',
   [ExerciseType.MeaningToWordScramble]: 'Spell it out',
   [ExerciseType.MeaningToWordRecall]: 'Recall the word',
-  [ExerciseType.MeaningToWordPartialLetters]: 'Recall with a hint'
+  [ExerciseType.MeaningToWordPartialLetters]: 'Recall with a hint',
+  [ExerciseType.MeaningToWordSyllableScramble]: 'Put the syllables in order',
+  [ExerciseType.MeaningToWordType]: 'Type the word',
+  [ExerciseType.MeaningToWordCuedType]: 'Finish the word',
+  [ExerciseType.ContextToWordChoice]: 'Pick the missing word',
+  [ExerciseType.WordToCollocatesChoice]: 'What goes with it?',
+  [ExerciseType.TranslationToSentenceScramble]: 'Build the sentence',
+  [ExerciseType.WordToConnectionsReveal]: 'Remember it by'
 };
+
+/** Exercises answered by typing, which need the keyboard to themselves. */
+export const TYPED_EXERCISES = new Set([ExerciseType.MeaningToWordType, ExerciseType.MeaningToWordCuedType]);

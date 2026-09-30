@@ -59,6 +59,16 @@ public record ExercisePayload
 
     /// <summary>What <see cref="ContextSentence"/> says, in the learner's language.</summary>
     public string? ContextSentenceTranslation { get; init; }
+
+    /// <summary>
+    /// The stored example the exercise is built on, sent back with the answer so that
+    /// answering it is recorded against that sentence. Set only by exercises that ask
+    /// about a sentence.
+    /// </summary>
+    public int? ExampleId { get; init; }
+
+    /// <summary>What ties the word to things already known: usage, origin, related words, a mnemonic.</summary>
+    public WordConnectionsDto? Connections { get; init; }
 }
 
 /// <summary>
@@ -70,23 +80,29 @@ public record ExercisePayload
 /// False on a probe that has been escalated after a long absence: a cue there would
 /// inflate the grade and stretch the next interval on evidence that was never earned.
 /// </param>
+/// <param name="CueLevel">
+/// How far the support has faded for this word on its level - see <see cref="ProbeChoice.CueLevel"/>.
+/// </param>
 public record ExerciseBuildContext(
     DistractorSet? Distractors = null,
     int RevealedLetters = 0,
-    bool AllowHint = true);
+    bool AllowHint = true,
+    int CueLevel = 0);
 
 /// <summary>
 /// What the learner did.
 /// </summary>
 /// <param name="Text">Chosen option, or the word as assembled.</param>
 /// <param name="SelfGrade">The learner's own judgement, for self-graded exercises.</param>
+/// <param name="Selections">Every option ticked, for an exercise with more than one right answer.</param>
 public record ExerciseAnswer(
     string? Text = null,
     ReviewGrade? SelfGrade = null,
     int ElapsedMs = 0,
     int Resets = 0,
     bool HintUsed = false,
-    bool Abandoned = false);
+    bool Abandoned = false,
+    IReadOnlyList<string>? Selections = null);
 
 /// <summary>
 /// One exercise type. Adding a seventh kind of question means writing one of these,
@@ -115,6 +131,25 @@ public interface IExerciseDefinition
     /// automatic ones mark the answer against the word.
     /// </summary>
     ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material);
+
+    /// <summary>
+    /// For an exercise with several right answers, what they were, for the feedback to list.
+    /// Null for one with a single answer.
+    /// </summary>
+    IReadOnlyList<string>? ExpectedOptions(StudyMaterial material) => null;
+}
+
+/// <summary>
+/// An exercise where the word is typed. Marked leniently, so the handler asks for the match
+/// itself as well as the grade: to say what was nearly right, and to catch a "typo" that is
+/// really another word.
+/// </summary>
+public interface ITypedExerciseDefinition : IExerciseDefinition
+{
+    TypedMatch Match(ExerciseAnswer answer, StudyMaterial material);
+
+    /// <summary>Grades an answer already matched, so the match is made once.</summary>
+    ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material, TypedMatch match);
 }
 
 public interface IExerciseCatalog

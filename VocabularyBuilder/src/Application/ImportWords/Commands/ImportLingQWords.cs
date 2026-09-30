@@ -95,6 +95,10 @@ public class ImportLingQWordsCommandHandler
             .Select(r => new ImportedTerm(
                 r.SourceTerm,
                 r.Lemma,
+                phrases.GetValueOrDefault(r.SourceTerm),
+                r.Form,
+                // The phrase is the sentence the word was read in, which makes it the best
+                // example there is for the form it was read in
                 phrases.GetValueOrDefault(r.SourceTerm)))
             .ToList();
 

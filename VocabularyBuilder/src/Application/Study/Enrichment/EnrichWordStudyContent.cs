@@ -39,9 +39,10 @@ public record EnrichWordStudyContentCommand(int WordId) : IRequest<EnrichmentOut
 /// <summary>
 /// Generates only what is actually absent.
 ///
-/// Gaps are computed against the dictionary data the app already holds, so a word with a
-/// definition and a usable example never reaches the model at all, and a word missing only
-/// a sentence is not asked for a definition it already has.
+/// Every word reaches the model once per <see cref="StudyContentPrompt.Version"/>, for its
+/// examples and connections. Gaps are computed against the dictionary data the app already
+/// holds, so that call asks for a definition only when the dictionary had none, and a word
+/// asked again - for a form met since - is asked only for what it is missing.
 ///
 /// Every step is safe to repeat. The unique index on WordId keeps one row per word, a
 /// fresh claim makes a concurrent run stand down, and a claim left behind by a crash goes
@@ -124,11 +125,13 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         var content = await _context.WordStudyContents
             .FirstOrDefaultAsync(c => c.WordId == request.WordId, cancellationToken);
 
-        var gaps = _resolver.FindGaps(word, content);
+        var examples = await ExamplesOf(word.Id, cancellationToken);
+        var gaps = _resolver.FindGaps(word, content, examples);
 
-        if (gaps == StudyMaterialGaps.None)
+        // Never without a row: a word with none is still missing its connections
+        if (gaps == StudyMaterialGaps.None && content is not null)
         {
-            return await NothingLeftToDo(word, content, cancellationToken);
+            return await NothingLeftToDo(content, cancellationToken);
         }
 
         if (content is not null && !TryClaim(content, now, out var refusal))
@@ -138,12 +141,13 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         if (content is null)
         {
+            // The version stays at its default until a generation succeeds, so a failed first
+            // attempt is still asked for everything the next time
             content = new WordStudyContent
             {
                 WordId = word.Id,
                 Status = StudyContentStatus.Pending,
-                ClaimedAtUtc = now,
-                PromptVersion = StudyContentPrompt.Version
+                ClaimedAtUtc = now
             };
             _context.WordStudyContents.Add(content);
         }
@@ -159,7 +163,23 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
             return EnrichmentOutcome.ClaimedElsewhere;
         }
 
-        return await GenerateAsync(word, content, gaps, now, cancellationToken);
+        return await GenerateAsync(word, content, examples, gaps, cancellationToken);
+    }
+
+    /// <summary>The word's stored examples, and the forms it has been met in.</summary>
+    private async Task<StudyExampleSet> ExamplesOf(int wordId, CancellationToken cancellationToken)
+    {
+        var examples = await _context.StudyExamples
+            .Where(e => e.WordId == wordId)
+            .ToListAsync(cancellationToken);
+
+        var forms = await _context.WordEncounters
+            .Where(e => e.WordId == wordId && e.Form != null)
+            .Select(e => e.Form!)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return new StudyExampleSet(examples, forms);
     }
 
     /// <summary>
@@ -167,38 +187,14 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
     /// filled in elsewhere - is marked done without spending a call.
     /// </summary>
     /// <remarks>
-    /// A word the dictionary could not fill still gets a row, marked Ready. The study queue
-    /// asks for a word only while it has no row or a pending one, so the row is what records
-    /// that the dictionary has been tried - without it a word the dictionary does not carry
-    /// would be looked up again on every session.
+    /// Only reached with a row: a word without one is always missing its connections, so it
+    /// is generated for rather than arriving here. That generation is what gives a word the
+    /// dictionary could not fill its row, and the row is what stops the study queue asking
+    /// for it on every session.
     /// </remarks>
     private async Task<EnrichmentOutcome> NothingLeftToDo(
-        Word word, WordStudyContent? content, CancellationToken cancellationToken)
+        WordStudyContent content, CancellationToken cancellationToken)
     {
-        if (content is null)
-        {
-            if (word.IsMissingDictionaryData())
-            {
-                _context.WordStudyContents.Add(new WordStudyContent
-                {
-                    WordId = word.Id,
-                    Status = StudyContentStatus.Ready,
-                    PromptVersion = StudyContentPrompt.Version
-                });
-
-                try
-                {
-                    await _context.SaveChangesAsync(cancellationToken);
-                }
-                catch (DbUpdateException)
-                {
-                    // Another run recorded the word first, which serves just as well
-                }
-            }
-
-            return EnrichmentOutcome.NothingMissing;
-        }
-
         if (content.Status != StudyContentStatus.Ready)
         {
             content.Status = StudyContentStatus.Ready;
@@ -233,18 +229,23 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         content.Status = StudyContentStatus.Pending;
         content.ClaimedAtUtc = now;
-        content.PromptVersion = StudyContentPrompt.Version;
         return true;
     }
 
     private async Task<EnrichmentOutcome> GenerateAsync(
-        Word word, WordStudyContent content, StudyMaterialGaps gaps, DateTime now, CancellationToken cancellationToken)
+        Word word,
+        WordStudyContent content,
+        StudyExampleSet examples,
+        StudyMaterialGaps gaps,
+        CancellationToken cancellationToken)
     {
         GeneratedStudyContent? generated;
+        var meaning = _resolver.Resolve(word, content, examples).Meaning;
+        var forms = _resolver.UncoveredForms(word, examples);
 
         try
         {
-            var response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps));
+            var response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps, forms, meaning));
             generated = Parse(response);
         }
         catch (Exception ex)
@@ -262,19 +263,33 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
             content.GeneratedDefinition = generated.Definition.Trim();
         }
 
-        if (gaps.HasFlag(StudyMaterialGaps.ContextSentence) && !string.IsNullOrWhiteSpace(generated.Sentence))
+        var added = AddExamples(word, examples, generated.Examples);
+
+        if (gaps.HasFlag(StudyMaterialGaps.Connections))
         {
-            content.GeneratedContextSentence = generated.Sentence.Trim();
+            content.Usage = Short(generated.Usage);
+            content.Etymology = Short(generated.Etymology);
+            content.Cognates = Short(generated.Cognates);
+            content.Mnemonic = Short(generated.Mnemonic);
+            content.Collocates = Phrases(generated.Collocates, 6);
+            content.NonCollocates = Phrases(generated.NonCollocates, 3);
         }
 
-        // A word needs a meaning to be studied at all. A sentence that came back unusable
-        // only costs it the cloze rung, which the ladder already knows how to skip, so that
-        // is not worth a retry.
-        var remaining = _resolver.FindGaps(word, content);
+        // A word needs a meaning to be studied at all. Examples that came back unusable, or
+        // a field the model had nothing for, only cost the word that much - not worth a
+        // retry, and a retry would likely say the same.
+        var withAdded = examples with { Examples = examples.Examples.Concat(added).ToList() };
+        var remaining = _resolver.FindGaps(word, content, withAdded);
 
         if (remaining.HasFlag(StudyMaterialGaps.Meaning))
         {
             return await RecordFailure(content, "No usable definition was produced.", cancellationToken);
+        }
+
+        // Only now, so a failed generation is asked for everything again on its retry
+        if (gaps.HasFlag(StudyMaterialGaps.Connections))
+        {
+            content.PromptVersion = StudyContentPrompt.Version;
         }
 
         content.Status = StudyContentStatus.Ready;
@@ -283,6 +298,80 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         await _context.SaveChangesAsync(cancellationToken);
 
         return EnrichmentOutcome.Generated;
+    }
+
+    /// <summary>
+    /// Keeps the generated examples that really contain the form they name - a sentence that
+    /// paraphrased the word away has nothing for a cloze to blank - and are not already there.
+    /// </summary>
+    private List<StudyExample> AddExamples(
+        Word word, StudyExampleSet existing, IReadOnlyList<GeneratedExample>? generated)
+    {
+        var added = new List<StudyExample>();
+
+        foreach (var example in generated ?? (IReadOnlyList<GeneratedExample>)Array.Empty<GeneratedExample>())
+        {
+            var sentence = example.Sentence?.Trim();
+            var form = string.IsNullOrWhiteSpace(example.Form) ? word.Headword : example.Form.Trim();
+
+            if (string.IsNullOrEmpty(sentence) || sentence.Length > 500 || form.Length > 100
+                || !HeadwordText.Contains(sentence, form))
+            {
+                continue;
+            }
+
+            var duplicate = existing.Examples.Concat(added)
+                .Any(e => string.Equals(e.Sentence, sentence, StringComparison.OrdinalIgnoreCase));
+
+            if (duplicate)
+            {
+                continue;
+            }
+
+            var stored = new StudyExample
+            {
+                WordId = word.Id,
+                Sentence = sentence,
+                Translation = Short(example.Translation, 500),
+                Form = form,
+                Collocation = Short(example.Collocation, 100)
+            };
+
+            _context.StudyExamples.Add(stored);
+            added.Add(stored);
+        }
+
+        return added;
+    }
+
+    /// <summary>
+    /// Short phrases only, each once, and no more than are wanted - null when none are left,
+    /// so an exercise that needs them is not offered.
+    /// </summary>
+    private static List<string>? Phrases(IEnumerable<string?>? values, int max)
+    {
+        var phrases = (values ?? Enumerable.Empty<string?>())
+            .Select(v => v?.Trim())
+            .Where(v => !string.IsNullOrEmpty(v) && v.Length <= 40)
+            .Select(v => v!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Take(max)
+            .ToList();
+
+        return phrases.Count > 0 ? phrases : null;
+    }
+
+    /// <summary>Trimmed, empty as null, and cut short rather than stored at any length.</summary>
+    private static string? Short(string? value, int max = 400)
+    {
+        var trimmed = value?.Trim();
+
+        if (string.IsNullOrEmpty(trimmed) || trimmed.Equals("null", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return trimmed.Length <= max ? trimmed : trimmed[..max];
     }
 
     private async Task<EnrichmentOutcome> RecordFailure(
@@ -334,5 +423,15 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         return start >= 0 && end > start ? response[start..(end + 1)] : null;
     }
 
-    private record GeneratedStudyContent(string? Definition, string? Sentence);
+    private record GeneratedStudyContent(
+        string? Definition,
+        string? Usage,
+        List<GeneratedExample>? Examples,
+        string? Etymology,
+        string? Cognates,
+        string? Mnemonic,
+        List<string?>? Collocates,
+        List<string?>? NonCollocates);
+
+    private record GeneratedExample(string? Sentence, string? Translation, string? Form, string? Collocation);
 }

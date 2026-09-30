@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, submitReview, cardFor, getCard
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor, getCard
 } = require('./helpers/study-helpers');
 
 /**
@@ -19,7 +19,7 @@ test.describe('Diminishing cues after a failure', () => {
     await seedWords(request, Array.from({ length: 8 }, (_, i) => `sc${String(i).padStart(2, '0')}`));
   });
 
-  async function failAProbe(request, headword = 'sc00', rung = 3) {
+  async function failAProbe(request, headword = 'sc00', rung = rungOf(ExerciseType.ContextToWordRecall)) {
     await seedCard(request, {
       headword, rung, state: 2, intervalDays: 5, dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
@@ -119,7 +119,7 @@ test.describe('Diminishing cues after a failure', () => {
 
   test('a word recalled cleanly gets no follow-ups at all', async ({ request }) => {
     await seedCard(request, {
-      headword: 'sc03', rung: 3, state: 2, intervalDays: 5,
+      headword: 'sc03', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 5,
       dueInDays: -0.1, lastReviewedDaysAgo: 1, recentSuccessRate: 1.0, easeFactor: 2.5
     });
 

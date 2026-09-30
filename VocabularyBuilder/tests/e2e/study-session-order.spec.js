@@ -91,15 +91,18 @@ test.describe('First-day session order', () => {
 
     await seedWords(request, Array.from({ length: 30 }, (_, i) => `sc${String(i).padStart(2, '0')}`));
 
-    const order = await walkSession(request);
+    const order = await walkSession(request, { maxCards: 300 });
 
     const met = order.filter(kind => kind === 'meet').length;
     const tested = order.filter(kind => kind === 'test').length;
 
     expect(met).toBe(12, "the day's allowance is met in full");
+    expect(order.length, 'the session ran out rather than being cut off').toBeLessThan(300);
 
-    // Two learning steps each, so every word is tested twice before it graduates.
-    expect(tested).toBe(met * 2);
+    // Every word answered cleanly takes at least six graded tries to leave learning: one to
+    // recognise it, three while the support fades, two producing it. More if the last two
+    // came too close together to count as spaced.
+    expect(tested).toBeGreaterThanOrEqual(met * 6);
   });
 
   test('a word is not asked about before it has been met', async ({ request }) => {

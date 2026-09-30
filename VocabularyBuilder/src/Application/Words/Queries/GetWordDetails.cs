@@ -1,5 +1,6 @@
 ﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Common.Models;
+using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
@@ -43,6 +44,26 @@ public class GetWordDetailsQueryHandler : IRequestHandler<GetWordDetailsQuery, W
             })
             .ToListAsync(cancellationToken);
 
+        // Study content and its examples are generated per word, and like the forms have no
+        // navigation from it
+        var content = await _context.WordStudyContents
+            .AsNoTracking()
+            .FirstOrDefaultAsync(c => c.WordId == word.Id, cancellationToken);
+
+        var studyExamples = await _context.StudyExamples
+            .AsNoTracking()
+            .Where(e => e.WordId == word.Id)
+            .OrderBy(e => e.Id)
+            .Select(e => new StudyExampleDto
+            {
+                Sentence = e.Sentence,
+                Translation = e.Translation,
+                Form = e.Form,
+                Collocation = e.Collocation,
+                Successes = e.Successes
+            })
+            .ToListAsync(cancellationToken);
+
         return new WordDetailsDto
         {
             Id = word.Id,
@@ -57,6 +78,8 @@ public class GetWordDetailsQueryHandler : IRequestHandler<GetWordDetailsQuery, W
             Status = word.Status,
             Language = word.Language,
             Examples = word.Examples?.ToList() ?? new List<string>(),
+            StudyExamples = studyExamples,
+            Connections = WordConnectionsDto.From(content?.Usage, content?.Etymology, content?.Cognates, content?.Mnemonic),
             Tags = word.Tags?.ToList() ?? new List<string>(),
             Senses = word.Senses?.OrderBy(s => s.Id).Select(s => new SenseDto
             {
@@ -71,6 +94,7 @@ public class GetWordDetailsQueryHandler : IRequestHandler<GetWordDetailsQuery, W
                 SourceIdentifier = e.SourceIdentifier,
                 Context = e.Context,
                 Notes = e.Notes,
+                Form = e.Form,
                 EncounteredAt = e.Created
             }).OrderByDescending(e => e.EncounteredAt).ToList() ?? new List<EncounterDto>(),
             DictionarySources = word.DictionarySources?.Select(ds => new DictionarySourceDto
@@ -95,6 +119,12 @@ public class WordDetailsDto
     public WordStatus Status { get; set; }
     public Language Language { get; set; }
     public List<string> Examples { get; set; } = new();
+
+    /// <summary>Example sentences for study, each built around a word it is used with.</summary>
+    public List<StudyExampleDto> StudyExamples { get; set; } = new();
+
+    /// <summary>Usage, origin, related words and a mnemonic, once generated.</summary>
+    public WordConnectionsDto? Connections { get; set; }
 
     /// <summary>Labels the word has been collected under.</summary>
     public List<string> Tags { get; set; } = new();
@@ -132,7 +162,22 @@ public class EncounterDto
     public string? SourceIdentifier { get; set; }
     public string? Context { get; set; }
     public string? Notes { get; set; }
+
+    /// <summary>The word as it was met, when the source showed it.</summary>
+    public string? Form { get; set; }
+
     public DateTimeOffset EncounteredAt { get; set; }
+}
+
+public class StudyExampleDto
+{
+    public string Sentence { get; set; } = string.Empty;
+    public string? Translation { get; set; }
+    public string Form { get; set; } = string.Empty;
+    public string? Collocation { get; set; }
+
+    /// <summary>Times it was answered correctly in study.</summary>
+    public int Successes { get; set; }
 }
 
 public class DictionarySourceDto

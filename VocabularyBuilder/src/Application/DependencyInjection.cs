@@ -29,6 +29,9 @@ public static class DependencyInjection
         // is read; everything below is a pure function of it.
         services.AddSingleton<IReviewScheduler>(sp => new Sm2Scheduler(sp.GetRequiredService<StudyOptions>()));
         services.AddSingleton<IExerciseLadder>(sp => new ConfiguredExerciseLadder(sp.GetRequiredService<StudyOptions>()));
+        services.AddSingleton<ILearningExitCriterion>(sp => new LearningExitCriterion(
+            sp.GetRequiredService<StudyOptions>(),
+            sp.GetRequiredService<IExerciseLadder>()));
         services.AddSingleton<ICardDifficultyCalculator>(sp => new CardDifficultyCalculator(sp.GetRequiredService<StudyOptions>()));
         services.AddSingleton<IGradeResolver>(sp => new GradeResolver(sp.GetRequiredService<StudyOptions>()));
         services.AddSingleton<IScaffoldSequencer>(sp => new ScaffoldSequencer(
@@ -49,6 +52,13 @@ public static class DependencyInjection
         services.AddSingleton<IExerciseDefinition, MeaningToWordScrambleExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordRecallExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordPartialLettersExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, MeaningToWordSyllableScrambleExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, MeaningToWordTypeExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, MeaningToWordCuedTypeExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, ContextToWordChoiceExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, WordToCollocatesChoiceExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, TranslationToSentenceScrambleExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, WordToConnectionsRevealExerciseDefinition>();
         services.AddSingleton<IExerciseCatalog, ExerciseCatalog>();
 
         services.AddSingleton<IStudyEnrichmentQueue, StudyEnrichmentQueue>();

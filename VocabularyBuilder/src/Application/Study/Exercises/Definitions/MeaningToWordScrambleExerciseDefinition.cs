@@ -32,22 +32,26 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
         _random = random;
     }
 
-    public ExerciseType Type => ExerciseType.MeaningToWordScramble;
+    public virtual ExerciseType Type => ExerciseType.MeaningToWordScramble;
 
     public GradingMode GradingMode => GradingMode.Automatic;
 
     public bool CanBeProbe => true;
 
-    /// <summary>A one-letter word has nothing to rearrange.</summary>
+    /// <summary>A one-letter word has nothing to rearrange, and a meaning that is the word itself spells it out.</summary>
     public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
-        material.HasMeaning && Letters(material.Headword).Count > 1;
+        material.CanAskFromMeaning && Pieces(material).Count >= MinimumPieces;
+
+    /// <summary>What the word is broken into.</summary>
+    protected virtual IReadOnlyList<string> Pieces(StudyMaterial material) => Letters(material.Headword);
+
+    /// <summary>Fewest pieces that still make a puzzle.</summary>
+    protected virtual int MinimumPieces => 2;
 
     public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context)
     {
-        var tiles = Letters(material.Headword)
-            .Concat(Decoys(material.Headword))
-            .OrderBy(_ => _random.Next())
-            .ToList();
+        var pieces = Pieces(material);
+        var tiles = Shuffle(pieces.Concat(Decoys(material.Headword)).ToList(), pieces);
 
         return new ExercisePayload
         {
@@ -58,8 +62,8 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
             Tiles = tiles,
             PartOfSpeech = material.PartOfSpeech,
             ContextSentence = material.ContextSentence,
-        ContextSentenceTranslation = material.ContextSentenceTranslation,
-        MeaningGloss = material.MeaningGloss
+            ContextSentenceTranslation = material.ContextSentenceTranslation,
+            MeaningGloss = material.MeaningGloss
         };
     }
 
@@ -70,8 +74,31 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
             && string.Equals(Normalise(answer.Text), Normalise(material.Headword), StringComparison.OrdinalIgnoreCase);
 
         return _gradeResolver.Resolve(
-            Type,
-            new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned));
+            AnswerKind.Built,
+            new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned, material.Headword.Length));
+    }
+
+    /// <summary>
+    /// Shuffled, and never left in the word's own order when there is another: tiles that
+    /// already spell the word would ask nothing.
+    /// </summary>
+    private List<string> Shuffle(List<string> tiles, IReadOnlyList<string> inOrder)
+    {
+        var shuffled = tiles.OrderBy(_ => _random.Next()).ToList();
+
+        for (var attempt = 0; attempt < 10 && shuffled.Take(inOrder.Count).SequenceEqual(inOrder); attempt++)
+        {
+            shuffled = tiles.OrderBy(_ => _random.Next()).ToList();
+        }
+
+        if (shuffled.Take(inOrder.Count).SequenceEqual(inOrder) && shuffled.Count > 1)
+        {
+            // Every letter the same, near enough: move the first tile to the end.
+            shuffled.Add(shuffled[0]);
+            shuffled.RemoveAt(0);
+        }
+
+        return shuffled;
     }
 
     /// <summary>
@@ -95,7 +122,7 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
         return letters;
     }
 
-    private IEnumerable<string> Decoys(string headword)
+    protected virtual IEnumerable<string> Decoys(string headword)
     {
         if (_options.ScrambleDecoyLetters <= 0)
         {
@@ -117,4 +144,37 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
 
     private static string Normalise(string value) =>
         new(value.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray());
+}
+
+/// <summary>
+/// The word rebuilt from its syllables rather than its letters.
+///
+/// An easier step before the letter scramble: the chunks are given, and only their order
+/// has to be recalled. Solving an anagram only helps memory when it can be solved without
+/// a long search, and a handful of syllables is a far smaller search than a word's worth of
+/// letters. A word of one or two syllables makes no puzzle, so it is left to the letters.
+/// </summary>
+public class MeaningToWordSyllableScrambleExerciseDefinition : MeaningToWordScrambleExerciseDefinition
+{
+    public MeaningToWordSyllableScrambleExerciseDefinition(StudyOptions options, IGradeResolver gradeResolver)
+        : base(options, gradeResolver)
+    {
+    }
+
+    /// <summary>Test seam: supply a seeded Random to make the shuffle deterministic.</summary>
+    public MeaningToWordSyllableScrambleExerciseDefinition(StudyOptions options, IGradeResolver gradeResolver, Random random)
+        : base(options, gradeResolver, random)
+    {
+    }
+
+    public override ExerciseType Type => ExerciseType.MeaningToWordSyllableScramble;
+
+    protected override IReadOnlyList<string> Pieces(StudyMaterial material) =>
+        Syllabifier.Split(material.Headword, material.Language);
+
+    protected override int MinimumPieces => 3;
+
+    // Decoy syllables would be near-misspellings of the word, and seeing a misspelling is
+    // itself enough to make it more likely to be written later.
+    protected override IEnumerable<string> Decoys(string headword) => Enumerable.Empty<string>();
 }

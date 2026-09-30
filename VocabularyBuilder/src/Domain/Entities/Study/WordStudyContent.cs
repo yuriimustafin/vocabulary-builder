@@ -3,11 +3,15 @@ using VocabularyBuilder.Domain.Enums;
 namespace VocabularyBuilder.Domain.Entities.Study;
 
 /// <summary>
-/// AI-generated study material for a word - strictly a gap filler.
-/// A row exists only for words whose dictionary data was missing something an exercise
-/// needs, and it stores only the fields that had to be generated. Definitions and examples
-/// that already exist on <see cref="Word.Senses"/> or <see cref="Word.Examples"/> are read
-/// from there and never copied here.
+/// AI-generated study material for a word.
+///
+/// The definition and the single context sentence are gap fillers: generated only when the
+/// dictionary data had none, and read from <see cref="Word.Senses"/> or
+/// <see cref="Word.Examples"/> otherwise. The rest - what the word is used about, where it
+/// comes from, words it shares that origin with, and a sound-alike to hang it on - is
+/// generated for every word. Each is another route back to the word, and a word reached
+/// by many routes is the one that is remembered. Example sentences live in
+/// <see cref="StudyExample"/>.
 /// </summary>
 public class WordStudyContent : BaseAuditableEntity
 {
@@ -24,6 +28,41 @@ public class WordStudyContent : BaseAuditableEntity
     public string? GeneratedContextSentence { get; set; }
 
     /// <summary>
+    /// What the word is typically used about, in one line: for "bright", light, colours, a
+    /// promising future, a clever idea. Says what the meaning covers where a definition
+    /// only says what it is.
+    /// </summary>
+    public string? Usage { get; set; }
+
+    /// <summary>A line on where the word comes from, when that is known rather than guessed.</summary>
+    public string? Etymology { get; set; }
+
+    /// <summary>
+    /// Words in English that share the origin - "prendre: apprehend, comprehend" - with any
+    /// false friend flagged. None for an English word.
+    /// </summary>
+    public string? Cognates { get; set; }
+
+    /// <summary>
+    /// Similar-sounding English or Ukrainian words and a short scene tying them to the
+    /// meaning. Support for the first retrievals, not something to be tested on.
+    /// </summary>
+    public string? Mnemonic { get; set; }
+
+    /// <summary>
+    /// Words or short phrases the word is typically used with, most typical first - for
+    /// "bright": light, future, colours, idea. What "what can be bright?" asks for.
+    /// </summary>
+    public IList<string>? Collocates { get; set; }
+
+    /// <summary>
+    /// Words it clearly does not go with, offered beside <see cref="Collocates"/> as the
+    /// wrong answers. Clearly wrong on purpose: a plausible wrong pairing is one a learner
+    /// may keep.
+    /// </summary>
+    public IList<string>? NonCollocates { get; set; }
+
+    /// <summary>
     /// When the current generation attempt was claimed. A claim older than the stale
     /// timeout is retried, so a crash mid-generation does not strand the word.
     /// </summary>
@@ -33,6 +72,10 @@ public class WordStudyContent : BaseAuditableEntity
 
     public string? LastError { get; set; }
 
-    /// <summary>Prompt revision this content came from, so it can be regenerated selectively.</summary>
+    /// <summary>
+    /// Prompt revision this content came from, so it can be regenerated selectively. Set
+    /// only when a generation succeeds, so a word whose content predates the current prompt
+    /// is asked again once for what the new one adds.
+    /// </summary>
     public string PromptVersion { get; set; } = "v1";
 }

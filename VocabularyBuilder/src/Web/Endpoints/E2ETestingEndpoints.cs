@@ -73,6 +73,7 @@ public class E2ETestingEndpoints : EndpointGroupBase
                     DELETE FROM ReviewLogs;
                     DELETE FROM ReviewCards;
                     DELETE FROM WordStudyContents;
+                    DELETE FROM StudyExamples;
                     DELETE FROM ImportedBookWords;
                     DELETE FROM FrequencyWords;
                     DELETE FROM WordDictionarySources;

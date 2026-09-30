@@ -3,6 +3,7 @@ import { Button } from 'reactstrap';
 import { GradeBar } from './GradeBar';
 import { NounArticle } from '../NounArticle';
 import { BilingualText } from './BilingualText';
+import { WordConnections } from './WordConnections';
 
 /**
  * Every self-graded exercise has the same shape: a prompt, an answer the learner asks to
@@ -78,6 +79,7 @@ export class RevealExercise extends Component {
               native={exercise.contextSentenceTranslation}
               learnedTestId="answer-context"
             />
+            <WordConnections connections={exercise.connections} showMnemonic={false} className="mt-2" />
             <p className="text-muted small mt-3 mb-2">How well did you recall it?</p>
             <GradeBar onGrade={onGrade} disabled={submitting} />
           </div>

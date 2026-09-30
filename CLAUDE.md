@@ -338,7 +338,7 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially the suite - 188 tests, 5 of them skipped in the source - passes
+suspecting the tests. Serially the suite - 224 tests, 3 of them skipped in the source - passes
 in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
 is why this went unnoticed.
 
@@ -378,6 +378,12 @@ The reset endpoint (`/api/e2e-testing/reset-database`, `E2ETestingEndpoints`) de
 **hardcoded list of tables**. A new table has to be added to it or its rows survive every
 reset and leak into later tests — `WordForms` did exactly that until it was noticed.
 
+**A recorded Oxford page has to be shaped like a real one.** `MockOxfordParser` hands the
+page in `MockData/oxford` to the real `OxfordParser`, which reads `h1`, `.webtop .pos`,
+`.phons_n_am .phon`, `li.sense .def` and `ul.examples li`. The plain-word pages were once
+hand-written in another shape, parsed to nothing, and the import quietly found no word - which
+two bulk-import specs were skipped for as a "hang".
+
 **The suite runs signed in as the E2E administrator** (`e2e@example.com`, from
 `appsettings.E2ETest.json`). The `setup` project (`auth.setup.js`) logs in once and saves the
 cookie to `playwright/.auth/`; the `chromium` project depends on it and starts every spec from
@@ -385,9 +391,91 @@ that state. The saved state reaches the `request` fixture as well as the page, s
 make signed-in API calls without knowing about it. The reset keeps that account - deleting it
 would leave the saved session pointing at nobody - and removes every other user.
 
+**Moving the test clock (`advance-clock`) moves it for the sign-in cookie too.** Identity checks
+the cookie's expiry against the same `TimeProvider`, so a spec that advances the clock past the
+cookie's lifetime - a review card answered a few times, each success pushing it weeks out -
+signs the suite out, and every later spec fails with `401`, reset included. Keep day-scale
+jumps short, or drive a card in learning, whose steps are minutes.
+
 `auth.spec.js` is the exception: it overrides `storageState` to start signed out, and does
 its resetting and seeding through a request context of its own built from the saved session.
 It registers from the allowlist in `appsettings.E2ETest.json` (`helpers/auth.js`).
+
+## Study (spaced repetition)
+
+**A "rung" is a level, not an exercise.** `Study:Ladder` has four levels - introduction,
+recognition, scaffolded, production - each a pool of exercises with a `PromoteAfter` quota.
+`ReviewCard.CurrentRung` is the level; which exercise is asked there comes from
+`RungStreak` (clean successes on the level, used as an index into the pool, so support fades)
+and `LastExerciseType` (never the same one twice running). A miss drops one level; Hard or a
+used hint holds both level and streak. `ConfiguredExerciseLadder` is the whole of it.
+
+**Learning ends on a criterion, not when the steps run out.** `LearningStepsMinutes` only
+paces the tries; `LearningExitCriterion` lets a word go after two clean successes on the top
+level at least `LearningExitSpacingMinutes` apart (one when relearning), or on its next
+success once it has had `MaxLearningRetrievals`. Easy only earns the easy interval on the
+answer that completes learning - a fast multiple-choice pick is never Easy at all
+(`GradeResolver`), which is what used to send new words four days away after one click.
+
+**Typed answers are marked leniently** (`TypedAnswer`): case, spacing, hyphens and a leading
+article are ignored; a missing accent, one slipped letter (words of five or more) or a French
+noun under the wrong gender's article is accepted as Hard with a note. `SubmitReview` turns a
+"slip" that spells another word in the collection back into a miss (poison/poisson), and the
+feedback names that word and its meaning. The lookup compares headwords tidied the way the
+answer is - case, ligatures, hyphens - so `vœu` is found for a typed "voeu".
+
+**A meaning that is the word itself gives it away** - a translation often is: "poison" for *le
+poison*, "information" for *l'information*. `StudyMaterial.CanAskFromMeaning` is false for
+those, and every exercise graded on the meaning (choice either way, scrambles, typing, recall)
+is then not offered; the word is asked from its sentence instead. The introduction and the
+unscored follow-ups still show the meaning.
+
+**Example sentences live in `StudyExample`**, one row per sentence, with the form of the word it
+uses (what a cloze blanks - "prend" in a sentence for "prendre") and how often it was answered
+correctly. The resolver asks from these before dictionary examples: first a form the word was
+met in (`WordEncounter.Form`) but not yet practised, then any not yet practised, then the least
+practised. The payload carries `ExampleId`, the page sends it back with the answer, and
+`SubmitReview` counts it only when it matches the sentence the material resolved to.
+
+**Every word is enriched once per `StudyContentPrompt.Version`**, not only words missing a
+definition: examples built around its collocations, plus usage, etymology, cognates and a
+mnemonic on `WordStudyContent`. The version is written only when a generation succeeds, so
+bumping it asks every word once more. Meeting a word in a form no example uses reopens its
+Ready content (`UpsertWord.CoverForm`); an import that keeps the sentence the word was read in
+(LingQ's phrase) stores that as the example instead. The mock writes three examples for any
+word and one per form the prompt asks for.
+
+**An exercise can be mistake-tolerant** (`Tolerant: true` on its ladder entry - the collocate
+choice and the sentence rebuild are). A miss on one costs the word nothing: `SubmitReview`
+keeps its level and streak, `IReviewScheduler.Hold` keeps its state, interval and ease and
+brings it back after the first learning step, its success average is left alone, and only the
+connections card follows. A success counts as usual. Every other miss also opens with that
+card (`WordToConnectionsReveal`, follow-up only) before the diminishing cues ask again.
+
+**The collocate choice is only as good as its wrong options**, and a real model's are not
+reliably wrong: it offered *prendre une fourchette* and *réparer la fenêtre* as impossible. The
+prompt asks for pairings impossible in every sense, and for none for a very general verb - which
+the model ignores - so `WordToCollocatesChoiceExerciseDefinition` also refuses a short list of
+such verbs (prendre, faire, take, make...) whatever the content holds. A word the prompt uses as
+its own example gets that example back verbatim, which is why the prompt says not to copy them.
+
+**The end-of-day review** (`GET /api/{lang}/study/day-review`) matches the day's new words to
+their gapped sentences, in the fewest groups of four to six (`DayReviewGroups`). It is practice
+only: nothing is sent back and no schedule moves.
+
+**A seeded e2e word is not enriched unless the spec says `enrich: true`** - the seed hook gives it
+a finished content row, so it is studied exactly as seeded. Without that the worker would add
+collocates and stored sentences partway through a test and change which exercise the word is
+asked; that is how a spec's expected sequence went flaky. A word seeded without a definition is
+always enriched. The mock's collocates are "mock partner …", its wrong ones "mock stranger …",
+and it translates a sentence as "Translated: " and the sentence, which is how
+`correctAnswer` answers those exercises.
+
+In e2e specs, seed a card by exercise with `seedCardFor(type)`, not by rung number. It
+assumes the word is too short for syllable tiles - the syllable scramble needs three
+syllables - and has no generated content, unless told `{ syllables: true }` or
+`{ content: true }`. `StudyOptionsBindingTests` reads the real `appsettings.json` and fails if
+it drifts from `StudyDefaults`.
 
 ## French support
 

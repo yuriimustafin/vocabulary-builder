@@ -1,6 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
-const { seedWords, seedCard, getQueue, submitReview, cardFor } = require('./helpers/study-helpers');
+const {
+  ExerciseType, Ladder, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor
+} = require('./helpers/study-helpers');
 
 /**
  * How much support a word gets depends on how much trouble it is giving.
@@ -16,9 +18,12 @@ test.describe('Difficulty tiers', () => {
     await seedWords(request, Array.from({ length: 8 }, (_, i) => `df${String(i).padStart(2, '0')}`));
   });
 
+  // Probed at cloze, which takes the learner's own grade.
+  const probeRung = rungOf(ExerciseType.ContextToWordRecall);
+
   async function reviewAt(request, headword, card, grade = 3) {
     await seedCard(request, {
-      headword, rung: 3, state: 2, intervalDays: 5, dueInDays: -0.1, lastReviewedDaysAgo: 1, ...card
+      headword, rung: probeRung, state: 2, intervalDays: 5, dueInDays: -0.1, lastReviewedDaysAgo: 1, ...card
     });
 
     const queued = cardFor(await getQueue(request), headword);
@@ -59,9 +64,14 @@ test.describe('Difficulty tiers', () => {
       easeFactor: 1.6, recentSuccessRate: 0.5, lapsesSinceRecovery: 3
     });
 
-    // The probe was at rung 3, so the support comes from rungs 1 and 2.
-    expect(result.followUps.map(f => f.exercise.type)).toEqual([1, 2]);
-    expect(queued.exercise.type).toBe(3);
+    // The support comes from the two levels below the probe, easier first: recognition's
+    // first exercise, then the scaffolded level's first that can be built - df03 is too
+    // short for syllables, so the letters.
+    expect(result.followUps.map(f => f.exercise.type)).toEqual([
+      Ladder[probeRung - 2][0],
+      ExerciseType.MeaningToWordScramble
+    ]);
+    expect(queued.exercise.type).toBe(ExerciseType.ContextToWordRecall);
   });
 
   test('a barely-recalled answer is supported however healthy the record looks', async ({ request }) => {

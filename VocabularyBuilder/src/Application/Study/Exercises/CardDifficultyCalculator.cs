@@ -46,7 +46,14 @@ public class CardDifficultyCalculator : ICardDifficultyCalculator
 
     public double NextSuccessRate(double current, ReviewGrade grade)
     {
-        var success = grade >= ReviewGrade.Good ? 1.0 : 0.0;
+        // Hard is half a success: the word was recalled, only not cleanly. Counting it as a
+        // miss let one slow answer pin a word to its rung for two more reviews.
+        var success = grade switch
+        {
+            ReviewGrade.Again => 0.0,
+            ReviewGrade.Hard => 0.5,
+            _ => 1.0
+        };
         var alpha = Math.Clamp(_options.SuccessEmaAlpha, 0.0, 1.0);
         return Math.Clamp(current + alpha * (success - current), 0.0, 1.0);
     }

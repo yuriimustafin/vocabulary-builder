@@ -196,10 +196,10 @@ test.describe('Study queue', () => {
 
   test('resetting a word puts it back to the beginning', async ({ request }) => {
     await seedWords(request, ['resetme']);
-    await seedCardAtRung(request, 'resetme', 4);
+    await seedCardAtRung(request, 'resetme', 3);
 
     const before = await getCard(request, 'resetme');
-    expect(before.rung).toBe(4);
+    expect(before.rung).toBe(3);
 
     const response = await request.post(`/api/en/study/cards/${before.id}/reset`);
     expect(response.ok()).toBeTruthy();

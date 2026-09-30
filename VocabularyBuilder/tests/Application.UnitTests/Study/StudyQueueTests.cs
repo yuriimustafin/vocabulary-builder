@@ -308,6 +308,121 @@ public class StudyQueueTests
         queue.PendingEnrichmentCount.Should().Be(2);
     }
 
+    /// <summary>A word the dictionary has filled in, with one example sentence.</summary>
+    private async Task<Word> SeedDictionaryWord(string example, WordStudyContent? content = null)
+    {
+        var word = new Word
+        {
+            Headword = "ubiquitous",
+            PartOfSpeech = "adjective",
+            Language = Language.English,
+            Senses = new List<Sense> { new() { Definition = "found everywhere", Examples = new List<string> { example } } }
+        };
+        _db.Context.Words.Add(word);
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        if (content is not null)
+        {
+            content.WordId = word.Id;
+            _db.Context.WordStudyContents.Add(content);
+            await _db.Context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        return word;
+    }
+
+    [Test]
+    public async Task AWordWithNoUsableSentenceIsStudiedAndAskedForOne()
+    {
+        // Regression: a word with complete dictionary data was never sent for enrichment, so
+        // when no example contained the headword the cloze rung fell back to multiple choice
+        // for ever.
+        await SeedDictionaryWord("Phones are everywhere these days.");
+
+        var queue = await Queue();
+
+        queue.Cards.Should().ContainSingle();
+        queue.PendingEnrichmentCount.Should().Be(0, "the word can be studied meanwhile");
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordNeverFilledInIsSentOnceForExamplesAndConnections()
+    {
+        // Even one the dictionary covers: examples around its collocations, its origin and
+        // a mnemonic are generated for every word.
+        await SeedDictionaryWord("Phones are ubiquitous these days.");
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordFilledInForTheCurrentPromptIsNotSentAgain()
+    {
+        // Including one the model could not give a usable sentence for: asking every session
+        // would spend a call each time for the same answer.
+        await SeedDictionaryWord(
+            "Phones are everywhere these days.",
+            new WordStudyContent { Status = StudyContentStatus.Ready, PromptVersion = StudyContentPrompt.Version });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AWordFilledInByAnOlderPromptIsSentOnceForWhatTheNewOneAdds()
+    {
+        await SeedDictionaryWord(
+            "Phones are ubiquitous these days.",
+            new WordStudyContent { Status = StudyContentStatus.Ready, PromptVersion = "v2" });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordEnrichmentGaveUpOnIsNotSentAgain()
+    {
+        await SeedDictionaryWord(
+            "Phones are ubiquitous these days.",
+            new WordStudyContent { Status = StudyContentStatus.Failed, PromptVersion = "v2" });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AClozeIsAskedOnAStoredExampleAndCarriesItsId()
+    {
+        await SeedWords(6);
+        var word = await _db.Context.Words.FirstAsync(w => w.Headword == "word00");
+
+        var example = new StudyExample { WordId = word.Id, Sentence = "Nobody expected word00 today.", Form = "word00" };
+        _db.Context.StudyExamples.Add(example);
+        _db.Context.ReviewCards.Add(new ReviewCard
+        {
+            WordId = word.Id,
+            State = CardState.Review,
+            CurrentRung = 3,
+            IntervalDays = 3,
+            IntroducedAtUtc = Start.UtcDateTime.AddDays(-5),
+            LastReviewedAtUtc = Start.UtcDateTime.AddDays(-1),
+            DueAtUtc = Start.UtcDateTime
+        });
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        var card = (await Queue()).Cards.Single(c => c.Headword == "word00");
+
+        card.Exercise.Type.Should().Be(ExerciseType.ContextToWordRecall);
+        card.Exercise.Prompt.Should().Be("Nobody expected _____ today.");
+        card.Exercise.ExampleId.Should().Be(example.Id);
+    }
+
     [Test]
     public async Task DistractorsFallBackToGeneratedDefinitions()
     {

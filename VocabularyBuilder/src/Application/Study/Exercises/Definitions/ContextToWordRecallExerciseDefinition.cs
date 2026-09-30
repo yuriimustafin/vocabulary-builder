@@ -24,8 +24,10 @@ public class ContextToWordRecallExerciseDefinition : SelfGradedExerciseDefinitio
         Type = Type,
         GradingMode = GradingMode,
         WordId = material.WordId,
-        Prompt = HeadwordText.Blankify(material.ContextSentence!, material.Headword),
-        Answer = material.Headword,
+        Prompt = material.BlankedContextSentence,
+        // The form the sentence needs, which for a verb or a plural is not the headword
+        Answer = material.ContextForm ?? material.Headword,
+        ExampleId = material.ExampleId,
         Hint = context.AllowHint ? material.Meaning : null,
         PartOfSpeech = material.PartOfSpeech,
         Transcription = material.Transcription,

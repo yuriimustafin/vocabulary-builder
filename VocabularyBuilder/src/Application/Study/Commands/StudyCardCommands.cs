@@ -131,6 +131,9 @@ public class ResetCardCommandHandler : IRequestHandler<ResetCardCommand, bool>
 
         card.State = CardState.New;
         card.CurrentRung = 0;
+        card.RungStreak = 0;
+        card.LastExerciseType = null;
+        card.PhaseRetrievals = 0;
         card.EaseFactor = 2.5;
         card.IntervalDays = 0;
         card.LearningStepIndex = 0;

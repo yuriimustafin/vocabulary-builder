@@ -41,6 +41,8 @@ public interface IApplicationDbContext
 
     DbSet<WordStudyContent> WordStudyContents { get; }
 
+    DbSet<StudyExample> StudyExamples { get; }
+
     ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);

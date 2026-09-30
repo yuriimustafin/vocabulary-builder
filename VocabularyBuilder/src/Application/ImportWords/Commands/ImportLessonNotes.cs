@@ -70,7 +70,7 @@ public class ImportLessonNotesCommandHandler
         result.Skipped = resolution.Skipped;
 
         var terms = resolution.Resolved
-            .Select(r => new ImportedTerm(r.SourceTerm, r.Lemma))
+            .Select(r => new ImportedTerm(r.SourceTerm, r.Lemma, Form: r.Form))
             .ToList();
 
         var saved = await _sender.Send(new SaveVocabularyTermsCommand

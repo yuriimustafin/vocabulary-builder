@@ -10,7 +10,13 @@ namespace VocabularyBuilder.Application.Study.Scheduling;
 /// </summary>
 public interface IReviewScheduler
 {
-    SchedulingResult Schedule(ReviewCard card, ReviewGrade grade, DateTime nowUtc);
+    /// <summary>Schedules a card after a graded answer.</summary>
+    /// <param name="learningComplete">
+    /// For a card in learning or relearning, whether this answer meets the exit criterion.
+    /// Until it does the card stays on the minute-scale steps however well it is answered.
+    /// Ignored for a card in review.
+    /// </param>
+    SchedulingResult Schedule(ReviewCard card, ReviewGrade grade, DateTime nowUtc, bool learningComplete);
 
     /// <summary>
     /// Schedules a word that has just been met for the first time.
@@ -19,4 +25,10 @@ public interface IReviewScheduler
     /// tested yet, so no judgement of theirs should reach the card's ease or its record.
     /// </summary>
     SchedulingResult Introduce(ReviewCard card, DateTime nowUtc);
+
+    /// <summary>
+    /// Keeps a card exactly where it is after a miss that costs it nothing, and brings it
+    /// back after the first learning step to be asked another way.
+    /// </summary>
+    SchedulingResult Hold(ReviewCard card, DateTime nowUtc);
 }

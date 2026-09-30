@@ -16,8 +16,63 @@ const ExerciseType = {
   ContextToWordRecall: 3,
   MeaningToWordScramble: 4,
   MeaningToWordRecall: 5,
-  MeaningToWordPartialLetters: 6
+  MeaningToWordPartialLetters: 6,
+  MeaningToWordSyllableScramble: 7,
+  MeaningToWordType: 8,
+  MeaningToWordCuedType: 9,
+  ContextToWordChoice: 10,
+  WordToCollocatesChoice: 11,
+  TranslationToSentenceScramble: 12,
+  WordToConnectionsReveal: 13
 };
+
+/**
+ * The shipped ladder (appsettings.json, Study:Ladder): four levels, each a pool of
+ * exercises, easiest first. A card's rung is its level; which exercise it is asked there
+ * depends on its streak on the level and the exercise it was asked last.
+ */
+const Ladder = [
+  [ExerciseType.WordToMeaningReveal],
+  [ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice, ExerciseType.WordToCollocatesChoice,
+    ExerciseType.WordToMeaningChoice],
+  [ExerciseType.MeaningToWordSyllableScramble, ExerciseType.MeaningToWordScramble,
+    ExerciseType.TranslationToSentenceScramble, ExerciseType.MeaningToWordCuedType],
+  [ExerciseType.ContextToWordRecall, ExerciseType.MeaningToWordRecall]
+];
+
+/** Clean successes that move a word up from each level; zero for the top, which it never leaves. */
+const PromoteAfter = [1, 3, 3, 0];
+
+/** Exercises only built from generated content: the collocates, and a stored sentence to rebuild. */
+const NeedsContent = [ExerciseType.WordToCollocatesChoice, ExerciseType.TranslationToSentenceScramble];
+
+/** The level a given exercise sits on. */
+function rungOf(type) {
+  const rung = Ladder.findIndex(level => level.includes(type));
+
+  if (rung < 0) {
+    throw new Error(`Exercise type ${type} is not on the ladder`);
+  }
+
+  return rung;
+}
+
+/**
+ * The streak that points a word at this exercise within its level.
+ *
+ * Only the exercises a word can be asked count. The syllable scramble needs three
+ * syllables, which the short made-up words most specs use never have; the collocates and
+ * the sentence to rebuild need generated content, which a word seeded without
+ * `enrich: true` never gets. Pass `syllables` or `content` for a word that has them.
+ */
+function streakFor(type, { syllables = false, content = false } = {}) {
+  const pool = Ladder[rungOf(type)].filter(t =>
+    t === type
+    || ((syllables || t !== ExerciseType.MeaningToWordSyllableScramble)
+      && (content || !NeedsContent.includes(t))));
+
+  return pool.indexOf(type);
+}
 
 /** Mirrors VocabularyBuilder.Domain.Enums.CardState. */
 const CardState = { New: 0, Learning: 1, Review: 2, Relearning: 3, Suspended: 4 };
@@ -67,6 +122,51 @@ function seedBareWords(request, headwords) {
 /** Puts a word's card into an exact state rather than grinding it there through the UI. */
 function seedCard(request, card) {
   return post(request, `${STUDY_API}/seed-card`, card);
+}
+
+/**
+ * Seeds a card whose next graded exercise will be the one given: a review due now, on that
+ * exercise's level with the streak that selects it. Anything in `card` overrides the rest.
+ */
+function seedCardFor(request, headword, type, card = {}, { syllables = false, content = false } = {}) {
+  return seedCard(request, {
+    headword,
+    rung: rungOf(type),
+    rungStreak: streakFor(type, { syllables, content }),
+    state: CardState.Review,
+    intervalDays: 3,
+    dueInDays: -0.1,
+    lastReviewedDaysAgo: 1,
+    ...card
+  });
+}
+
+/**
+ * The right answer to whatever a card is asking: the option that is the word or its
+ * meaning, the word itself for anything built or typed, or a grade for a self-graded card.
+ */
+function correctAnswer(card, grade = ReviewGrade.Good) {
+  const { exercise } = card;
+
+  if (exercise.gradingMode === 0) {
+    return { selfGrade: grade };
+  }
+
+  if (exercise.type === ExerciseType.WordToMeaningChoice) {
+    return { answer: exercise.options.find(o => o.includes(card.headword)) };
+  }
+
+  // The mock's collocates are the "partner" ones, its wrong ones "stranger"s
+  if (exercise.type === ExerciseType.WordToCollocatesChoice) {
+    return { selections: exercise.options.filter(o => o.includes('partner')) };
+  }
+
+  // The mock translates a sentence as "Translated: " and the sentence itself
+  if (exercise.type === ExerciseType.TranslationToSentenceScramble) {
+    return { answer: exercise.prompt.replace(/^Translated: /, '').replace(/[.,!?]/g, '') };
+  }
+
+  return { answer: card.headword };
 }
 
 function advanceClock(request, { days = 0, minutes = 0 } = {}) {
@@ -128,6 +228,8 @@ function submitReview(request, card, body, lang = 'en') {
     cardId: card.cardId,
     attemptId: card.attemptId,
     exerciseType: card.exercise.type,
+    // As the page does: the sentence the exercise was asked on goes back with it
+    exampleId: card.exercise.exampleId,
     elapsedMs: 4000,
     ...body
   });
@@ -221,6 +323,30 @@ async function waitForContent(request, expectedCards, { attempts = 20, intervalM
   return getQueue(request);
 }
 
+/**
+ * Waits for a word's study content - its examples and connections - to be generated by the
+ * background worker, and returns the word's details. The queue is fetched on each try,
+ * since rendering the word is what asks for its content.
+ */
+async function waitForStudyContent(request, headword, { lang = 'en', attempts = 25, intervalMs = 400 } = {}) {
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    await getQueue(request, { lang });
+    const card = await getCard(request, headword);
+
+    if (card) {
+      const details = await request.get(`/api/${lang}/words/${card.wordId}/details`).then(r => r.json());
+
+      if (details.connections && details.studyExamples.length > 0) {
+        return details;
+      }
+    }
+
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+
+  throw new Error(`No study content was generated for ${headword}`);
+}
+
 /** Finds a queued card by word, whatever position it is in. */
 function cardFor(queue, headword) {
   return queue.cards.find(card => card.headword === headword) || null;
@@ -229,6 +355,12 @@ function cardFor(queue, headword) {
 module.exports = {
   STUDY_API,
   ExerciseType,
+  Ladder,
+  PromoteAfter,
+  rungOf,
+  streakFor,
+  seedCardFor,
+  correctAnswer,
   CardState,
   ReviewGrade,
   seedWords,
@@ -245,5 +377,6 @@ module.exports = {
   introduceAllNewWords,
   isolateWord,
   waitForContent,
+  waitForStudyContent,
   cardFor
 };

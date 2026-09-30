@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  seedWords, seedCard, getQueue, getStats, getCard, cardFor, isolateWord
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, getStats, getCard, cardFor, isolateWord
 } = require('./helpers/study-helpers');
 
 /**
@@ -115,7 +115,8 @@ test.describe('Correcting a spelling', () => {
     await setupCleanDatabase(request);
     await seedWords(request, ['abc']);
     await seedCard(request, {
-      headword: 'abc', rung: 4, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+      headword: 'abc', rung: rungOf(ExerciseType.MeaningToWordScramble), state: 2, intervalDays: 3,
+      dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
     await page.goto('/study');
@@ -168,6 +169,7 @@ test.describe('Correcting a spelling', () => {
       // Not asserting the grade itself: it also turns on how quickly the answer came, which
       // a browser test cannot hold still. That a correction is not treated as starting over
       // is pinned by the unit tests on the grade rules.
-      expect(card.rung).toBeGreaterThanOrEqual(4, 'and the word did not slip back');
+      expect(card.rung).toBeGreaterThanOrEqual(
+        rungOf(ExerciseType.MeaningToWordScramble), 'and the word did not slip back');
     });
 });
