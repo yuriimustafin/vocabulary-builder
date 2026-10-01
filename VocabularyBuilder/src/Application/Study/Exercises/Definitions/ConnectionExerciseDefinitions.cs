@@ -16,23 +16,27 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
     /// <summary>How many of each are shown.</summary>
     public const int Shown = 3;
 
-    private readonly IGradeResolver _gradeResolver;
     private readonly Random _random;
 
     public WordToCollocatesChoiceExerciseDefinition(IGradeResolver gradeResolver) : this(gradeResolver, Random.Shared) { }
 
     /// <summary>Test seam: supply a seeded Random to make the shuffle deterministic.</summary>
-    public WordToCollocatesChoiceExerciseDefinition(IGradeResolver gradeResolver, Random random)
-    {
-        _gradeResolver = gradeResolver;
-        _random = random;
-    }
+    /// <remarks>
+    /// Takes the grade resolver like every other automatic exercise, and does not use it:
+    /// this one is not judged on speed - see <see cref="Resolve"/>.
+    /// </remarks>
+    public WordToCollocatesChoiceExerciseDefinition(IGradeResolver gradeResolver, Random random) => _random = random;
 
     public ExerciseType Type => ExerciseType.WordToCollocatesChoice;
 
     public GradingMode GradingMode => GradingMode.Automatic;
 
     public bool CanBeProbe => true;
+
+    public bool AsksToRecognise => true;
+
+    /// <summary>The translations only make the options readable; the choice is still the learner's.</summary>
+    public bool HintIsFree => true;
 
     /// <summary>
     /// Two of each at least, or there is no choice to make - and never for a word that does
@@ -74,20 +78,31 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
         return string.IsNullOrEmpty(kind) || !WithoutPartners.Any(prefix => kind.StartsWith(prefix, StringComparison.Ordinal));
     }
 
-    public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context) => new()
+    public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context)
     {
-        Type = Type,
-        GradingMode = GradingMode,
-        WordId = material.WordId,
-        Prompt = material.Headword,
-        Options = Right(material).Concat(Wrong(material)).OrderBy(_ => _random.Next()).ToList(),
-        Transcription = material.Transcription,
-        PartOfSpeech = material.PartOfSpeech
-    };
+        var options = Right(material).Concat(Wrong(material)).OrderBy(_ => _random.Next()).ToList();
+        var hints = options
+            .Where(material.PhraseTranslations.ContainsKey)
+            .ToDictionary(option => option, option => material.PhraseTranslations[option]);
+
+        return new ExercisePayload
+        {
+            Type = Type,
+            GradingMode = GradingMode,
+            WordId = material.WordId,
+            Prompt = material.Headword,
+            Options = options,
+            OptionHints = hints.Count > 0 ? hints : null,
+            Transcription = material.Transcription,
+            PartOfSpeech = material.PartOfSpeech
+        };
+    }
 
     /// <summary>
-    /// Every one of them right is judged on speed like any recognition; one slip - a word
-    /// missed or a wrong one ticked - is Hard; more is a miss.
+    /// All of them right, or one slip - a partner missed or a wrong one ticked - is a success;
+    /// more is a miss, which the ladder tolerates. Not judged on speed: reading six options
+    /// takes most of the time a click is allowed, and one slip was graded Hard, holding the
+    /// word where it was - on three answers in four in a real session.
     /// </summary>
     public ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material)
     {
@@ -96,14 +111,9 @@ public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
             return ReviewGrade.Again;
         }
 
-        var errors = Errors(answer.Selections ?? Array.Empty<string>(), material);
-
-        return errors switch
-        {
-            0 => _gradeResolver.Resolve(AnswerKind.Recognised, new AutoGradeSignals(true, answer.ElapsedMs)),
-            1 => ReviewGrade.Hard,
-            _ => ReviewGrade.Again
-        };
+        return Errors(answer.Selections ?? Array.Empty<string>(), material) <= 1
+            ? ReviewGrade.Good
+            : ReviewGrade.Again;
     }
 
     /// <summary>The ones that should have been ticked.</summary>

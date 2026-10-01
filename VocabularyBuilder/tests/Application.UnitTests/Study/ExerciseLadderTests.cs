@@ -80,6 +80,7 @@ public class ExerciseLadderTests
 
         ladder.IsTolerant(ExerciseType.WordToCollocatesChoice).Should().BeTrue();
         ladder.IsTolerant(ExerciseType.TranslationToSentenceScramble).Should().BeTrue();
+        ladder.IsTolerant(ExerciseType.MeaningToWordScramble).Should().BeTrue("ordering letters is not knowing the word");
         ladder.IsTolerant(ExerciseType.MeaningToWordChoice).Should().BeFalse();
         ladder.IsTolerant(ExerciseType.ContextToWordRecall).Should().BeFalse();
         ladder.IsTolerant(ExerciseType.MeaningToWordType).Should().BeFalse("it is not on the ladder at all");

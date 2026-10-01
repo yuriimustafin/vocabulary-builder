@@ -102,6 +102,21 @@ test.describe('Collocations and mistake-tolerant exercises', () => {
     expect(after.phaseRetrievals).toBe(3);
   });
 
+  test('a slip putting the letters in order costs the word nothing', async ({ request }) => {
+    await seedWords(request, ['lettre', ...others]);
+    await seedCardFor(request, 'lettre', ExerciseType.MeaningToWordScramble, { state: CardState.Learning, intervalDays: 0 });
+    const card = cardFor(await getQueue(request), 'lettre');
+    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordScramble);
+    const before = await getCard(request, 'lettre');
+
+    const result = await submitReview(request, card, { answer: 'ertlet' });
+
+    expect(result.tolerated).toBe(true);
+    const after = await getCard(request, 'lettre');
+    expect(after.rung).toBe(before.rung);
+    expect(after.rungStreak).toBe(before.rungStreak);
+  });
+
   test('a sentence rebuilt counts as practising it; a slip in the order costs nothing', async ({ request }) => {
     await wordWithContent(request);
     let card = await serve(request, 'vivid', ExerciseType.TranslationToSentenceScramble);
@@ -167,7 +182,7 @@ test.describe('Collocations and mistake-tolerant exercises', () => {
     await expect(page.getByTestId('feedback-correct')).toBeVisible();
   });
 
-  test('a miss shows what ties the word to things known, then asks it again', async ({ request, page }) => {
+  test('a miss picking the word shows what ties it to things known, and no letters', async ({ request, page }) => {
     await wordWithContent(request);
     await seedCardFor(request, 'vivid', ExerciseType.MeaningToWordChoice);
     await isolateWord(request, 'vivid');
@@ -182,8 +197,32 @@ test.describe('Collocations and mistake-tolerant exercises', () => {
     await expect(page.getByTestId('connection-mnemonic')).toContainText('mockingbird');
     await page.getByTestId('connections-continue').click();
 
-    // ...and then asked again, with a cue
-    await expect(page.getByTestId('letter-mask')).toBeVisible();
+    // Not knowing which word it was is not a spelling problem: no letter cues follow, and
+    // the word comes back after its first learning step to be asked again
+    await expect(page.getByTestId('connections-card')).toHaveCount(0);
+    await expect(page.getByTestId('letter-mask')).toHaveCount(0);
+  });
+
+  test('the translations of what it goes with are a free hint', async ({ request, page }) => {
+    await wordWithContent(request);
+    await seedCardFor(request, 'vivid', ExerciseType.WordToCollocatesChoice, {}, { content: true });
+    await isolateWord(request, 'vivid');
+    await openStudy(page);
+
+    await expect(page.getByTestId('option-hint')).toHaveCount(0);
+    await page.getByTestId('hint-button').click();
+    await expect(page.getByTestId('option-hint')).toHaveCount(6);
+    await expect(page.getByTestId('option-hint').first()).toContainText('meaning of mock');
+
+    for (const partner of ['mock partner one', 'mock partner two', 'mock partner three']) {
+      await page.getByTestId('collocate-option').filter({ hasText: partner }).click();
+    }
+    await page.getByTestId('collocates-submit').click();
+    await expect(page.getByTestId('feedback-correct')).toBeVisible();
+
+    // Its third clean answer on recognition: the hint cost nothing, so it moves up
+    const after = await getCard(request, 'vivid');
+    expect(after.rung).toBe(rungOf(ExerciseType.MeaningToWordScramble));
   });
 
   test('at the end of the session the day\'s words are matched to their sentences', async ({ request, page }) => {

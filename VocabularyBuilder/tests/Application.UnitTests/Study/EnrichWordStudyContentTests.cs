@@ -450,6 +450,38 @@ public class EnrichWordStudyContentTests
     // --- prompt ------------------------------------------------------------
 
     [Test]
+    public async Task EachPartnerIsStoredWithItsTranslationPairedByPosition()
+    {
+        _gpt = new RecordingGptClient(prompt => UsableReply(prompt)!
+            .Replace("""["screens", "coffee shops", "  ", "Screens", "advertising"]""",
+                """[{"phrase": "screens", "translation": "екрани"}, "coffee shops", {"phrase": "  ", "translation": "x"}, {"phrase": "advertising", "translation": "реклама"}]""")
+            .Replace("""["silence", "a whisper"]""", """[{"phrase": "silence", "translation": "тиша"}, {"phrase": "a whisper"}]"""));
+        var word = await AddWord(senses: new List<Sense> { Sense("found everywhere", "Screens are ubiquitous.") });
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
+
+        // A plain string still reads - the shape before translations - and just has none;
+        // a blank phrase is dropped together with its translation, so the pairs stay aligned
+        var content = await Content(word.Id);
+        content!.Collocates.Should().Equal("screens", "coffee shops", "advertising");
+        content.CollocateTranslations.Should().Equal("екрани", "", "реклама");
+        content.NonCollocates.Should().Equal("silence", "a whisper");
+        content.NonCollocateTranslations.Should().Equal("тиша", "");
+    }
+
+    [Test]
+    public void ThePromptAsksForEachPartnerWithItsTranslation()
+    {
+        var word = new Word { Headword = "lumineux", PartOfSpeech = "adjective", Language = Language.French };
+
+        var prompt = StudyContentPrompt.For(word, StudyMaterialGaps.Connections);
+
+        prompt.Should().Contain("\"collocates\": an array of 4 to 6 objects {\"phrase\", \"translation\"}");
+        prompt.Should().Contain("what that phrase means in English");
+        prompt.Should().Contain("\"nonCollocates\": an array of 3 objects {\"phrase\", \"translation\"}");
+    }
+
+    [Test]
     public void ThePromptSaysWhatKindOfPartnerToGiveForEachPartOfSpeech()
     {
         var word = new Word { Headword = "prendre", PartOfSpeech = "verb", Language = Language.French };

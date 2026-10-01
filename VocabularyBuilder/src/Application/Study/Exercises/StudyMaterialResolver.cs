@@ -68,7 +68,8 @@ public class StudyMaterialResolver : IStudyMaterialResolver
             Cognates = Trimmed(generated?.Cognates),
             Mnemonic = Trimmed(generated?.Mnemonic),
             Collocates = generated?.Collocates?.ToList() ?? new List<string>(),
-            NonCollocates = generated?.NonCollocates?.ToList() ?? new List<string>()
+            NonCollocates = generated?.NonCollocates?.ToList() ?? new List<string>(),
+            PhraseTranslations = PhraseTranslations(generated)
         };
     }
 
@@ -144,6 +145,31 @@ public class StudyMaterialResolver : IStudyMaterialResolver
             .ThenBy(e => e.LastUsedAtUtc ?? DateTime.MinValue)
             .ThenBy(e => e.Id)
             .FirstOrDefault();
+    }
+
+    /// <summary>
+    /// Each partner phrase with its translation, read from the two pairs of lists stored side
+    /// by side. A phrase with no translation - content from before they were asked for, or
+    /// one the model left out - is simply not in it.
+    /// </summary>
+    private static Dictionary<string, string> PhraseTranslations(WordStudyContent? generated)
+    {
+        var translations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        void Add(IList<string>? phrases, IList<string>? meanings)
+        {
+            for (var i = 0; i < (phrases?.Count ?? 0) && i < (meanings?.Count ?? 0); i++)
+            {
+                if (!string.IsNullOrWhiteSpace(meanings![i]))
+                {
+                    translations.TryAdd(phrases![i], meanings[i].Trim());
+                }
+            }
+        }
+
+        Add(generated?.Collocates, generated?.CollocateTranslations);
+        Add(generated?.NonCollocates, generated?.NonCollocateTranslations);
+        return translations;
     }
 
     /// <summary>A sentence is only usable if the form it names is really in it.</summary>

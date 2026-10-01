@@ -99,10 +99,9 @@ test.describe('First-day session order', () => {
     expect(met).toBe(12, "the day's allowance is met in full");
     expect(order.length, 'the session ran out rather than being cut off').toBeLessThan(300);
 
-    // Every word answered cleanly takes at least six graded tries to leave learning: one to
-    // recognise it, three while the support fades, two producing it. More if the last two
-    // came too close together to count as spaced.
-    expect(tested).toBeGreaterThanOrEqual(met * 6);
+    // Every word answered cleanly takes at least four graded tries to leave learning: three
+    // recognising it and one building it. The climb to producing it happens in later reviews.
+    expect(tested).toBeGreaterThanOrEqual(met * 4);
   });
 
   test('a word is not asked about before it has been met', async ({ request }) => {

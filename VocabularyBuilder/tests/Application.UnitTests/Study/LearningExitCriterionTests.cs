@@ -11,7 +11,9 @@ public class LearningExitCriterionTests
 {
     private static readonly DateTime Now = new(2026, 9, 14, 12, 0, 0, DateTimeKind.Utc);
 
-    private const int Top = 3;
+    private const int Recognition = 1;
+    private const int Scaffolded = 2;
+    private const int Production = 3;
 
     private static LearningExitCriterion Criterion(StudyOptions? options = null)
     {
@@ -20,70 +22,95 @@ public class LearningExitCriterionTests
     }
 
     private static bool IsMet(
-        RungMove move,
+        RungMove before,
+        RungMove after,
         CardState state = CardState.Learning,
         ReviewGrade grade = ReviewGrade.Good,
         int retrievals = 5,
-        double minutesSincePrevious = 6) =>
-        Criterion().IsMet(state, grade, move, retrievals, Now.AddMinutes(-minutesSincePrevious), Now);
+        double minutesSincePrevious = 6,
+        StudyOptions? options = null) =>
+        Criterion(options).IsMet(state, grade, before, after, retrievals, Now.AddMinutes(-minutesSincePrevious), Now);
 
     [Test]
-    public void ANewWordLeavesAfterTwoCleanSuccessesOnTheTopLevel()
+    public void ANewWordLeavesOnceItHasBeenBuiltCleanlyOnTheScaffoldedLevel()
     {
-        IsMet(new RungMove(Top, 1)).Should().BeFalse();
-        IsMet(new RungMove(Top, 2)).Should().BeTrue();
+        // Built once from its pieces: enough for today. The climb to production carries on
+        // over the following days' reviews, not all in the first session.
+        IsMet(new RungMove(Scaffolded, 0), new RungMove(Scaffolded, 1)).Should().BeTrue();
     }
 
     [Test]
-    public void SuccessesBelowTheTopLevelNeverCount()
+    public void RecognisingAWordIsNotEnoughToLeave()
     {
-        IsMet(new RungMove(Top - 1, 5)).Should().BeFalse();
+        IsMet(new RungMove(Recognition, 1), new RungMove(Recognition, 2)).Should().BeFalse();
     }
 
     [Test]
-    public void TheLastSuccessHasToComeAfterARealGap()
+    public void ArrivingOnTheScaffoldedLevelIsNotYetBuildingTheWord()
     {
-        // Two answers seconds apart show the word is in working memory, not that it is learned.
-        IsMet(new RungMove(Top, 2), minutesSincePrevious: 1).Should().BeFalse();
-        IsMet(new RungMove(Top, 3), minutesSincePrevious: 4).Should().BeTrue();
+        // Promoted out of recognition: the streak there starts at nought, and nothing has
+        // been built yet
+        IsMet(new RungMove(Recognition, 2), new RungMove(Scaffolded, 0)).Should().BeFalse();
     }
 
     [Test]
-    public void ARelearningWordNeedsOnlyOne()
+    public void AWordAlreadyPastTheExitLevelLeavesOnItsNextCleanSuccess()
     {
-        IsMet(new RungMove(Top, 1), CardState.Relearning, minutesSincePrevious: 0.5).Should().BeTrue();
+        // Promoted from scaffolded to production, or answering there - either way it is past
+        IsMet(new RungMove(Scaffolded, 2), new RungMove(Production, 0)).Should().BeTrue();
+        IsMet(new RungMove(Production, 0), new RungMove(Production, 1)).Should().BeTrue();
+    }
+
+    [Test]
+    public void ASuccessWithTheHintHoldsTheWordAndDoesNotCount()
+    {
+        IsMet(new RungMove(Scaffolded, 1), new RungMove(Scaffolded, 1)).Should().BeFalse();
+    }
+
+    [Test]
+    public void ARelearningWordLeavesOnItsFirstCleanSuccessWhereverTheLapseLeftIt()
+    {
+        // A lapse on production drops the word a level; it does not have to climb back first
+        IsMet(new RungMove(Recognition, 0), new RungMove(Recognition, 1), CardState.Relearning, minutesSincePrevious: 0.5)
+            .Should().BeTrue();
+        IsMet(new RungMove(Recognition, 2), new RungMove(Scaffolded, 0), CardState.Relearning)
+            .Should().BeTrue("a promotion is a clean success too");
+        IsMet(new RungMove(Recognition, 1), new RungMove(Recognition, 1), CardState.Relearning)
+            .Should().BeFalse("held with the hint, it was not clean");
     }
 
     [Test]
     public void OnlyASuccessCanEndLearning()
     {
-        IsMet(new RungMove(Top, 2), grade: ReviewGrade.Hard).Should().BeFalse();
-        IsMet(new RungMove(Top, 0), grade: ReviewGrade.Again, retrievals: 50).Should().BeFalse();
+        IsMet(new RungMove(Scaffolded, 0), new RungMove(Scaffolded, 0), grade: ReviewGrade.Hard).Should().BeFalse();
+        IsMet(new RungMove(Scaffolded, 0), new RungMove(Recognition, 0), grade: ReviewGrade.Again, retrievals: 50)
+            .Should().BeFalse();
     }
 
     [Test]
     public void AStubbornWordLeavesOnItsNextSuccessOnceItHasHadItsShare()
     {
-        IsMet(new RungMove(1, 0), retrievals: 9).Should().BeFalse();
-        IsMet(new RungMove(1, 0), retrievals: 10).Should().BeTrue();
+        IsMet(new RungMove(Recognition, 0), new RungMove(Recognition, 1), retrievals: 9).Should().BeFalse();
+        IsMet(new RungMove(Recognition, 0), new RungMove(Recognition, 1), retrievals: 10).Should().BeTrue();
     }
 
     [Test]
     public void ACardInReviewIsNotLearning()
     {
-        IsMet(new RungMove(Top, 5), CardState.Review).Should().BeFalse();
+        IsMet(new RungMove(Production, 4), new RungMove(Production, 5), CardState.Review).Should().BeFalse();
     }
 
     [Test]
-    public void TheRequirementsAreConfigurable()
+    public void TheLevelAndTheCountAreConfigurable()
     {
-        var options = new StudyOptions { LearningExitSuccesses = 3, LearningExitSpacingMinutes = 10 };
+        // The previous rule: two clean successes on production, a real gap apart
+        var options = new StudyOptions { LearningExitLevel = 3, LearningExitSuccesses = 2, LearningExitSpacingMinutes = 4 };
 
-        Criterion(options).IsMet(CardState.Learning, ReviewGrade.Good, new RungMove(Top, 2), 5, Now.AddMinutes(-20), Now)
-            .Should().BeFalse();
-        Criterion(options).IsMet(CardState.Learning, ReviewGrade.Good, new RungMove(Top, 3), 5, Now.AddMinutes(-5), Now)
-            .Should().BeFalse();
-        Criterion(options).IsMet(CardState.Learning, ReviewGrade.Good, new RungMove(Top, 3), 5, Now.AddMinutes(-10), Now)
+        IsMet(new RungMove(Scaffolded, 0), new RungMove(Scaffolded, 1), options: options).Should().BeFalse();
+        IsMet(new RungMove(Production, 0), new RungMove(Production, 1), options: options).Should().BeFalse();
+        IsMet(new RungMove(Production, 1), new RungMove(Production, 2), minutesSincePrevious: 1, options: options)
+            .Should().BeFalse("two answers seconds apart show working memory, not learning");
+        IsMet(new RungMove(Production, 1), new RungMove(Production, 2), minutesSincePrevious: 5, options: options)
             .Should().BeTrue();
     }
 }
