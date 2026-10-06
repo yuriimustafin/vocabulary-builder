@@ -93,7 +93,7 @@ test.describe('Already knowing a word', () => {
     // longer the question being asked.
     await seedWords(request, Array.from({ length: 10 }, (_, i) => `nb${String(i).padStart(2, '0')}`));
     await seedCard(request, {
-      headword: 'nb00', rung: 1, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+      headword: 'nb00', rung: 1, rungStreak: 1, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
     await isolateWord(request, 'nb00');
 
@@ -115,7 +115,7 @@ test.describe('Correcting a spelling', () => {
     await setupCleanDatabase(request);
     await seedWords(request, ['abc']);
     await seedCard(request, {
-      headword: 'abc', rung: rungOf(ExerciseType.MeaningToWordScramble), state: 2, intervalDays: 3,
+      headword: 'abc', rung: rungOf(ExerciseType.MeaningToWordScramble), rungStreak: 1, state: 2, intervalDays: 3,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 

@@ -168,13 +168,17 @@ public class MockGptClientStudyContentTests
     }
 
     [Test]
-    public async Task TheMockGivesNoPartnersForAWordThatHasNone()
+    public async Task TheMockGlossesEverySentenceItWritesAndEveryOneItIsAskedFor()
     {
         var word = new Word { Id = 1, Headword = "bonjour", PartOfSpeech = "interjection", Language = Language.French };
 
-        var response = await new MockGptClient().SendMessageAsync(StudyContentPrompt.For(word, StudyMaterialGaps.Connections));
+        var response = await new MockGptClient().SendMessageAsync(StudyContentPrompt.For(
+            word, StudyMaterialGaps.Connections | StudyMaterialGaps.Examples,
+            sentencesToGloss: new[] { "Il dit bonjour.", "Bonjour, Marie !" }));
 
-        response.Should().Contain("\"collocates\":null");
+        response.Should().Contain("\"word\":\"uses\",\"translation\":\"en:uses\"", "each example it writes is glossed");
+        response.Should().Contain("\"word\":\"Marie\",\"translation\":\"en:Marie\"", "and each sentence it is asked to gloss");
+        response.Should().NotContain("collocates");
     }
 
     [Test]

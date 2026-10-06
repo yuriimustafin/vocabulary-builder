@@ -13,7 +13,9 @@ export const ExerciseType = {
   ContextToWordChoice: 10,
   WordToCollocatesChoice: 11,
   TranslationToSentenceScramble: 12,
-  WordToConnectionsReveal: 13
+  WordToConnectionsReveal: 13,
+  WordToSpellingCopy: 14,
+  WordToSpellingCover: 15
 };
 
 // Mirrors VocabularyBuilder.Domain.Enums.GradingMode.
@@ -41,17 +43,22 @@ export const EXERCISE_LABELS = {
   [ExerciseType.WordToMeaningChoice]: 'Pick the meaning',
   [ExerciseType.MeaningToWordChoice]: 'Pick the word',
   [ExerciseType.ContextToWordRecall]: 'Fill the gap',
-  [ExerciseType.MeaningToWordScramble]: 'Spell it out',
+  [ExerciseType.MeaningToWordScramble]: 'Put the pieces in order',
   [ExerciseType.MeaningToWordRecall]: 'Recall the word',
   [ExerciseType.MeaningToWordPartialLetters]: 'Recall with a hint',
-  [ExerciseType.MeaningToWordSyllableScramble]: 'Put the syllables in order',
   [ExerciseType.MeaningToWordType]: 'Type the word',
   [ExerciseType.MeaningToWordCuedType]: 'Finish the word',
   [ExerciseType.ContextToWordChoice]: 'Pick the missing word',
-  [ExerciseType.WordToCollocatesChoice]: 'What goes with it?',
-  [ExerciseType.TranslationToSentenceScramble]: 'Build the sentence',
-  [ExerciseType.WordToConnectionsReveal]: 'Remember it by'
+  [ExerciseType.TranslationToSentenceScramble]: 'Complete the sentence',
+  [ExerciseType.WordToConnectionsReveal]: 'Remember it by',
+  [ExerciseType.WordToSpellingCopy]: 'Copy the word',
+  [ExerciseType.WordToSpellingCover]: 'Look, cover, write'
 };
 
 /** Exercises answered by typing, which need the keyboard to themselves. */
-export const TYPED_EXERCISES = new Set([ExerciseType.MeaningToWordType, ExerciseType.MeaningToWordCuedType]);
+export const TYPED_EXERCISES = new Set([
+  ExerciseType.MeaningToWordType,
+  ExerciseType.MeaningToWordCuedType,
+  ExerciseType.WordToSpellingCopy,
+  ExerciseType.WordToSpellingCover
+]);

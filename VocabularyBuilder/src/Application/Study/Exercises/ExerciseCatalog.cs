@@ -8,6 +8,16 @@ namespace VocabularyBuilder.Application.Study.Exercises;
 /// </summary>
 public class ExerciseCatalog : IExerciseCatalog
 {
+    /// <summary>
+    /// Exercise types no longer asked, kept in the enum only so the review logs that name them
+    /// still read: the syllable scramble, folded into the chunk scramble, and "what goes with it".
+    /// </summary>
+    public static readonly IReadOnlySet<ExerciseType> Retired = new HashSet<ExerciseType>
+    {
+        ExerciseType.MeaningToWordSyllableScramble,
+        ExerciseType.WordToCollocatesChoice
+    };
+
     private readonly IReadOnlyDictionary<ExerciseType, IExerciseDefinition> _definitions;
 
     public ExerciseCatalog(IEnumerable<IExerciseDefinition> definitions)

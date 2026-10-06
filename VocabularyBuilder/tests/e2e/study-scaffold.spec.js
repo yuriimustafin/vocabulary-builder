@@ -55,13 +55,14 @@ test.describe('Diminishing cues after a failure', () => {
     expect(masks[1]).toContain('_');
   });
 
-  test('the tiles step offers exactly the letters of the word', async ({ request }) => {
+  test('the tiles step offers the word in pieces', async ({ request }) => {
     const result = await failAProbe(request);
 
     const tiles = result.followUps.find(f => f.exercise.type === ExerciseType.MeaningToWordScramble)
       .exercise.tiles;
 
-    expect(tiles.slice().sort().join('')).toBe('sc00'.split('').sort().join(''));
+    expect(tiles.length).toBeGreaterThanOrEqual(3);
+    expect(tiles.join('').split('').sort().join('')).toBe('sc00'.split('').sort().join(''));
   });
 
   test('the sequence ends by showing the word outright', async ({ request }) => {

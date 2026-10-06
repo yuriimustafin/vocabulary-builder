@@ -41,13 +41,14 @@ test.describe('Multiple-choice distractors', () => {
     expect(card.exercise.answer).toBeNull();
   });
 
-  test('too small a collection falls back to a level that can be shown', async ({ request }) => {
-    // Two words cannot furnish three wrong answers, so nothing in recognition can be asked.
+  test('too small a collection falls back to what can be shown', async ({ request }) => {
+    // Two words cannot furnish three wrong answers, so no choice in recognition can be asked;
+    // copying the word needs nothing from the rest of the collection.
     await seedWords(request, ['lonely01', 'lonely02']);
 
     const card = await serve(request, 'lonely01', ExerciseType.MeaningToWordChoice);
 
-    expect(card.exercise.type).toBe(ExerciseType.WordToMeaningReveal);
+    expect(card.exercise.type).toBe(ExerciseType.WordToSpellingCopy);
     expect(card.exercise.options).toBeNull();
   });
 
@@ -66,7 +67,7 @@ test.describe('Multiple-choice distractors', () => {
     });
 
   test('rungs that need no distractors survive a thin collection', async ({ request }) => {
-    // Assembling a word from its own letters needs nothing from the rest of the collection.
+    // Assembling a word from its own pieces needs nothing from the rest of the collection.
     await seedWords(request, ['solo01', 'solo02']);
 
     const card = await serve(request, 'solo01', ExerciseType.MeaningToWordScramble);
@@ -81,7 +82,7 @@ test.describe('Multiple-choice distractors', () => {
     await seedBareWords(request, Array.from({ length: 8 }, (_, i) => `gen${String(i).padStart(2, '0')}`));
     await waitForContent(request, 8);
 
-    // Filled in by the model, so it has collocates too, and the level's pool is the full one
+    // Filled in by the model, so it has generated content, and the level's pool is the full one
     await seedCardFor(request, 'gen00', ExerciseType.WordToMeaningChoice, {}, { content: true });
     const card = cardFor(await getQueue(request), 'gen00');
 

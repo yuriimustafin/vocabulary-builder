@@ -29,7 +29,7 @@ public static class StudyContentPrompt
     /// Bumped when what the prompt asks for changes. Content from an older version is asked
     /// again, once, for what the new one adds.
     /// </summary>
-    public const string Version = "v5";
+    public const string Version = "v6";
 
     /// <summary>Examples asked for when a word has fewer than this many.</summary>
     public const int MinExamples = 2;
@@ -41,7 +41,8 @@ public static class StudyContentPrompt
         Word word,
         StudyMaterialGaps gaps,
         IReadOnlyCollection<string>? uncoveredForms = null,
-        string? meaning = null)
+        string? meaning = null,
+        IReadOnlyList<string>? sentencesToGloss = null)
     {
         var partOfSpeech = string.IsNullOrWhiteSpace(word.PartOfSpeech) ? "unknown" : word.PartOfSpeech;
         var forms = uncoveredForms ?? Array.Empty<string>();
@@ -75,7 +76,19 @@ public static class StudyContentPrompt
             // a French word with an English definition beside it would otherwise invite an
             // English sentence the word has to be forced into.
             fields.Add($"""
-                  "examples": an array of {count} objects {"{"}"sentence", "translation", "form", "collocation"{"}"}. Each sentence is short (6 to 14 words), natural, everyday and grammatically complete {word.Language} - articles included - and built around a different word it is commonly used with, so that together they show the range of what it means. "form" is the word exactly as it appears in that sentence. "translation" is the sentence in {translationLanguage}. "collocation" is the {word.Language} phrase the sentence is built around, in its dictionary form - for an English sentence about "bright", "a bright future".{formsLine}
+                  "examples": an array of {count} objects {"{"}"sentence", "translation", "form", "collocation", "glosses"{"}"}. Each sentence is short (6 to 14 words), natural, everyday and grammatically complete {word.Language} - articles included - and built around a different word it is commonly used with, so that together they show the range of what it means. "form" is the word exactly as it appears in that sentence. "translation" is the sentence in {translationLanguage}. "collocation" is the {word.Language} phrase the sentence is built around, in its dictionary form - for an English sentence about "bright", "a bright future".{formsLine} "glosses" is every word of the sentence in order, each {"{"}"word", "translation"{"}"}: the word exactly as written there and what it means there in {translationLanguage}.
+                """.TrimEnd());
+        }
+
+        var toGloss = sentencesToGloss ?? Array.Empty<string>();
+
+        if (toGloss.Count > 0)
+        {
+            var listed = string.Join("\n", toGloss.Select((sentence, i) => $"  {i + 1}. \"{sentence}\""));
+
+            fields.Add($"""
+                  "glosses": an array with one entry for each of these sentences, in this order, each an array of {"{"}"word", "translation"{"}"}: every word of that sentence in order, exactly as written, and what it means there in {translationLanguage}.
+                {listed}
                 """.TrimEnd());
         }
 
@@ -88,8 +101,6 @@ public static class StudyContentPrompt
                   "etymology": where the word comes from, under 25 words, as far as it links to a word a learner may know. null if you are not sure - never invent one
                   "cognates": {relatedIn} words sharing its origin or root - including any the etymology names - with how their meaning differs when it does; mark a false friend with "false friend:". null only if there really are none
                   "mnemonic": one or two {soundAlikesIn} words that sound like it when spoken (by pronunciation, not spelling), and one vivid sentence under 25 words linking them to its meaning. null when the word is already obvious from a related word
-                  "collocates": an array of 4 to 6 objects {"{"}"phrase", "translation"{"}"}: "phrase" is a {word.Language} word or short phrase that combines directly with it in everyday use, "translation" what that phrase means in {translationLanguage}, in a word or two. The phrases come most typical first, covering its range, without the word itself. Which kind depends on what it is: for an adjective, what it describes ("bright": "light", "future", "colours", "idea"); for a noun, the verbs and adjectives used with it ("decision": "make", "take", "final", "tough"); for a verb, what it is done to or with ("take": "the bus", "a photo", "a decision", "your time"); for an adverb, what it modifies ("quickly": "run", "grow", "forget", "spread"). null when it does not combine with a meaningful range of words: greetings, thanks, interjections, pronouns, articles, prepositions, conjunctions, numbers and set expressions such as "bonjour", "please", "merci", "d'accord"
-                  "nonCollocates": an array of 3 objects {"{"}"phrase", "translation"{"}"} in the same shape: "phrase" an everyday {word.Language} word of the same kind as the collocates that cannot combine with it in any of its senses, each from a different area - so the choice cannot be made from the kind of word alone. Check each one: if a native speaker could say it together with the word at all, even rarely, it is wrong here - pick another. Choose pairings that are impossible rather than merely unusual. Never close in meaning to a collocate. null when "collocates" is null, and null for a very general verb that almost anything can follow (take, make, have, get, put, "prendre", "faire", "mettre", "avoir") - "prendre un chien" is fine French - or whenever 3 certainly impossible ones cannot be found
                 """.TrimEnd());
         }
 

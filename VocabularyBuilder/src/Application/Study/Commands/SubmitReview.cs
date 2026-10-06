@@ -99,9 +99,6 @@ public class ReviewFeedbackDto
 
     /// <summary>What ties the word to things already known, shown beside the word.</summary>
     public WordConnectionsDto? Connections { get; init; }
-
-    /// <summary>For an exercise with several right answers, what they were.</summary>
-    public List<string>? ExpectedOptions { get; init; }
 }
 
 /// <summary>
@@ -269,7 +266,8 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             GradeWasSelfReported = definition.GradingMode == GradingMode.SelfReported,
             IsScaffold = false,
             ElapsedMs = request.ElapsedMs,
-            HintUsed = hintUsed,
+            // What the learner did, free hint or not - whether it cost anything is the grade's business
+            HintUsed = request.HintUsed,
             StateBefore = before.State,
             RungBefore = before.Rung,
             IntervalBeforeDays = before.IntervalDays,
@@ -426,8 +424,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             Note = tolerated
                 ? "This one does not count against the word - it will be asked again another way."
                 : typed is null ? null : NoteFor(typed.Kind, material),
-            Connections = material.Connections,
-            ExpectedOptions = definition.ExpectedOptions(material)?.ToList()
+            Connections = material.Connections
         };
     }
 

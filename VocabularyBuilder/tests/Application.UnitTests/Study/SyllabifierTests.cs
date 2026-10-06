@@ -76,4 +76,45 @@ public class SyllabifierTests
         French("bruit").Should().Be("bruit");
         English("strength").Should().Be("strength");
     }
+
+    // --- chunks ----------------------------------------------------------------
+
+    private static string Chunks(string word, Language language = Language.French) =>
+        string.Join("|", Syllabifier.Chunks(word, language));
+
+    [TestCase("chocolat", "cho|co|lat")]
+    [TestCase("fenêtre", "fe|nê|tre")]
+    [TestCase("au-delà", "au|de|là")]
+    public void SyllablesAreThePiecesWhenTheyMakeThreeOrFour(string word, string expected)
+    {
+        Chunks(word).Should().Be(expected);
+    }
+
+    [TestCase("fan", "f|a|n")]
+    [TestCase("oui", "o|u|i")]
+    public void AWordOfThreeLettersOrFewerIsItsLetters(string word, string expected)
+    {
+        Chunks(word).Should().Be(expected);
+    }
+
+    [TestCase("panneau")]
+    [TestCase("quart")]
+    [TestCase("exprès")]
+    [TestCase("approfondissement")]
+    [TestCase("supprimer")]
+    [TestCase("élève")]
+    public void EveryLongerWordComesInThreeOrFourPiecesThatJoinBackIntoIt(string word)
+    {
+        var pieces = Syllabifier.Chunks(word, Language.French);
+
+        pieces.Count.Should().BeInRange(Syllabifier.FewestChunks, Syllabifier.MostChunks);
+        string.Concat(pieces).Should().Be(word.Replace("-", string.Empty));
+    }
+
+    [Test]
+    public void ASyllableIsSplitWithoutPartingADigraphWhereThereIsAnotherPlace()
+    {
+        // One syllable, so it has to be split - but never between q and u
+        Syllabifier.Chunks("quart", Language.French).Should().StartWith("qu");
+    }
 }

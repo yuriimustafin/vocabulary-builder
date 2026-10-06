@@ -59,11 +59,11 @@ public class LearningSessionTests
         var seen = await StudyUntilLearned(_ => true);
 
         seen.Should().Equal(
-            ExerciseType.WordToMeaningReveal,            // met
-            ExerciseType.MeaningToWordChoice,            // recognition: the word, then in a sentence,
-            ExerciseType.ContextToWordChoice,            // then - with no collocates generated here -
-            ExerciseType.WordToMeaningChoice,            // the meaning from the word
-            ExerciseType.MeaningToWordSyllableScramble); // scaffolded: built once, and that is today
+            ExerciseType.WordToMeaningReveal,  // met
+            ExerciseType.WordToSpellingCopy,   // recognition: its spelling copied out, then the word
+            ExerciseType.MeaningToWordChoice,  // picked from its meaning, then from a sentence
+            ExerciseType.ContextToWordChoice,
+            ExerciseType.WordToSpellingCover); // scaffolded: looked at, covered, written - that is today
 
         var card = await Card();
         card.State.Should().Be(CardState.Review);
@@ -83,8 +83,9 @@ public class LearningSessionTests
 
         var seen = await StudyUntilLearned(card =>
         {
-            // The first time it is to be built, it is missed.
-            if (card.Exercise.Type == ExerciseType.MeaningToWordSyllableScramble && !missed)
+            // The first time it is picked for a sentence, it is missed - a miss that costs, unlike
+            // one on the tolerant exercises of the next level.
+            if (card.Exercise.Type == ExerciseType.ContextToWordChoice && !missed)
             {
                 missed = true;
                 return false;
@@ -93,8 +94,8 @@ public class LearningSessionTests
             return true;
         });
 
-        var missAt = seen.IndexOf(ExerciseType.MeaningToWordSyllableScramble);
-        new ConfiguredExerciseLadder(_options).TypesAt(1).Should().Contain(seen[missAt + 1], "a miss drops one level");
+        var missAt = seen.IndexOf(ExerciseType.ContextToWordChoice);
+        new ConfiguredExerciseLadder(_options).TypesAt(0).Should().Contain(seen[missAt + 1], "a miss drops one level");
         seen.Count.Should().BeGreaterThan(5, "the slip is paid for in more practice, not a shorter day");
         (await Card()).State.Should().Be(CardState.Review);
     }
@@ -145,7 +146,7 @@ public class LearningSessionTests
 
         // It was known once: it does not climb back to production before it may leave. A
         // real session had one word take ten answers doing that and still not get out.
-        seen.Should().Equal(ExerciseType.MeaningToWordSyllableScramble);
+        seen.Should().Equal(ExerciseType.WordToSpellingCover);
         (await Card()).State.Should().Be(CardState.Review);
         (await Card()).CurrentRung.Should().Be(2);
     }
@@ -209,7 +210,7 @@ public class LearningSessionTests
         card = await Next();
         await Answer(card, correct: true);
 
-        (await Card()).LastExerciseType.Should().Be(ExerciseType.MeaningToWordChoice);
+        (await Card()).LastExerciseType.Should().Be(ExerciseType.WordToSpellingCopy);
     }
 
     // --- example sentences -----------------------------------------------------------
@@ -323,9 +324,7 @@ public class LearningSessionTests
             Status = StudyContentStatus.Ready,
             PromptVersion = VocabularyBuilder.Application.Study.Enrichment.StudyContentPrompt.Version,
             Mnemonic = "Sounds like 'ream member'.",
-            Etymology = "From Latin rememorari.",
-            Collocates = new List<string> { "a name", "a face", "the day", "to call" },
-            NonCollocates = new List<string> { "a spoon", "the weather", "sideways" }
+            Etymology = "From Latin rememorari."
         });
         await _db.Context.SaveChangesAsync(CancellationToken.None);
     }
@@ -334,32 +333,22 @@ public class LearningSessionTests
     public async Task AMissOnAMistakeTolerantExerciseCostsTheWordNothing()
     {
         await AddContent();
-        await SeedCard(rung: 1, streak: 2, CardState.Review, interval: 5, last: ExerciseType.ContextToWordChoice);
+        await SeedCard(rung: 2, streak: 1, CardState.Review, interval: 5, last: ExerciseType.WordToSpellingCover);
         var before = await Card();
 
         var card = await Next();
-        card.Exercise.Type.Should().Be(ExerciseType.WordToCollocatesChoice);
+        card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordScramble);
 
-        var result = await ReviewHandler().Handle(
-            new SubmitReviewCommand
-            {
-                CardId = card.CardId,
-                AttemptId = Guid.NewGuid(),
-                ExerciseType = card.Exercise.Type,
-                Selections = new List<string> { "a spoon", "the weather" },
-                ElapsedMs = 5000
-            },
-            CancellationToken.None);
+        var result = await Submit(card, answer: "rebmemer");
 
         result.Grade.Should().Be(ReviewGrade.Again);
         result.Tolerated.Should().BeTrue();
-        result.Feedback!.ExpectedOptions.Should().Equal("a name", "a face", "the day");
-        result.Feedback.Note.Should().Contain("does not count against");
+        result.Feedback!.Note.Should().Contain("does not count against");
         result.FollowUps.Select(f => f.Exercise.Type).Should().Equal(ExerciseType.WordToConnectionsReveal);
 
         var after = await Card();
-        after.CurrentRung.Should().Be(1);
-        after.RungStreak.Should().Be(2);
+        after.CurrentRung.Should().Be(2);
+        after.RungStreak.Should().Be(1);
         after.State.Should().Be(CardState.Review);
         after.IntervalDays.Should().Be(before.IntervalDays);
         after.EaseFactor.Should().Be(before.EaseFactor);
@@ -368,29 +357,22 @@ public class LearningSessionTests
         after.DueAtUtc.Should().Be(Now.AddMinutes(1), "it comes back shortly");
 
         // ...to be asked another way
-        (await Next()).Exercise.Type.Should().NotBe(ExerciseType.WordToCollocatesChoice);
+        (await Next()).Exercise.Type.Should().NotBe(ExerciseType.MeaningToWordScramble);
     }
 
     [Test]
     public async Task ASuccessOnAMistakeTolerantExerciseCountsAsUsual()
     {
         await AddContent();
-        await SeedCard(rung: 1, streak: 2, CardState.Review, interval: 5, last: ExerciseType.ContextToWordChoice);
+        await SeedCard(rung: 2, streak: 1, CardState.Review, interval: 5, last: ExerciseType.WordToSpellingCover);
 
         var card = await Next();
-        var result = await ReviewHandler().Handle(
-            new SubmitReviewCommand
-            {
-                CardId = card.CardId,
-                AttemptId = Guid.NewGuid(),
-                ExerciseType = card.Exercise.Type,
-                Selections = new List<string> { "a name", "the day", "a face" },
-                ElapsedMs = 5000
-            },
-            CancellationToken.None);
+        card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordScramble);
+
+        var result = await Submit(card, answer: Word);
 
         result.Tolerated.Should().BeFalse();
-        (await Card()).CurrentRung.Should().Be(2, "the third clean success on recognition moves it up");
+        (await Card()).RungStreak.Should().Be(2, "a clean success on it counts like any other");
     }
 
     [Test]
@@ -398,13 +380,17 @@ public class LearningSessionTests
     {
         var example = await AddExample(Word, "I remember her name well.", "remember", "Я добре пам'ятаю її ім'я.");
         await AddExample(Word, "Remember to call me.", "Remember");
-        await SeedCard(rung: 2, streak: 2, CardState.Learning, last: ExerciseType.MeaningToWordScramble);
+
+        // A review: a sentence is not rebuilt on the day a word is first learned
+        await SeedCard(rung: 2, streak: 2, CardState.Review, interval: 3, last: ExerciseType.MeaningToWordScramble);
 
         var card = await Next();
         card.Exercise.Type.Should().Be(ExerciseType.TranslationToSentenceScramble);
         card.Exercise.ExampleId.Should().Be(example.Id);
+        card.Exercise.SentenceStart.Should().Be("I ");
+        card.Exercise.SentenceEnd.Should().Be(" well.");
 
-        var result = await Submit(card, answer: "I remember her name well");
+        var result = await Submit(card, answer: "remember her name");
 
         result.Grade.Should().Be(ReviewGrade.Good);
         (await Reload(example)).Successes.Should().Be(1);
@@ -415,7 +401,7 @@ public class LearningSessionTests
     {
         // Not knowing which word it was is not a spelling problem: no letters to walk through
         await AddContent();
-        await SeedCard(rung: 1, streak: 0, CardState.Review, interval: 5);
+        await SeedCard(rung: 1, streak: 1, CardState.Review, interval: 5, last: ExerciseType.WordToSpellingCopy);
 
         var card = await Next();
         card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordChoice);
@@ -448,7 +434,7 @@ public class LearningSessionTests
     {
         // It is back within minutes anyway. In a real first session these were half of all
         // the cards shown.
-        await SeedCard(rung: 1, streak: 0, CardState.Learning);
+        await SeedCard(rung: 1, streak: 1, CardState.Learning, last: ExerciseType.WordToSpellingCopy);
 
         var card = await Next();
         card.Exercise.Type.Should().Be(ExerciseType.MeaningToWordChoice);
@@ -487,6 +473,10 @@ public class LearningSessionTests
 
         result.Grade.Should().Be(ReviewGrade.Good);
         (await Card()).RungStreak.Should().Be(2, "the hint was free, so the success counts");
+
+        // ...and the log still says it was taken, so a session can be read back
+        var log = await _db.Context.ReviewLogs.AsNoTracking().OrderBy(l => l.Id).LastAsync();
+        log.HintUsed.Should().BeTrue();
     }
 
     // --- driving a session ---------------------------------------------------------
@@ -679,14 +669,14 @@ public class LearningSessionTests
             new ContextToWordChoiceExerciseDefinition(_options, grades, random),
             new ContextToWordRecallExerciseDefinition(),
             new MeaningToWordScrambleExerciseDefinition(_options, grades, random),
-            new MeaningToWordSyllableScrambleExerciseDefinition(_options, grades, random),
             new MeaningToWordRecallExerciseDefinition(),
             new MeaningToWordPartialLettersExerciseDefinition(),
             new MeaningToWordTypeExerciseDefinition(grades),
             new MeaningToWordCuedTypeExerciseDefinition(grades),
-            new WordToCollocatesChoiceExerciseDefinition(grades, random),
             new TranslationToSentenceScrambleExerciseDefinition(grades, random),
-            new WordToConnectionsRevealExerciseDefinition()
+            new WordToConnectionsRevealExerciseDefinition(),
+            new WordToSpellingCopyExerciseDefinition(),
+            new WordToSpellingCoverExerciseDefinition()
         });
     }
 }

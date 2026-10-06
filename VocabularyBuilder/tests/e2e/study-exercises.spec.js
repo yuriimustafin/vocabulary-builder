@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCardFor, getQueue, submitReview, cardFor, getCard, isolateWord
+  ExerciseType, rungOf, seedWords, seedCardFor, getQueue, submitReview, cardFor, getCard, isolateWord
 } = require('./helpers/study-helpers');
 
 const French = 1;
@@ -36,8 +36,10 @@ test.describe('Typed answers', () => {
    * Typing it with no help at all is marked the same way, and is there to be added to the
    * production level when spelling is wanted.
    */
-  async function typed(request, headword, answer, { syllables = false } = {}) {
-    await seedCardFor(request, headword, ExerciseType.MeaningToWordCuedType, {}, { syllables });
+  async function typed(request, headword, answer) {
+    // One success into the level, the pieces just put in order, so typing it comes next
+    await seedCardFor(request, headword, ExerciseType.MeaningToWordCuedType,
+      { rungStreak: 1, lastExerciseType: ExerciseType.MeaningToWordScramble });
     const card = cardFor(await getQueue(request, { lang: 'fr' }), headword);
 
     expect(card.exercise.type).toBe(ExerciseType.MeaningToWordCuedType);
@@ -53,12 +55,12 @@ test.describe('Typed answers', () => {
   });
 
   test('a missing accent is accepted but does not count towards moving on', async ({ request }) => {
-    const result = await typed(request, 'fenêtre', 'fenetre', { syllables: true });
+    const result = await typed(request, 'fenêtre', 'fenetre');
 
     expect(result.grade).toBe(2);
     expect(result.feedback.correct).toBe(true);
     expect(result.feedback.note).toContain('accents');
-    expect((await getCard(request, 'fenêtre')).rungStreak, 'held where it was').toBe(2);
+    expect((await getCard(request, 'fenêtre')).rungStreak, 'held where it was').toBe(1);
   });
 
   test('the right word under the wrong article is caught', async ({ request }) => {
@@ -154,7 +156,7 @@ test.describe('New exercises on the page', () => {
 
   test('French gets a row of accented letters that type where the cursor is', async ({ request, page }) => {
     await seedWords(request, frenchWords());
-    await seedCardFor(request, 'fenêtre', ExerciseType.MeaningToWordCuedType, {}, { syllables: true });
+    await seedCardFor(request, 'fenêtre', ExerciseType.MeaningToWordCuedType);
     await isolateWord(request, 'fenêtre', 'fr');
     await openStudy(page, 'fr');
 
@@ -201,15 +203,15 @@ test.describe('New exercises on the page', () => {
     expect((await getCard(request, 'keyboard')).gradedReviews).toBe(1);
   });
 
-  test('the syllable scramble is assembled from syllable tiles', async ({ request, page }) => {
+  test('the scramble is assembled from pieces of the word', async ({ request, page }) => {
     await seedWords(request, ['chocolate']);
-    await seedCardFor(request, 'chocolate', ExerciseType.MeaningToWordSyllableScramble, {}, { syllables: true });
+    await seedCardFor(request, 'chocolate', ExerciseType.MeaningToWordScramble);
     await openStudy(page);
 
     await expect(page.getByTestId('scramble-exercise')).toBeVisible();
     await expect(page.getByTestId('scramble-tile')).toHaveCount(3);
-    await expect(page.getByTestId('scramble-answer')).toContainText('Tap the syllables in order');
-    await expect(page.getByTestId('exercise-label')).toHaveText('Put the syllables in order');
+    await expect(page.getByTestId('scramble-answer')).toContainText('Tap the pieces in order');
+    await expect(page.getByTestId('exercise-label')).toHaveText('Put the pieces in order');
 
     for (const syllable of ['cho', 'co', 'late']) {
       await page.getByTestId('scramble-tile').filter({ hasText: new RegExp(`^${syllable}$`) }).click();
@@ -234,14 +236,14 @@ test.describe('New exercises on the page', () => {
     // The translation of the missing word, for when the sentence fits more than one option
     await expect(page.getByTestId('hint-text')).toHaveCount(0);
     await page.getByTestId('hint-button').click();
-    await expect(page.getByTestId('hint-text')).toHaveText('the meaning of gap00');
+    await expect(page.getByTestId('hint-meaning')).toHaveText('the meaning of gap00');
 
     await page.getByTestId('choice-option').filter({ hasText: /^gap00$/ }).click();
 
     await expect(page.getByTestId('feedback-correct')).toBeVisible();
 
-    // Free: the success counted as a clean one
+    // Free: the success counted as a clean one - the third on recognition, so it moves up
     const after = await getCard(request, 'gap00');
-    expect(after.rungStreak).toBe(2);
+    expect(after.rung).toBe(rungOf(ExerciseType.MeaningToWordScramble));
   });
 });

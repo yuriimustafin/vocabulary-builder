@@ -146,9 +146,6 @@ public class MockGptClient : IGptClient
             return null;
         }
 
-        var partOfSpeech = System.Text.RegularExpressions.Regex.Match(prompt, @"part of speech:\s*(.+)").Groups[1].Value;
-        var combines = WordToCollocatesChoiceExerciseDefinition.CombinesWithPartners(partOfSpeech);
-
         var examples = new List<object>
         {
             Example($"This sentence uses {word} exactly once.", word, $"uses {word}"),
@@ -166,28 +163,32 @@ public class MockGptClient : IGptClient
             etymology = $"From a mock root of {word}.",
             cognates = $"mock{word} (a related English word)",
             mnemonic = $"{word} sounds like mock; picture a mockingbird saying it.",
-            // None for a word with no partners to speak of, as the prompt asks of a real model
-            collocates = combines
-                ? new[] { "mock partner one", "mock partner two", "mock partner three", "mock partner four" }.Select(Phrase).ToArray()
-                : null,
-            nonCollocates = combines
-                ? new[] { "mock stranger one", "mock stranger two", "mock stranger three" }.Select(Phrase).ToArray()
-                : null
+            // For the sentences already stored that the prompt lists, in its order
+            glosses = SentencesToGloss(prompt).Select(Glosses).ToArray()
         };
 
         return JsonSerializer.Serialize(payload);
     }
-
-    /// <summary>A partner as the prompt asks for one: the phrase and what it means, "meaning of ..." here.</summary>
-    private static object Phrase(string phrase) => new { phrase, translation = $"meaning of {phrase}" };
 
     private static object Example(string sentence, string form, string collocation) => new
     {
         sentence,
         translation = $"Translated: {sentence}",
         form,
-        collocation
+        collocation,
+        glosses = Glosses(sentence)
     };
+
+    /// <summary>Every word of a sentence glossed as "en:" and the word, so a spec can tell what a tile's hint says.</summary>
+    private static object[] Glosses(string sentence) => sentence
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(word => (object)new { word, translation = "en:" + word.Trim(',', '.', '!', '?', ';', ':') })
+        .ToArray();
+
+    /// <summary>The stored sentences the prompt asks glosses for, listed as <c>1. "..."</c>.</summary>
+    private static IEnumerable<string> SentencesToGloss(string prompt) =>
+        System.Text.RegularExpressions.Regex.Matches(prompt, @"^\s+\d+\. ""(.*)""\s*$", System.Text.RegularExpressions.RegexOptions.Multiline)
+            .Select(m => m.Groups[1].Value);
 
     /// <summary>The forms the prompt asks for an example of, in the quotes it lists them in.</summary>
     private static IEnumerable<string> RequestedForms(string prompt)

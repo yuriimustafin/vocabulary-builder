@@ -63,18 +63,14 @@ public record StudyMaterial
     /// <summary>Sound-alike words and a scene tying them to the meaning.</summary>
     public string? Mnemonic { get; init; }
 
-    /// <summary>What the word is typically used with, most typical first.</summary>
-    public IReadOnlyList<string> Collocates { get; init; } = Array.Empty<string>();
-
-    /// <summary>What it clearly does not go with.</summary>
-    public IReadOnlyList<string> NonCollocates { get; init; } = Array.Empty<string>();
+    /// <summary>The phrase <see cref="ContextSentence"/> was built around, such as "a bright future", when it names one.</summary>
+    public string? ContextCollocation { get; init; }
 
     /// <summary>
-    /// What each collocate and non-collocate means, in the learner's language, for those the
-    /// model translated. Keyed without regard to case.
+    /// What each word of <see cref="ContextSentence"/> means there, in the learner's language,
+    /// keyed by the word lower-cased - for the hints on the pieces of a sentence.
     /// </summary>
-    public IReadOnlyDictionary<string, string> PhraseTranslations { get; init; } =
-        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    public IReadOnlyDictionary<string, string> ContextGlosses { get; init; } = new Dictionary<string, string>();
 
     /// <summary>Whether <see cref="ContextSentence"/> is one of the word's stored examples, practice on it tracked.</summary>
     public bool HasStoredExample => ExampleId is not null;
@@ -141,7 +137,13 @@ public enum StudyMaterialGaps
     Forms = 8,
 
     /// <summary>Usage, etymology, cognates and a mnemonic, never generated for this word.</summary>
-    Connections = 16
+    Connections = 16,
+
+    /// <summary>
+    /// A stored example with no word-by-word glosses, which the hints on its pieces need. Asked
+    /// once per prompt version, with <see cref="Connections"/>.
+    /// </summary>
+    Glosses = 32
 }
 
 /// <summary>
@@ -154,6 +156,13 @@ public static class HeadwordText
 
     public static bool Contains(string? sentence, string headword) =>
         sentence is not null && Pattern(headword).IsMatch(sentence);
+
+    /// <summary>Where the first whole-word occurrence of the headword is, or null.</summary>
+    public static (int Index, int Length)? Locate(string sentence, string headword)
+    {
+        var match = Pattern(headword).Match(sentence);
+        return match.Success ? (match.Index, match.Length) : null;
+    }
 
     /// <summary>Replaces the first whole-word occurrence of the headword with a blank.</summary>
     public static string Blankify(string sentence, string headword) =>

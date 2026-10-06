@@ -64,11 +64,11 @@ test.describe('Difficulty tiers', () => {
       easeFactor: 1.6, recentSuccessRate: 0.5, lapsesSinceRecovery: 3
     });
 
-    // The support comes from the two levels below the probe, easier first: recognition's
-    // first exercise, then the scaffolded level's first that can be built - df03 is too
-    // short for syllables, so the letters.
+    // The support comes from the two levels below the probe, easier first: the first
+    // exercise of each that is not typed - a follow-up is not marked, so there is nothing
+    // for spelling it out to check against.
     expect(result.followUps.map(f => f.exercise.type)).toEqual([
-      Ladder[probeRung - 2][0],
+      ExerciseType.MeaningToWordChoice,
       ExerciseType.MeaningToWordScramble
     ]);
     expect(queued.exercise.type).toBe(ExerciseType.ContextToWordRecall);

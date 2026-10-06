@@ -12,8 +12,8 @@ public class ConnectionExerciseDefinitionTests
     private static readonly GradeResolver Grades = new(new StudyOptions());
 
     private static StudyMaterial Material(
-        string? sentence = "The future looks bright for us.",
-        string? translation = "Майбутнє виглядає світлим для нас.",
+        string? sentence = "She has a very bright future ahead of her.",
+        string? translation = "Перед нею дуже яскраве майбутнє.",
         int? exampleId = 7) => new()
         {
             WordId = 1,
@@ -22,189 +22,94 @@ public class ConnectionExerciseDefinitionTests
             ContextSentence = sentence,
             ContextSentenceTranslation = translation,
             ContextForm = "bright",
+            ContextCollocation = "a bright future",
+            ContextGlosses = new Dictionary<string, string>
+            {
+                ["bright"] = "яскраве",
+                ["future"] = "майбутнє",
+                ["ahead"] = "попереду",
+                ["of"] = "від"
+            },
             ExampleId = exampleId,
-            Collocates = new[] { "light", "future", "colours", "idea", "student" },
-            NonCollocates = new[] { "silence", "debt", "Tuesday" },
             Etymology = "Old English beorht, shining.",
             Mnemonic = "Sounds like 'brat': a bright brat."
         };
 
-    // --- what goes with it -------------------------------------------------
-
-    private static WordToCollocatesChoiceExerciseDefinition Collocates() => new(Grades, new Random(2));
-
-    [Test]
-    public void TheFirstThreeOfEachAreOfferedShuffled()
-    {
-        var payload = Collocates().Build(Material(), new ExerciseBuildContext());
-
-        payload.Prompt.Should().Be("bright");
-        payload.Options.Should().BeEquivalentTo(new[] { "light", "future", "colours", "silence", "debt", "Tuesday" });
-        payload.Options.Should().NotEqual(new[] { "light", "future", "colours", "silence", "debt", "Tuesday" });
-        payload.GradingMode.Should().Be(GradingMode.Automatic);
-    }
-
-    [Test]
-    public void TickingExactlyTheRightOnesIsCorrect()
-    {
-        Collocates().Resolve(new ExerciseAnswer(ElapsedMs: 5000, Selections: new[] { "light", "Future", "colours" }), Material())
-            .Should().Be(ReviewGrade.Good);
-    }
-
-    [Test]
-    public void ItIsRecognitionSoNeverEasyHoweverFast()
-    {
-        Collocates().Resolve(new ExerciseAnswer(ElapsedMs: 500, Selections: new[] { "light", "future", "colours" }), Material())
-            .Should().Be(ReviewGrade.Good);
-    }
-
-    [Test]
-    public void OneSlipStillCountsAndMoreIsAMiss()
-    {
-        // One slip held the word on three answers in four in a real session
-        var definition = Collocates();
-
-        definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Selections: new[] { "light", "future" }), Material())
-            .Should().Be(ReviewGrade.Good, "one right one left unticked");
-        definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Selections: new[] { "light", "future", "colours", "debt" }), Material())
-            .Should().Be(ReviewGrade.Good, "one wrong one ticked");
-        definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Selections: new[] { "light", "debt" }), Material())
-            .Should().Be(ReviewGrade.Again);
-        definition.Resolve(new ExerciseAnswer(ElapsedMs: 5000, Abandoned: true), Material())
-            .Should().Be(ReviewGrade.Again);
-    }
-
-    [TestCase("interjection")]
-    [TestCase("interj")]
-    [TestCase("exclamation")]
-    [TestCase("preposition")]
-    [TestCase("prép")]
-    [TestCase("conjunction")]
-    [TestCase("pronoun")]
-    [TestCase("article")]
-    [TestCase("determiner")]
-    [TestCase("numeral")]
-    public void AWordWithNoPartnersToSpeakOfIsNeverAskedWhatItGoesWith(string partOfSpeech)
-    {
-        // "What goes with bonjour?" has no honest answer, whatever the model offered for it
-        Collocates().CanBuild(Material() with { PartOfSpeech = partOfSpeech }, null).Should().BeFalse();
-    }
-
-    [TestCase("adjective")]
-    [TestCase("adj")]
-    [TestCase("noun")]
-    [TestCase("nf")]
-    [TestCase("verb")]
-    [TestCase("vtr")]
-    [TestCase("adverb")]
-    [TestCase(null)]
-    public void EveryPartOfSpeechThatCombinesCanBeAsked(string? partOfSpeech)
-    {
-        Collocates().CanBuild(Material() with { PartOfSpeech = partOfSpeech }, null).Should().BeTrue();
-    }
-
-    /// <summary>
-    /// A real model offered "une fourchette" and "une note de musique" as things prendre
-    /// cannot go with - both fine French - even when told to offer none for such a verb.
-    /// </summary>
-    [TestCase("prendre")]
-    [TestCase("faire")]
-    [TestCase("Take")]
-    public void AVerbSoGeneralThatAnythingFollowsItIsNeverAskedWhatGoesWithIt(string headword)
-    {
-        Collocates().CanBuild(Material() with { Headword = headword, PartOfSpeech = "verb" }, null).Should().BeFalse();
-    }
-
-    [Test]
-    public void EachOptionCarriesItsTranslationForTheFreeHint()
-    {
-        var material = Material() with
-        {
-            PhraseTranslations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-            {
-                ["light"] = "світло",
-                ["debt"] = "борг"
-            }
-        };
-
-        var definition = Collocates();
-        var payload = definition.Build(material, new ExerciseBuildContext());
-
-        payload.OptionHints.Should().BeEquivalentTo(new Dictionary<string, string>
-        {
-            ["light"] = "світло",
-            ["debt"] = "борг"
-        }, "only the options the model translated");
-        definition.HintIsFree.Should().BeTrue();
-        definition.AsksToRecognise.Should().BeTrue();
-    }
-
-    [Test]
-    public void OptionsWithNoTranslationsOfferNoHint()
-    {
-        Collocates().Build(Material(), new ExerciseBuildContext()).OptionHints.Should().BeNull();
-    }
-
-    [Test]
-    public void ItNeedsSomethingOnBothSides()
-    {
-        Collocates().CanBuild(Material() with { NonCollocates = Array.Empty<string>() }, null).Should().BeFalse();
-        Collocates().CanBuild(Material() with { Collocates = new[] { "light" } }, null).Should().BeFalse();
-        Collocates().CanBuild(Material(), null).Should().BeTrue();
-    }
-
-    // --- building the sentence ----------------------------------------------
+    // --- completing the sentence -----------------------------------------------
 
     private static TranslationToSentenceScrambleExerciseDefinition Sentence() => new(Grades, new Random(2));
 
     [Test]
-    public void TheSentencesWordsAreOfferedShuffledFromItsTranslation()
+    public void TheGapIsTheWordAndThePhraseItIsUsedInAndTheRestStandsAsWritten()
     {
-        var payload = Sentence().Build(Material(), new ExerciseBuildContext());
+        var gap = TranslationToSentenceScrambleExerciseDefinition.Gap(Material())!;
 
-        payload.Prompt.Should().Be("Майбутнє виглядає світлим для нас.");
-        payload.Tiles.Should().BeEquivalentTo(new[] { "the", "future", "looks", "bright", "for", "us" });
-        payload.Tiles.Should().NotEqual(new[] { "the", "future", "looks", "bright", "for", "us" });
-        payload.ExampleId.Should().Be(7, "rebuilding it counts as practising that sentence");
+        // Four words in a sentence of seven or more, the phrase's own word first; a short
+        // word shares a tile with its neighbour, so there are three to order
+        gap.Start.Should().Be("She has a very ");
+        gap.Tiles.Should().Equal("bright", "future", "ahead of");
+        gap.End.Should().Be(" her.");
     }
 
     [Test]
-    public void WithNoTranslationThereIsNothingToRebuildItFrom()
+    public void PunctuationAtTheEdgeOfTheGapStaysWithTheSentence()
     {
-        // The word's meaning is no cue to the order of a sentence never seen
-        Sentence().CanBuild(Material(translation: null), null).Should().BeFalse();
-        Sentence().CanBuild(Material(), null).Should().BeTrue();
+        var gap = TranslationToSentenceScrambleExerciseDefinition.Gap(
+            Material("Il a perdu son crochet.") with { Headword = "crochet", ContextForm = "crochet", ContextCollocation = null })!;
+
+        gap.Start.Should().Be("Il a ");
+        gap.Tiles.Should().Equal("perdu", "son", "crochet");
+        gap.End.Should().Be(".", "a full stop on a tile would say which one goes last");
     }
 
     [Test]
-    public void TheSentenceIsMarkedIgnoringCaseAndPunctuation()
+    public void TheTilesAreShuffledAndTheirTranslationsAreAFreeHint()
+    {
+        var definition = Sentence();
+        var payload = definition.Build(Material(), new ExerciseBuildContext());
+
+        payload.Tiles.Should().BeEquivalentTo(new[] { "bright", "future", "ahead of" });
+        payload.Tiles.Should().NotEqual(new[] { "bright", "future", "ahead of" });
+        payload.SentenceStart.Should().Be("She has a very ");
+        payload.SentenceEnd.Should().Be(" her.");
+        payload.Prompt.Should().Be("She has a very _____ _____ _____ her.");
+        payload.ExampleId.Should().Be(7, "completing it counts as practising that sentence");
+
+        payload.ContextSentenceTranslation.Should().Be("Перед нею дуже яскраве майбутнє.");
+        payload.OptionHints.Should().BeEquivalentTo(new Dictionary<string, string>
+        {
+            ["bright"] = "яскраве",
+            ["future"] = "майбутнє",
+            ["ahead of"] = "попереду від"
+        });
+        definition.HintIsFree.Should().BeTrue();
+    }
+
+    [Test]
+    public void TheGapIsMarkedIgnoringCaseAndPunctuation()
     {
         var definition = Sentence();
 
-        definition.Resolve(new ExerciseAnswer("the future looks bright for us", ElapsedMs: 8000), Material())
+        definition.Resolve(new ExerciseAnswer("Bright future ahead of", ElapsedMs: 6000), Material())
             .Should().Be(ReviewGrade.Good);
-        definition.Resolve(new ExerciseAnswer("the bright future looks for us", ElapsedMs: 8000), Material())
+        definition.Resolve(new ExerciseAnswer("future bright ahead of", ElapsedMs: 6000), Material())
             .Should().Be(ReviewGrade.Again);
-        definition.Resolve(new ExerciseAnswer("the future looks bright for us", ElapsedMs: 8000, Resets: 1), Material())
-            .Should().Be(ReviewGrade.Hard);
+        definition.Resolve(new ExerciseAnswer("bright future ahead of", ElapsedMs: 6000, Resets: 1), Material())
+            .Should().Be(ReviewGrade.Hard, "starting over means the order was not known");
+        definition.Resolve(new ExerciseAnswer("bright future ahead of", ElapsedMs: 40_000, FreeHintTaken: true), Material())
+            .Should().Be(ReviewGrade.Good, "reading the free hint takes time, and that is not held against it");
     }
 
     [Test]
-    public void OnlyAStoredExampleOfAHandyLengthIsRebuilt()
+    public void OnlyAStoredTranslatedSentenceWithSomethingLeftStandingIsOffered()
     {
-        Sentence().CanBuild(Material(exampleId: null), null).Should().BeFalse("only a stored example tracks practice");
-        Sentence().CanBuild(Material(sentence: "Bright!"), null).Should().BeFalse();
-        Sentence().CanBuild(Material(sentence: string.Join(' ', Enumerable.Repeat("very", 15)) + " bright"), null).Should().BeFalse();
-        Sentence().CanBuild(Material(), null).Should().BeTrue();
-    }
+        var definition = Sentence();
 
-    [Test]
-    public void AnElisionStaysOneTileAndACapitalDoesNotGiveTheFirstWordAway()
-    {
-        TranslationToSentenceScrambleExerciseDefinition.Words("L'école est fermée, hélas !")
-            .Should().Equal("l'école", "est", "fermée", "hélas");
-        TranslationToSentenceScrambleExerciseDefinition.Words("NASA sent it.")
-            .Should().Equal("NASA", "sent", "it");
+        definition.CanBuild(Material(), null).Should().BeTrue();
+        definition.CanBuild(Material(exampleId: null), null).Should().BeFalse("only a stored example's practice is tracked");
+        definition.CanBuild(Material(translation: null), null).Should().BeFalse("the hint needs a translation");
+        definition.CanBuild(Material("A bright one.") with { ContextCollocation = null }, null)
+            .Should().BeFalse("three words is the whole gap, with nothing left as written");
     }
 
     // --- remembering it by ---------------------------------------------------

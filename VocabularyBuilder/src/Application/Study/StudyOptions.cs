@@ -195,9 +195,6 @@ public class StudyOptions
     /// </summary>
     public int ChoiceOptionCount { get; set; } = 4;
 
-    /// <summary>Extra letters mixed into the scramble tiles that do not belong to the word.</summary>
-    public int ScrambleDecoyLetters { get; set; }
-
     // --- the ladder --------------------------------------------------------
 
     /// <summary>
@@ -228,48 +225,46 @@ public static class StudyDefaults
     public static IReadOnlyList<LadderRungOptions> Ladder => new List<LadderRungOptions>
     {
         // Met, not graded, the first time; a word dropped this far is graded here once.
-        Level("Introduction", 1, ExerciseType.WordToMeaningReveal),
+        Level("Introduction", 1, Ex(ExerciseType.WordToMeaningReveal)),
 
-        // Three: the word picked from its meaning, then picked to fill a gap in a sentence -
-        // the sentence showing it with a word it is used with - then the words it goes with.
-        // The last is what a word dropped here meets when it has no sentence.
+        // Three: the word typed out while it is on screen - its spelling met by hand first -
+        // then picked from its meaning, then picked to fill a gap in a sentence. Picking the
+        // meaning is what a word with no sentence meets instead.
         Level("Recognition", 3,
-            ExerciseType.MeaningToWordChoice,
-            ExerciseType.ContextToWordChoice,
-            ExerciseType.WordToCollocatesChoice,
-            ExerciseType.WordToMeaningChoice),
+            Ex(ExerciseType.WordToSpellingCopy),
+            Ex(ExerciseType.MeaningToWordChoice),
+            Ex(ExerciseType.ContextToWordChoice),
+            Ex(ExerciseType.WordToMeaningChoice)),
 
-        // Three, so the support can fade: the chunks of the word, then its letters, then one
-        // of its sentences rebuilt around it. Typing it from its first letters is what a word
-        // without syllables or a sentence meets instead.
+        // Three, so the support can fade: the word looked at, covered and written - the first
+        // day's last step - then put together from its chunks, then one of its sentences
+        // rebuilt around it (from the second day: MinIntervalDays), then typed from its first
+        // letters. A slip on the first three costs the word nothing.
         Level("Scaffolded", 3,
-            ExerciseType.MeaningToWordSyllableScramble,
-            ExerciseType.MeaningToWordScramble,
-            ExerciseType.TranslationToSentenceScramble,
-            ExerciseType.MeaningToWordCuedType),
+            Ex(ExerciseType.WordToSpellingCover, tolerant: true),
+            Ex(ExerciseType.MeaningToWordScramble, tolerant: true),
+            Ex(ExerciseType.TranslationToSentenceScramble, tolerant: true, minIntervalDays: 1),
+            Ex(ExerciseType.MeaningToWordCuedType)),
 
         // Where a word stays, taking these in turn. Typing the word (MeaningToWordType) can
         // be added here when spelling is wanted.
         Level("Production", 0,
-            ExerciseType.ContextToWordRecall,
-            ExerciseType.MeaningToWordRecall)
+            Ex(ExerciseType.ContextToWordRecall),
+            Ex(ExerciseType.MeaningToWordRecall))
     };
 
-    /// <summary>Exercises on the default ladder whose misses cost the word nothing.</summary>
-    private static readonly HashSet<ExerciseType> TolerantByDefault = new()
-    {
-        ExerciseType.MeaningToWordScramble,
-        ExerciseType.WordToCollocatesChoice,
-        ExerciseType.TranslationToSentenceScramble
-    };
-
-    private static LadderRungOptions Level(string name, int promoteAfter, params ExerciseType[] types) => new()
+    private static LadderRungOptions Level(string name, int promoteAfter, params LadderExerciseOptions[] exercises) => new()
     {
         Name = name,
         PromoteAfter = promoteAfter,
-        Exercises = types
-            .Select(type => new LadderExerciseOptions { Type = type, Tolerant = TolerantByDefault.Contains(type) })
-            .ToList()
+        Exercises = exercises.ToList()
+    };
+
+    private static LadderExerciseOptions Ex(ExerciseType type, bool tolerant = false, int? minIntervalDays = null) => new()
+    {
+        Type = type,
+        Tolerant = tolerant,
+        MinIntervalDays = minIntervalDays
     };
 }
 

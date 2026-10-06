@@ -19,7 +19,10 @@ public enum ExerciseType
     /// <summary>Cloze: sentence with the word blanked out; the meaning sits behind a Hint button.</summary>
     ContextToWordRecall = 3,
 
-    /// <summary>Show the meaning, assemble the word from shuffled letter tiles.</summary>
+    /// <summary>
+    /// Show the meaning, put the word's pieces in order: three or four chunks, syllables
+    /// where they make that many - single letters only for a word of three or fewer.
+    /// </summary>
     MeaningToWordScramble = 4,
 
     /// <summary>Show the meaning, produce the word unaided, reveal, learner self-grades.</summary>
@@ -32,8 +35,9 @@ public enum ExerciseType
     MeaningToWordPartialLetters = 6,
 
     /// <summary>
-    /// Show the meaning, assemble the word from its shuffled syllables. An easier step
-    /// before the letter scramble: the chunks are given, only their order is recalled.
+    /// Retired: the word from its shuffled syllables. <see cref="MeaningToWordScramble"/>
+    /// shuffles chunks of the word now - syllables where they make three or four - and
+    /// took its place. Kept so the review logs that name it still read.
     /// </summary>
     MeaningToWordSyllableScramble = 7,
 
@@ -49,15 +53,34 @@ public enum ExerciseType
     /// <summary>A sentence with the word blanked out; pick the word that fills it from four.</summary>
     ContextToWordChoice = 10,
 
-    /// <summary>"What can be bright?" - tick the words it goes with among a few it does not.</summary>
+    /// <summary>
+    /// Retired: "what can be bright?" - tick the words it goes with. Dropped: a real model's
+    /// wrong options were often not wrong, and a third of the answers missed. Kept so the
+    /// review logs that name it still read.
+    /// </summary>
     WordToCollocatesChoice = 11,
 
-    /// <summary>Rebuild one of the word's example sentences from its shuffled words, from its translation.</summary>
+    /// <summary>
+    /// One of the word's example sentences, given as written but for a gap: the word and two
+    /// or three words around it, to be put back in order from a few shuffled tiles.
+    /// </summary>
     TranslationToSentenceScramble = 12,
 
     /// <summary>
     /// Follow-up only: the word with what ties it to things already known - its mnemonic,
     /// origin and related words - shown after a miss, before it is asked again.
     /// </summary>
-    WordToConnectionsReveal = 13
+    WordToConnectionsReveal = 13,
+
+    /// <summary>
+    /// The word on screen with its meaning, typed out while it stays there: its spelling met
+    /// before it is ever recalled. The first thing asked after the introduction.
+    /// </summary>
+    WordToSpellingCopy = 14,
+
+    /// <summary>
+    /// Look, cover, write: the word is shown, covered, and typed from memory - a long one a
+    /// chunk at a time. A slip costs nothing.
+    /// </summary>
+    WordToSpellingCover = 15
 }

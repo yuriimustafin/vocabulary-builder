@@ -1,6 +1,7 @@
 import { ChoiceExercise } from './ChoiceExercise';
-import { ScrambleExercise, SentenceScrambleExercise, SyllableScrambleExercise } from './ScrambleExercise';
-import { CollocatesExercise } from './CollocatesExercise';
+import { ScrambleExercise } from './ScrambleExercise';
+import { SentenceRebuildExercise } from './SentenceRebuildExercise';
+import { SpellingExercise } from './SpellingExercise';
 import { ConnectionsCard } from './ConnectionsCard';
 import { TypedExercise } from './TypedExercise';
 import {
@@ -25,13 +26,13 @@ export const EXERCISE_COMPONENTS = {
   [ExerciseType.MeaningToWordScramble]: ScrambleExercise,
   [ExerciseType.MeaningToWordRecall]: MeaningToWordRecallExercise,
   [ExerciseType.MeaningToWordPartialLetters]: MeaningToWordPartialLettersExercise,
-  [ExerciseType.MeaningToWordSyllableScramble]: SyllableScrambleExercise,
   [ExerciseType.MeaningToWordType]: TypedExercise,
   [ExerciseType.MeaningToWordCuedType]: TypedExercise,
   [ExerciseType.ContextToWordChoice]: ChoiceExercise,
-  [ExerciseType.WordToCollocatesChoice]: CollocatesExercise,
-  [ExerciseType.TranslationToSentenceScramble]: SentenceScrambleExercise,
-  [ExerciseType.WordToConnectionsReveal]: ConnectionsCard
+  [ExerciseType.TranslationToSentenceScramble]: SentenceRebuildExercise,
+  [ExerciseType.WordToConnectionsReveal]: ConnectionsCard,
+  [ExerciseType.WordToSpellingCopy]: SpellingExercise,
+  [ExerciseType.WordToSpellingCover]: SpellingExercise
 };
 
 export function componentFor(exerciseType) {

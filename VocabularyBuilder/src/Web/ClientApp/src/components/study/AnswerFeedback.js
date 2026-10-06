@@ -74,13 +74,6 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language, typ
       {/* The mnemonic is for a word that did not come back on its own */}
       <WordConnections connections={feedback.connections} showMnemonic={!correct} />
 
-      {feedback.expectedOptions && (
-        <div className="mt-3" data-testid="feedback-expected">
-          <span className="text-muted small text-uppercase me-2">Goes with</span>
-          {feedback.expectedOptions.join(', ')}
-        </div>
-      )}
-
       {chosen && (
         <div className="border-start border-3 border-danger ps-3 mt-4" data-testid="feedback-chosen">
           <div className="text-muted small text-uppercase">{typed ? 'You typed' : 'You chose'}</div>

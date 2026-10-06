@@ -1,5 +1,4 @@
 ﻿using System.Text.Json;
-using System.Text.Json.Serialization;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Study.Exercises;
@@ -243,10 +242,13 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         GeneratedStudyContent? generated;
         var meaning = _resolver.Resolve(word, content, examples).Meaning;
         var forms = _resolver.UncoveredForms(word, examples);
+        var toGloss = gaps.HasFlag(StudyMaterialGaps.Glosses)
+            ? _resolver.UnglossedExamples(examples)
+            : Array.Empty<StudyExample>();
 
         try
         {
-            var response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps, forms, meaning));
+            var response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps, forms, meaning, toGloss.Select(e => e.Sentence).ToList()));
             generated = Parse(response);
         }
         catch (Exception ex)
@@ -266,14 +268,18 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         var added = AddExamples(word, examples, generated.Examples);
 
+        // Glosses for sentences already stored, in the order they were listed
+        for (var i = 0; i < toGloss.Count && i < (generated.Glosses?.Count ?? 0); i++)
+        {
+            (toGloss[i].GlossWords, toGloss[i].GlossTranslations) = Glosses(generated.Glosses![i]);
+        }
+
         if (gaps.HasFlag(StudyMaterialGaps.Connections))
         {
             content.Usage = Short(generated.Usage);
             content.Etymology = Short(generated.Etymology);
             content.Cognates = Short(generated.Cognates);
             content.Mnemonic = Short(generated.Mnemonic);
-            (content.Collocates, content.CollocateTranslations) = Phrases(generated.Collocates, 6);
-            (content.NonCollocates, content.NonCollocateTranslations) = Phrases(generated.NonCollocates, 3);
         }
 
         // A word needs a meaning to be studied at all. Examples that came back unusable, or
@@ -329,13 +335,17 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
                 continue;
             }
 
+            var (glossWords, glossTranslations) = Glosses(example.Glosses);
+
             var stored = new StudyExample
             {
                 WordId = word.Id,
                 Sentence = sentence,
                 Translation = Short(example.Translation, 500),
                 Form = form,
-                Collocation = Short(example.Collocation, 100)
+                Collocation = Short(example.Collocation, 100),
+                GlossWords = glossWords,
+                GlossTranslations = glossTranslations
             };
 
             _context.StudyExamples.Add(stored);
@@ -346,23 +356,19 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
     }
 
     /// <summary>
-    /// Short phrases only, each once, and no more than are wanted - null when none are left,
-    /// so an exercise that needs them is not offered. Each keeps its translation beside it,
-    /// empty where the model gave none, so the two lists stay paired by position.
+    /// A sentence's word-by-word glosses as two lists paired by position: each word as written,
+    /// and what it means there - empty where the model gave nothing. Null when there are none.
     /// </summary>
-    private static (List<string>? Phrases, List<string>? Translations) Phrases(
-        IEnumerable<GeneratedPhrase?>? values, int max)
+    private static (List<string>? Words, List<string>? Translations) Glosses(IEnumerable<GeneratedGloss?>? glosses)
     {
-        var kept = (values ?? Enumerable.Empty<GeneratedPhrase?>())
-            .Select(v => (Phrase: v?.Phrase?.Trim(), Translation: Short(v?.Translation, 60)))
-            .Where(v => !string.IsNullOrEmpty(v.Phrase) && v.Phrase.Length <= 40)
-            .DistinctBy(v => v.Phrase!, StringComparer.OrdinalIgnoreCase)
-            .Take(max)
+        var kept = (glosses ?? Enumerable.Empty<GeneratedGloss?>())
+            .Select(g => (Word: g?.Word?.Trim(), Translation: Short(g?.Translation, 60)))
+            .Where(g => !string.IsNullOrEmpty(g.Word) && g.Word.Length <= 40)
             .ToList();
 
         return kept.Count == 0
             ? (null, null)
-            : (kept.Select(v => v.Phrase!).ToList(), kept.Select(v => v.Translation ?? string.Empty).ToList());
+            : (kept.Select(g => g.Word!).ToList(), kept.Select(g => g.Translation ?? string.Empty).ToList());
     }
 
     /// <summary>Trimmed, empty as null, and cut short rather than stored at any length.</summary>
@@ -434,56 +440,10 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         string? Etymology,
         string? Cognates,
         string? Mnemonic,
-        List<GeneratedPhrase?>? Collocates,
-        List<GeneratedPhrase?>? NonCollocates);
+        List<List<GeneratedGloss?>?>? Glosses);
 
-    /// <summary>A partner word and what it means. Read from a plain string as well - the shape before translations.</summary>
-    [JsonConverter(typeof(GeneratedPhraseConverter))]
-    private record GeneratedPhrase(string? Phrase, string? Translation);
+    private record GeneratedExample(
+        string? Sentence, string? Translation, string? Form, string? Collocation, List<GeneratedGloss?>? Glosses);
 
-    private sealed class GeneratedPhraseConverter : JsonConverter<GeneratedPhrase>
-    {
-        public override GeneratedPhrase? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-        {
-            switch (reader.TokenType)
-            {
-                case JsonTokenType.String:
-                    return new GeneratedPhrase(reader.GetString(), null);
-
-                case JsonTokenType.StartObject:
-                {
-                    using var document = JsonDocument.ParseValue(ref reader);
-                    string? phrase = null, translation = null;
-
-                    foreach (var property in document.RootElement.EnumerateObject())
-                    {
-                        if (property.Value.ValueKind != JsonValueKind.String)
-                        {
-                            continue;
-                        }
-
-                        if (property.Name.Equals("phrase", StringComparison.OrdinalIgnoreCase))
-                        {
-                            phrase = property.Value.GetString();
-                        }
-                        else if (property.Name.Equals("translation", StringComparison.OrdinalIgnoreCase))
-                        {
-                            translation = property.Value.GetString();
-                        }
-                    }
-
-                    return new GeneratedPhrase(phrase, translation);
-                }
-
-                default:
-                    reader.Skip();
-                    return null;
-            }
-        }
-
-        public override void Write(Utf8JsonWriter writer, GeneratedPhrase value, JsonSerializerOptions options) =>
-            throw new NotSupportedException();
-    }
-
-    private record GeneratedExample(string? Sentence, string? Translation, string? Form, string? Collocation);
+    private record GeneratedGloss(string? Word, string? Translation);
 }

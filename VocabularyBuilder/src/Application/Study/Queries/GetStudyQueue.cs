@@ -117,9 +117,17 @@ public class GetStudyQueueQueryHandler : IRequestHandler<GetStudyQueueQuery, Stu
         var introducedToday = await _context.ReviewCards
             .CountAsync(c => c.IntroducedAtUtc >= dayStart, cancellationToken);
 
+        // Words shown on an earlier day and not yet through learning - still being learned, or
+        // never even answered - are today's new words as much as any: a session that ended
+        // before its words got out used to be followed by a full fresh batch on top of them,
+        // sixteen unfinished and twelve new in one real session.
+        var stillLearning = await _context.ReviewCards
+            .CountAsync(c => (c.State == CardState.New || c.State == CardState.Learning)
+                && c.IntroducedAtUtc < dayStart, cancellationToken);
+
         var room = new[]
         {
-            Math.Max(0, _options.NewCardsPerDay - introducedToday),
+            Math.Max(0, _options.NewCardsPerDay - introducedToday - stillLearning),
             Math.Max(0, limit - due.Count),
             // A few at a time, so the tests for these fall due while the next handful is
             // still being introduced and the two end up mixed together.

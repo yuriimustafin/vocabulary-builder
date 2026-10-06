@@ -11,7 +11,7 @@ const {
  * The ladder is four levels - the introduction, recognition, scaffolded production and
  * production - each with a pool of exercises. A word stays on a level until it has enough
  * clean successes there, meeting harder exercises from the pool as it goes, and leaves
- * learning once it has produced the word cleanly twice a few minutes apart.
+ * learning once it has built the word cleanly on the scaffolded level.
  *
  * The first day is driven by the learning steps, so the clock is moved to each step's due
  * time rather than waiting for it.
@@ -68,61 +68,59 @@ test.describe('Study ladder', () => {
     expect(after.rungStreak).toBe(0);
   });
 
-  test('a word answered cleanly is recognised, built once, and leaves - its climb goes on in reviews',
+  const firstDay = [
+    ExerciseType.WordToMeaningReveal,   // met
+    ExerciseType.WordToSpellingCopy,    // copied while it is in front of the learner
+    ExerciseType.MeaningToWordChoice,   // recognised from its meaning, then in a sentence
+    ExerciseType.ContextToWordChoice,
+    ExerciseType.WordToSpellingCover    // written from memory: built once, that is the first day
+  ];
+
+  test('a word answered cleanly is copied, recognised, written once from memory, and leaves',
     async ({ request }) => {
       await seedWords(request, [{ headword: 'remember', isMarkedForStudy: true }, ...distractors]);
 
       const seen = await studyUntilLearned(request, 'remember');
 
-      // Seeded without generated content, so no collocates and no stored sentence to rebuild
-      expect(seen).toEqual([
-        ExerciseType.WordToMeaningReveal,           // met
-        ExerciseType.MeaningToWordChoice,           // recognised three ways
-        ExerciseType.ContextToWordChoice,
-        ExerciseType.WordToMeaningChoice,
-        ExerciseType.MeaningToWordSyllableScramble  // built once: that is the first day
-      ]);
+      expect(seen).toEqual(firstDay);
 
       const card = await getCard(request, 'remember');
       expect(card.gradedReviews).toBe(4);
       expect(card.intervalDays).toBe(1);
-      expect(card.rung, 'it keeps its level for tomorrow').toBe(rungOf(ExerciseType.MeaningToWordSyllableScramble));
+      expect(card.rung, 'it keeps its level for tomorrow').toBe(rungOf(ExerciseType.WordToSpellingCover));
       expect(card.rungStreak).toBe(1);
     });
 
-  test('with its content generated, a word meets what it goes with and rebuilds a sentence',
-    async ({ request }) => {
-      await seedWords(request, [{ headword: 'remember', isMarkedForStudy: true, enrich: true }, ...distractors]);
-      await waitForStudyContent(request, 'remember');
+  test('with its content generated, the first day still rebuilds no sentence', async ({ request }) => {
+    await seedWords(request, [{ headword: 'remember', isMarkedForStudy: true, enrich: true }, ...distractors]);
+    await waitForStudyContent(request, 'remember');
 
-      const seen = await studyUntilLearned(request, 'remember');
+    const seen = await studyUntilLearned(request, 'remember');
 
-      expect(seen).toEqual([
-        ExerciseType.WordToMeaningReveal,
-        ExerciseType.MeaningToWordChoice,
-        ExerciseType.ContextToWordChoice,
-        ExerciseType.WordToCollocatesChoice,        // what can be remembered?
-        ExerciseType.MeaningToWordSyllableScramble
-      ]);
-    });
+    expect(seen).toEqual(firstDay);
+  });
 
-  test('a word too short for syllables is built from its letters',
-    async ({ request }) => {
-      await seedWords(request, [{ headword: 'lad00', isMarkedForStudy: true }, ...distractors.slice(1)]);
+  test('the sentence is rebuilt in the reviews, and not while a word is still learning', async ({ request }) => {
+    await seedWords(request, [{ headword: 'remember', enrich: true }, ...distractors]);
+    await waitForStudyContent(request, 'remember');
 
-      const seen = await studyUntilLearned(request, 'lad00');
+    await seedCardFor(request, 'remember', ExerciseType.TranslationToSentenceScramble, {}, { content: true });
+    expect(cardFor(await getQueue(request), 'remember').exercise.type)
+      .toBe(ExerciseType.TranslationToSentenceScramble);
 
-      expect(seen[seen.length - 1]).toBe(ExerciseType.MeaningToWordScramble);
-      expect(seen).not.toContain(ExerciseType.MeaningToWordSyllableScramble);
-    });
+    await seedCardFor(request, 'remember', ExerciseType.TranslationToSentenceScramble,
+      { state: CardState.Learning, intervalDays: 0 }, { content: true });
+    expect(cardFor(await getQueue(request), 'remember').exercise.type)
+      .toBe(ExerciseType.MeaningToWordCuedType);
+  });
 
   test('a missed word meets the level below, not the same exercise again', async ({ request }) => {
     await seedWords(request, [{ headword: 'remember', isMarkedForStudy: true }, ...distractors]);
     let missed = false;
 
-    // The syllable scramble: the first exercise on the day that is not tolerant of a slip
+    // Picking it from its meaning: on the first day the scaffolded level is all tolerant of a slip
     const seen = await studyUntilLearned(request, 'remember', card => {
-      if (card.exercise.type === ExerciseType.MeaningToWordSyllableScramble && !missed) {
+      if (card.exercise.type === ExerciseType.MeaningToWordChoice && !missed) {
         missed = true;
         return false;
       }
@@ -130,8 +128,8 @@ test.describe('Study ladder', () => {
       return true;
     });
 
-    const missAt = seen.indexOf(ExerciseType.MeaningToWordSyllableScramble);
-    expect(rungOf(seen[missAt + 1])).toBe(rungOf(ExerciseType.MeaningToWordSyllableScramble) - 1);
+    const missAt = seen.indexOf(ExerciseType.MeaningToWordChoice);
+    expect(rungOf(seen[missAt + 1])).toBe(rungOf(ExerciseType.MeaningToWordChoice) - 1);
     expect(seen.length, 'the slip is paid for in more practice').toBeGreaterThan(5);
 
     for (let i = 1; i < seen.length; i++) {
@@ -145,6 +143,11 @@ test.describe('Study ladder', () => {
     await seedWords(request, distractors);
 
     await answerCard(request, cardFor(await getQueue(request), 'lad00'), {});
+    await advanceToDue(request, 'lad00');
+
+    const copy = cardFor(await getQueue(request), 'lad00');
+    expect(copy.exercise.type).toBe(ExerciseType.WordToSpellingCopy);
+    await submitReview(request, copy, correctAnswer(copy));
     await advanceToDue(request, 'lad00');
 
     const card = cardFor(await getQueue(request), 'lad00');
@@ -178,9 +181,19 @@ test.describe('Study ladder', () => {
         expect(card.exercise.options).toHaveLength(4);
         expect(card.exercise.answer).toBeNull();
       },
+      [ExerciseType.WordToSpellingCopy]: card => {
+        expect(card.exercise.prompt, 'the word is in front of the learner').toBe('rung00');
+        expect(card.exercise.meaning).toBe('the meaning of rung00');
+      },
       [ExerciseType.MeaningToWordScramble]: card => {
-        expect(card.exercise.tiles.slice().sort().join('')).toBe('rung00'.split('').sort().join(''));
+        expect(card.exercise.tiles.length).toBeGreaterThanOrEqual(3);
+        expect(card.exercise.tiles.length).toBeLessThanOrEqual(4);
+        expect(card.exercise.tiles.join('').split('').sort().join('')).toBe('rung00'.split('').sort().join(''));
         expect(card.exercise.answer).toBeNull();
+      },
+      [ExerciseType.WordToSpellingCover]: card => {
+        expect(card.exercise.prompt).toBe('rung00');
+        expect(card.exercise.tiles, 'four letters, so written whole').toBeNull();
       },
       [ExerciseType.MeaningToWordCuedType]: card => {
         expect(card.exercise.letterMask).toMatch(/^r u _/);
@@ -207,22 +220,28 @@ test.describe('Study ladder', () => {
     }
   });
 
-  test('the syllable scramble offers the word in syllables', async ({ request }) => {
-    await seedWords(request, ['chocolate', ...distractors]);
-    await seedCardFor(request, 'chocolate', ExerciseType.MeaningToWordSyllableScramble, {}, { syllables: true });
+  test('the scramble offers the word in three or four pieces, and a three-letter word in letters',
+    async ({ request }) => {
+      await seedWords(request, ['chocolate', 'cat', ...distractors]);
 
-    const card = cardFor(await getQueue(request), 'chocolate');
+      await seedCardFor(request, 'chocolate', ExerciseType.MeaningToWordScramble);
+      const long = cardFor(await getQueue(request), 'chocolate');
+      expect(long.exercise.type).toBe(ExerciseType.MeaningToWordScramble);
+      expect(long.exercise.tiles.slice().sort()).toEqual(['cho', 'co', 'late']);
 
-    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordSyllableScramble);
-    expect(card.exercise.tiles.slice().sort()).toEqual(['cho', 'co', 'late']);
-  });
+      await seedCardFor(request, 'cat', ExerciseType.MeaningToWordScramble);
+      const short = cardFor(await getQueue(request), 'cat');
+      expect(short.exercise.tiles.slice().sort()).toEqual(['a', 'c', 't']);
+    });
 
   test('three clean successes move a word out of recognition', async ({ request }) => {
     await seedWords(request, ['rec00', ...distractors]);
 
     // In learning, so the tries are minutes apart. A review card would be pushed weeks out
     // by each success, and moving the clock that far outlives the test's sign-in cookie.
+    // Copied already, so the three asked are the ways of recognising it
     await seedCardFor(request, 'rec00', ExerciseType.MeaningToWordChoice, {
+      rungStreak: 0, lastExerciseType: ExerciseType.WordToSpellingCopy,
       state: CardState.Learning, intervalDays: 0, learningStepIndex: 1
     });
 

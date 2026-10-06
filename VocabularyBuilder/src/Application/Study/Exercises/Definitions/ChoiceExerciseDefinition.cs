@@ -72,6 +72,7 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
             Prompt = Stimulus(material)!,
             ExampleId = ExampleId(material),
             Hint = Hint(material),
+            ContextSentenceTranslation = HintTranslation(material),
             Options = options,
             Transcription = ShowTranscription ? material.Transcription : null,
             PartOfSpeech = material.PartOfSpeech
@@ -106,6 +107,9 @@ public abstract class ChoiceExerciseDefinition : IExerciseDefinition
 
     /// <summary>What the learner can ask to see, or nothing when the exercise offers no hint.</summary>
     protected virtual string? Hint(StudyMaterial material) => null;
+
+    /// <summary>What the prompt says, shown with the hint - for the one whose prompt is a sentence.</summary>
+    protected virtual string? HintTranslation(StudyMaterial material) => null;
 
     private int RequiredDistractors => Math.Max(1, _options.ChoiceOptionCount - 1);
 }
@@ -192,6 +196,13 @@ public class ContextToWordChoiceExerciseDefinition : ChoiceExerciseDefinition
     /// for it costs nothing. None when the meaning is the word itself: that would be the answer.
     /// </summary>
     protected override string? Hint(StudyMaterial material) => material.CanAskFromMeaning ? material.Meaning : null;
+
+    /// <summary>
+    /// What the sentence says, shown with the meaning - every part of the exercise readable.
+    /// Withheld with it when the meaning is the word itself: the translation would say it too.
+    /// </summary>
+    protected override string? HintTranslation(StudyMaterial material) =>
+        material.CanAskFromMeaning ? material.ContextSentenceTranslation : null;
 
     public override bool HintIsFree => true;
 }

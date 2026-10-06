@@ -3,7 +3,7 @@ import { Button, Input } from 'reactstrap';
 import { NounArticle } from '../NounArticle';
 
 // The letters a French keyboard layout has and most others do not.
-const FRENCH_ACCENTS = ['é', 'è', 'ê', 'ë', 'à', 'â', 'ç', 'ù', 'û', 'ü', 'ô', 'î', 'ï', 'œ'];
+export const FRENCH_ACCENTS = ['é', 'è', 'ê', 'ë', 'à', 'â', 'ç', 'ù', 'û', 'ü', 'ô', 'î', 'ï', 'œ'];
 
 /**
  * The word, typed from its meaning - with the first letters shown when the exercise

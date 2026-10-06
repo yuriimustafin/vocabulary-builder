@@ -42,8 +42,20 @@ public record ExercisePayload
     /// <summary>Choices for a multiple-choice exercise, already shuffled.</summary>
     public IReadOnlyList<string>? Options { get; init; }
 
-    /// <summary>Letter tiles to assemble, already shuffled.</summary>
+    /// <summary>
+    /// Pieces to assemble, already shuffled - a word's chunks, or the words of a sentence's gap.
+    /// For look-cover-write, the chunks a long word is shown and covered in, in order.
+    /// </summary>
     public IReadOnlyList<string>? Tiles { get; init; }
+
+    /// <summary>What the word means, shown beside it where the word itself is the prompt - spelling it.</summary>
+    public string? Meaning { get; init; }
+
+    /// <summary>For a sentence with a gap to rebuild, the text before the gap, as written.</summary>
+    public string? SentenceStart { get; init; }
+
+    /// <summary>For a sentence with a gap to rebuild, the text after the gap, as written.</summary>
+    public string? SentenceEnd { get; init; }
 
     /// <summary>Partially revealed spelling, for example "d _ _ _ _ _".</summary>
     public string? LetterMask { get; init; }
@@ -71,8 +83,8 @@ public record ExercisePayload
     public WordConnectionsDto? Connections { get; init; }
 
     /// <summary>
-    /// For an exercise with several options, what each means - keyed by the option - for the
-    /// learner to ask to see. Only the options the model translated are in it.
+    /// What each of an exercise's pieces means - keyed by the piece, a sentence tile - for the
+    /// learner to ask to see. Only the pieces that could be translated are in it.
     /// </summary>
     public Dictionary<string, string>? OptionHints { get; init; }
 }
@@ -142,12 +154,6 @@ public interface IExerciseDefinition
     /// automatic ones mark the answer against the word.
     /// </summary>
     ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material);
-
-    /// <summary>
-    /// For an exercise with several right answers, what they were, for the feedback to list.
-    /// Null for one with a single answer.
-    /// </summary>
-    IReadOnlyList<string>? ExpectedOptions(StudyMaterial material) => null;
 
     /// <summary>
     /// The word is picked out among options rather than produced. A miss there is not

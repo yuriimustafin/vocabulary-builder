@@ -4,6 +4,7 @@ import { GradeBar } from './GradeBar';
 import { NounArticle } from '../NounArticle';
 import { BilingualText } from './BilingualText';
 import { WordConnections } from './WordConnections';
+import { ExerciseType } from './exerciseTypes';
 
 /**
  * Every self-graded exercise has the same shape: a prompt, an answer the learner asks to
@@ -51,7 +52,15 @@ export class RevealExercise extends Component {
 
         {exercise.hint && !revealed && (
           hintShown
-            ? <p className="text-muted fst-italic mt-3" data-testid="hint-text">{exercise.hint}</p>
+            ? (
+              <div className="text-muted fst-italic mt-3" data-testid="hint-text">
+                <div>{exercise.hint}</div>
+                {/* The sentence's translation too, where the prompt is a sentence */}
+                {exercise.type === ExerciseType.ContextToWordRecall && exercise.contextSentenceTranslation && (
+                  <div data-testid="hint-translation">{exercise.contextSentenceTranslation}</div>
+                )}
+              </div>
+            )
             : <Button color="link" className="ps-0 mt-2" data-testid="hint-button" onClick={this.showHint}>
                 Show a hint
               </Button>
