@@ -1,4 +1,4 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Constants;
 using VocabularyBuilder.Infrastructure.Data;
 using VocabularyBuilder.Infrastructure.Data.Interceptors;
@@ -16,6 +16,7 @@ using VocabularyBuilder.Infrastructure.Exporters;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Infrastructure.HttpClients;
 using VocabularyBuilder.Infrastructure.Ai;
+using VocabularyBuilder.Infrastructure.History;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -134,7 +135,68 @@ public static class DependencyInjection
                 ActivatorUtilities.CreateInstance<GptClient>(x, aiApiKey));
         }
 
+        services.AddScoped<IExternalCallRecorder, ExternalCallRecorder>();
+        services.AddOutboundCallRecording();
+
         return services;
+    }
+
+    /// <summary>
+    /// Wraps the model client and the WordReference loader, whichever are registered, so that
+    /// every call through them is logged.
+    /// </summary>
+    /// <remarks>
+    /// Public, and safe to call again, because a test host replaces these clients after this
+    /// method has run and has to wrap its own replacements the same way - otherwise the calls
+    /// its tests make would go unrecorded and nothing about the log could be tested. A client
+    /// that is already wrapped is left alone.
+    /// </remarks>
+    public static IServiceCollection AddOutboundCallRecording(this IServiceCollection services)
+    {
+        Decorate<IGptClient>(services, (inner, sp) => inner is RecordingGptClient
+            ? inner
+            : new RecordingGptClient(inner, sp.GetRequiredService<IExternalCallRecorder>()));
+
+        Decorate<IWordReferencePageLoader>(services, (inner, sp) => inner is RecordingWordReferencePageLoader
+            ? inner
+            : new RecordingWordReferencePageLoader(inner, sp.GetRequiredService<IExternalCallRecorder>()));
+
+        return services;
+    }
+
+    private static void Decorate<TService>(
+        IServiceCollection services,
+        Func<TService, IServiceProvider, TService> decorate)
+        where TService : class
+    {
+        var registration = services.LastOrDefault(d => d.ServiceType == typeof(TService));
+
+        if (registration is null)
+        {
+            return;
+        }
+
+        services.Remove(registration);
+
+        services.Add(new ServiceDescriptor(
+            typeof(TService),
+            sp => decorate(CreateInner<TService>(registration, sp), sp),
+            registration.Lifetime));
+    }
+
+    private static TService CreateInner<TService>(ServiceDescriptor registration, IServiceProvider sp)
+    {
+        if (registration.ImplementationInstance is TService instance)
+        {
+            return instance;
+        }
+
+        if (registration.ImplementationFactory is not null)
+        {
+            return (TService)registration.ImplementationFactory(sp);
+        }
+
+        return (TService)ActivatorUtilities.CreateInstance(sp, registration.ImplementationType!);
     }
 
     /// <summary>

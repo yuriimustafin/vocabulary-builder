@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.Extensions.Options;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Infrastructure.HttpClients;
@@ -111,7 +111,7 @@ public class GptFrenchParserTests
     }
 
     [Test]
-    public async Task ShouldReportItselfAsTheGptSource()
+    public void ShouldReportItselfAsTheGptSource()
     {
         CreateParser().SourceType.Should().Be(DictionarySourceType.Gpt);
     }

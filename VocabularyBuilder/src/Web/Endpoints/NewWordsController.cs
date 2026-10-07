@@ -81,7 +81,7 @@ public class NewWordsController : ControllerBase
     }
 
     [HttpPost("import-kindle")]
-    public async Task<ActionResult<int>> ImportKindle([FromForm] IFormFile file, [FromQuery] string lang = "en")
+    public async Task<ActionResult<ImportBookWordsResult>> ImportKindle([FromForm] IFormFile file, [FromQuery] string lang = "en")
     {
         if (file == null || file.Length == 0)
         {
@@ -95,7 +95,7 @@ public class NewWordsController : ControllerBase
         }
 
         var language = ParseLanguage(lang);
-        var result = await _sender.Send(new ImportBookWordsCommand(fileContent, language));
+        var result = await _sender.Send(new ImportBookWordsCommand(fileContent, language, file.FileName));
         return Ok(result);
     }
 
@@ -122,7 +122,8 @@ public class NewWordsController : ControllerBase
             FileContent = fileContent,
             Language = ParseLanguage(lang),
             ListName = listName,
-            Tag = tag
+            Tag = tag,
+            FileName = file.FileName
         });
 
         return Ok(result);

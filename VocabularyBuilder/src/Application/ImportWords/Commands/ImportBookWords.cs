@@ -1,5 +1,6 @@
 ﻿using System.Text.RegularExpressions;
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.Imports.Commands;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Application.Words.Queries;
@@ -10,9 +11,18 @@ using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 
 namespace VocabularyBuilder.Application.ImportWords.Commands;
 
-public record ImportBookWordsCommand(string FileContent, Language Language = Language.English) : IRequest<int>;
+public record ImportBookWordsCommand(string FileContent, Language Language = Language.English, string? FileName = null)
+    : IRequest<ImportBookWordsResult>;
 
-public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsCommand, int>
+public class ImportBookWordsResult
+{
+    public int WordsImported { get; set; }
+
+    /// <summary>The record of this import, for the Imports page.</summary>
+    public int? ImportId { get; set; }
+}
+
+public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsCommand, ImportBookWordsResult>
 {
     private readonly IBookImportParser _bookParser;
     private readonly ISender _sender;
@@ -23,15 +33,37 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
         _sender = sender;
     }
 
-    public async Task<int> Handle(ImportBookWordsCommand request, CancellationToken cancellationToken)
+    public Task<ImportBookWordsResult> Handle(ImportBookWordsCommand request, CancellationToken cancellationToken)
     {
+        return ImportRun.TrackAsync(_sender, new StartImportCommand
+        {
+            Kind = ImportKind.Kindle,
+            Language = request.Language,
+            FileName = request.FileName
+        }, importId => Import(request, importId, cancellationToken), cancellationToken);
+    }
+
+    private async Task<ImportBookWordsResult> Import(
+        ImportBookWordsCommand request, int importId, CancellationToken cancellationToken)
+    {
+        var result = new ImportBookWordsResult { ImportId = importId > 0 ? importId : null };
+
         var importedWords = await ParseKindleHtml(request.FileContent);
         if (importedWords == null || !importedWords.Any())
-            return 0;
+        {
+            await _sender.Send(new CompleteImportCommand(importId, 0), cancellationToken);
+            return result;
+        }
 
         // Don't parse from dictionary - just store the headwords
         // They will be parsed later during export
-        return await ImportWords(importedWords, cancellationToken);
+        result.WordsImported = await ImportWords(importedWords, importId, cancellationToken);
+
+        var bookTitle = importedWords.Select(w => w.Book?.Title).FirstOrDefault(t => !string.IsNullOrWhiteSpace(t));
+
+        await _sender.Send(new CompleteImportCommand(importId, importedWords.Count, Name: bookTitle), cancellationToken);
+
+        return result;
     }
 
     private async Task<IList<ImportedBookWord>?> ParseKindleHtml(string htmlContent)
@@ -49,13 +81,14 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
 
     private async Task<int> ImportWords(
         IList<ImportedBookWord> importedWords,
+        int importId,
         CancellationToken cancellationToken)
     {
         var importedCount = 0;
 
         foreach (var importedWord in importedWords)
         {
-            var upsertCommand = BuildUpsertCommand(importedWord);
+            var upsertCommand = BuildUpsertCommand(importedWord, importId);
             await _sender.Send(upsertCommand, cancellationToken);
             importedCount++;
         }
@@ -63,10 +96,10 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
         return importedCount;
     }
 
-    private UpsertWordCommand BuildUpsertCommand(ImportedBookWord importedWord)
+    private UpsertWordCommand BuildUpsertCommand(ImportedBookWord importedWord, int importId)
     {
         var trimmedHeadword = importedWord.TrimmedHeadword();
-        
+
         return new UpsertWordCommand
         {
             Headword = trimmedHeadword,
@@ -75,7 +108,9 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
             Source = WordEncounterSource.KindleHighlights,
             SourceIdentifier = BuildSourceIdentifier(importedWord, trimmedHeadword),
             Context = importedWord.Book?.Title,
-            Notes = importedWord.Note
+            Notes = importedWord.Note,
+            ImportId = importId,
+            ImportSourceTerm = importedWord.Headword
         };
     }
 

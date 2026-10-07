@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
@@ -72,13 +73,18 @@ public class FillWordFromDictionaryCommandHandler
             return DictionaryFillOutcome.AlreadyFilled;
         }
 
-        var results = await _sender.Send(new LookupWordsFromDictionaryQuery
+        List<WordLookupResult> results;
+
+        using (ExternalCallScope.Begin(target: word.Headword, wordId: word.Id))
         {
-            Words = new List<string> { word.Headword },
-            Language = word.Language,
-            SourceType = word.Language.GetDefaultSourceType(),
-            IgnoreCache = request.Force
-        }, cancellationToken);
+            results = await _sender.Send(new LookupWordsFromDictionaryQuery
+            {
+                Words = new List<string> { word.Headword },
+                Language = word.Language,
+                SourceType = word.Language.GetDefaultSourceType(),
+                IgnoreCache = request.Force
+            }, cancellationToken);
+        }
 
         // The lookup is asked about one word, but answers by term rather than by position and
         // returns nothing at all for a word it has no entry for
@@ -88,6 +94,12 @@ public class FillWordFromDictionaryCommandHandler
 
         if (result is null)
         {
+            _context.RecordActivity(
+                ActivityAction.WordNotFoundInDictionary,
+                word,
+                summary: request.Force ? "Forced lookup found no entry" : "No entry found");
+            await _context.SaveChangesAsync(cancellationToken);
+
             return DictionaryFillOutcome.NotFound;
         }
 
@@ -126,6 +138,26 @@ public class FillWordFromDictionaryCommandHandler
             DictionarySources = result.DictionarySources.Any() ? result.DictionarySources : null,
             Forms = result.Forms.Any() ? result.Forms : null
         }, cancellationToken);
+
+        var source = result.DictionarySources.FirstOrDefault()?.SourceType;
+
+        _context.RecordActivity(
+            ActivityAction.WordFilledFromDictionary,
+            word,
+            summary: $"{(request.Force ? "Refilled" : "Filled")} from {source?.ToString() ?? "cache"}: " +
+                     $"{result.Word.Senses?.Count ?? 0} senses" +
+                     (result.Forms.Count > 0 ? $", {result.Forms.Count} forms" : ""),
+            details: new
+            {
+                source,
+                forced = request.Force,
+                senses = result.Word.Senses?.Count ?? 0,
+                forms = result.Forms.Count,
+                result.Word.PartOfSpeech,
+                result.Word.Gender,
+                result.Word.Transcription
+            });
+        await _context.SaveChangesAsync(cancellationToken);
 
         return DictionaryFillOutcome.Filled;
     }

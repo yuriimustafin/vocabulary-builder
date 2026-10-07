@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -111,7 +112,12 @@ every tense, writing the subject as a table does - ""je"", ""tu"", ""il, elle, o
             try
             {
                 var prompt = $"{SystemPrompt}\n\nProvide dictionary information for the French word: \"{searchedWord}\"";
-                var response = await _gptClient.SendMessageAsync(prompt);
+                string? response;
+
+                using (ExternalCallScope.Begin(ExternalCallPurpose.DictionaryEntry, target: searchedWord))
+                {
+                    response = await _gptClient.SendMessageAsync(prompt);
+                }
                 
                 if (string.IsNullOrEmpty(response))
                 {
@@ -160,7 +166,12 @@ every tense, writing the subject as a table does - ""je"", ""tu"", ""il, elle, o
         try
         {
             var prompt = $"{ConjugationPrompt}\n\nConjugate the French verb: \"{word.Headword}\"";
-            var response = await _gptClient.SendMessageAsync(prompt);
+            string? response;
+
+            using (ExternalCallScope.Begin(ExternalCallPurpose.Conjugation, target: word.Headword))
+            {
+                response = await _gptClient.SendMessageAsync(prompt);
+            }
 
             if (string.IsNullOrWhiteSpace(response))
             {

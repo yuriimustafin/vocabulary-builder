@@ -1,8 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Infrastructure.Data;
+using VocabularyBuilder.Infrastructure.History;
 using VocabularyBuilder.Infrastructure.HttpClients;
 using VocabularyBuilder.Infrastructure.Parsers;
 
@@ -24,13 +25,16 @@ public class TestHostTests : BaseTestFixture
     [Test]
     public void ShouldNotResolveAModelClientThatWouldCallOut()
     {
-        GetService<IGptClient>().Should().BeOfType<MockGptClient>();
+        // Wrapped, so its calls are logged - but what answers them has to be the recording
+        GetService<IGptClient>().Should().BeOfType<RecordingGptClient>()
+            .Which.Inner.Should().BeOfType<MockGptClient>();
     }
 
     [Test]
     public void ShouldNotResolveADictionaryLoaderThatWouldCallOut()
     {
-        GetService<IWordReferencePageLoader>().Should().BeOfType<MockWordReferencePageLoader>();
+        GetService<IWordReferencePageLoader>().Should().BeOfType<RecordingWordReferencePageLoader>()
+            .Which.Inner.Should().BeOfType<MockWordReferencePageLoader>();
     }
 
     /// <summary>

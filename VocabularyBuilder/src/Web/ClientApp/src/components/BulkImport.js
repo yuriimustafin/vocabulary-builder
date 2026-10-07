@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Button, Form, FormGroup, Label, Input, Alert, Card, CardBody, CardHeader, Spinner } from 'reactstrap';
+import { ImportLink } from './ImportResultSummary';
 import { NewWordsClient } from '../web-api-client.ts';
 
 export class BulkImport extends Component {
@@ -71,10 +72,18 @@ export class BulkImport extends Component {
       }
 
       const result = await response.text();
+
+      let importId = null;
+      try {
+        importId = JSON.parse(result).importId;
+      } catch {
+        // The raw answer is still shown; there is just no import to link to
+      }
       
       this.setState({ 
         loading: false, 
         result: result,
+        importId,
         wordList: '', // Clear the textarea after successful import
         error: null
       });
@@ -213,6 +222,7 @@ export class BulkImport extends Component {
             <div style={{ whiteSpace: 'pre-wrap', fontFamily: 'monospace', fontSize: '0.9rem' }}>
               {result}
             </div>
+            <ImportLink importId={this.state.importId} />
           </Alert>
         )}
 

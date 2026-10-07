@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { WordsClient } from '../web-api-client.ts';
 import { IndefiniteArticleHint, NounArticle } from './NounArticle';
 import { WordForms } from './WordForms';
+import { WordHistory } from './WordHistory';
 
 // Mirrors VocabularyBuilder.Domain.Enums.GrammaticalGender, which serialises as a number.
 const GRAMMATICAL_GENDERS = [
@@ -53,6 +54,12 @@ export class Words extends Component {
 
   componentDidMount() {
     this.loadWords('frequency');
+
+    // ?details=<id> opens that word straight away - the Imports and History pages link here
+    const details = new URLSearchParams(window.location.search).get('details');
+    if (details) {
+      this.toggleDetailsModal({ id: parseInt(details, 10) });
+    }
   }
 
   async loadWords(sortBy = null, pageNumber = null) {
@@ -942,6 +949,8 @@ export class Words extends Component {
                     </div>
                   </>
                 )}
+
+                <WordHistory wordId={wordDetails.id} />
 
                 {wordDetails.dictionarySources && wordDetails.dictionarySources.length > 0 && (
                   <>

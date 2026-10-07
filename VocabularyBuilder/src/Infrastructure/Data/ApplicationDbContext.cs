@@ -8,6 +8,8 @@ using Microsoft.EntityFrameworkCore;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
 using VocabularyBuilder.Domain.Entities.Frequency;
 using VocabularyBuilder.Domain.Entities.Study;
+using VocabularyBuilder.Domain.Entities.History;
+using VocabularyBuilder.Domain.Entities.Imports;
 
 namespace VocabularyBuilder.Infrastructure.Data;
 
@@ -58,6 +60,14 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
     public DbSet<ReviewLog> ReviewLogs => Set<ReviewLog>();
 
     public DbSet<WordStudyContent> WordStudyContents => Set<WordStudyContent>();
+
+    public DbSet<VocabularyImport> VocabularyImports => Set<VocabularyImport>();
+
+    public DbSet<VocabularyImportItem> VocabularyImportItems => Set<VocabularyImportItem>();
+
+    public DbSet<ActivityLogEntry> ActivityLog => Set<ActivityLogEntry>();
+
+    public DbSet<ExternalCallLog> ExternalCallLog => Set<ExternalCallLog>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -158,6 +168,9 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         ConfigureOwnedRoot<VocabularyList>(builder);
         ConfigureOwnedRoot<ImportedBookWord>(builder);
         ConfigureOwnedRoot<TodoList>(builder);
+        ConfigureOwnedRoot<VocabularyImport>(builder);
+        ConfigureOwnedRoot<ActivityLogEntry>(builder);
+        ConfigureOwnedRoot<ExternalCallLog>(builder);
 
         builder.Entity<WordEncounter>().HasQueryFilter(e => e.Word.OwnerId == CurrentUserId);
         builder.Entity<WordDictionarySource>().HasQueryFilter(s => s.Word.OwnerId == CurrentUserId);
@@ -167,6 +180,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<ReviewLog>().HasQueryFilter(l => l.ReviewCard.Word.OwnerId == CurrentUserId);
         builder.Entity<VocabularyListItem>().HasQueryFilter(i => i.List.OwnerId == CurrentUserId);
         builder.Entity<TodoItem>().HasQueryFilter(i => i.List.OwnerId == CurrentUserId);
+        builder.Entity<VocabularyImportItem>().HasQueryFilter(i => i.Import.OwnerId == CurrentUserId);
 
         // A sense has no navigation back to its word, only the key, so it is matched against
         // the words this user can see - which carries the word's own filter along with it

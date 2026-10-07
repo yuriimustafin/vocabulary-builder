@@ -1,4 +1,6 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Lists.Commands;
 
@@ -21,6 +23,11 @@ public class DeleteListItemCommandHandler : IRequestHandler<DeleteListItemComman
         {
             return false;
         }
+
+        _context.RecordActivity(
+            ActivityAction.ListItemDeleted,
+            listId: entity.ListId,
+            summary: $"\"{entity.Text}\" removed");
 
         _context.VocabularyListItems.Remove(entity);
         await _context.SaveChangesAsync(cancellationToken);

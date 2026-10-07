@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 
@@ -66,6 +67,11 @@ public class ClearStudyProgressCommandHandler
         {
             _context.ReviewLogs.RemoveRange(logs);
             _context.ReviewCards.RemoveRange(cards);
+            _context.RecordActivity(
+                ActivityAction.StudyProgressCleared,
+                language: request.Language,
+                summary: $"All progress cleared: {cards.Count} cards, {logs.Count} reviews",
+                details: new { request.Scope, cardsRemoved = cards.Count, reviewsRemoved = logs.Count });
             await _context.SaveChangesAsync(cancellationToken);
 
             return new ClearStudyProgressResultDto
@@ -94,6 +100,11 @@ public class ClearStudyProgressCommandHandler
 
         _context.ReviewLogs.RemoveRange(todaysLogs);
         _context.ReviewCards.RemoveRange(introducedToday);
+        _context.RecordActivity(
+            ActivityAction.StudyProgressCleared,
+            language: request.Language,
+            summary: $"Today cleared: {introducedToday.Count} cards, {todaysLogs.Count} reviews",
+            details: new { request.Scope, cardsRemoved = introducedToday.Count, reviewsRemoved = todaysLogs.Count });
         await _context.SaveChangesAsync(cancellationToken);
 
         return new ClearStudyProgressResultDto

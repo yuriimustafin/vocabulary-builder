@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 
@@ -46,6 +47,13 @@ public class MarkWordAsKnownCommandHandler : IRequestHandler<MarkWordAsKnownComm
 
         _context.ReviewLogs.RemoveRange(logs);
         _context.ReviewCards.Remove(card);
+
+        // The card and its answers go, so this is the only record of how far it had got
+        _context.RecordActivity(
+            ActivityAction.WordMarkedKnown,
+            card.Word,
+            summary: $"Known after {logs.Count} reviews",
+            details: new { reviewsRemoved = logs.Count, card.State, card.CurrentRung, card.IntervalDays, card.Lapses });
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;

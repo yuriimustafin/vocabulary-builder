@@ -297,6 +297,353 @@
         }
       }
     },
+    "/api/{lang}/history/activity": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "operationId": "GetApiHistoryActivity",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "wordId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 3
+          },
+          {
+            "name": "importId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 4
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 5
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 6
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedListOfActivityLogEntryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/history/calls": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "operationId": "GetApiHistoryCalls",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "provider",
+            "in": "query",
+            "schema": {
+              "oneOf": [
+                {
+                  "nullable": true,
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ExternalCallProvider"
+                    }
+                  ]
+                }
+              ]
+            },
+            "x-position": 2
+          },
+          {
+            "name": "purpose",
+            "in": "query",
+            "schema": {
+              "oneOf": [
+                {
+                  "nullable": true,
+                  "oneOf": [
+                    {
+                      "$ref": "#/components/schemas/ExternalCallPurpose"
+                    }
+                  ]
+                }
+              ]
+            },
+            "x-position": 3
+          },
+          {
+            "name": "failedOnly",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "x-position": 4
+          },
+          {
+            "name": "wordId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 5
+          },
+          {
+            "name": "importId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 6
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 7
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 8
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedListOfExternalCallDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/history/calls/{id}": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "operationId": "GetApiHistoryCalls2",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/history/words/{wordId}": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "operationId": "GetApiHistoryWords",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "wordId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
+    "/api/{lang}/imports": {
+      "get": {
+        "tags": [
+          "Imports"
+        ],
+        "operationId": "GetApiImports",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 2
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20
+            },
+            "x-position": 3
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedListOfImportDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/imports/{id}": {
+      "get": {
+        "tags": [
+          "Imports"
+        ],
+        "operationId": "GetApiImports2",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        }
+      }
+    },
     "/api/{lang}/lists": {
       "get": {
         "tags": [
@@ -2301,6 +2648,349 @@
           }
         }
       },
+      "PaginatedListOfActivityLogEntryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ActivityLogEntryDto"
+            }
+          },
+          "pageNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean"
+          },
+          "hasNextPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ActivityLogEntryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "occurredAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "action": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "language": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Language"
+              }
+            ]
+          },
+          "wordId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "headword": {
+            "type": "string",
+            "nullable": true
+          },
+          "listId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "importId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "details": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Language": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "English",
+          "French"
+        ],
+        "enum": [
+          0,
+          1
+        ]
+      },
+      "PaginatedListOfExternalCallDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalCallDto"
+            }
+          },
+          "pageNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean"
+          },
+          "hasNextPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ExternalCallDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "durationMs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string",
+            "nullable": true
+          },
+          "target": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "statusCode": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "succeeded": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "responseLength": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "promptTokens": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "completionTokens": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "isMock": {
+            "type": "boolean"
+          },
+          "wordId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "importId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "hasBody": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ExternalCallProvider": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Gpt",
+          "WordReference",
+          "Oxford"
+        ],
+        "enum": [
+          0,
+          1,
+          2
+        ]
+      },
+      "ExternalCallPurpose": {
+        "type": "integer",
+        "description": "",
+        "x-enumNames": [
+          "Other",
+          "DictionaryEntry",
+          "Conjugation",
+          "StudyContent",
+          "NotesExtraction",
+          "LemmaResolution",
+          "ListGeneration",
+          "AudioText"
+        ],
+        "enum": [
+          0,
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7
+        ]
+      },
+      "PaginatedListOfImportDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportDto"
+            }
+          },
+          "pageNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean"
+          },
+          "hasNextPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ImportDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "language": {
+            "$ref": "#/components/schemas/Language"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true
+          },
+          "fileName": {
+            "type": "string",
+            "nullable": true
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "startedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          },
+          "isReconstructed": {
+            "type": "boolean"
+          },
+          "termsRead": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "wordsCreated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "wordsTouched": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "encountersCreated": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "termsSkipped": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "VocabularyListDto": {
         "type": "object",
         "additionalProperties": false,
@@ -2331,18 +3021,6 @@
             "format": "date-time"
           }
         }
-      },
-      "Language": {
-        "type": "integer",
-        "description": "",
-        "x-enumNames": [
-          "English",
-          "French"
-        ],
-        "enum": [
-          0,
-          1
-        ]
       },
       "ListStatus": {
         "type": "integer",

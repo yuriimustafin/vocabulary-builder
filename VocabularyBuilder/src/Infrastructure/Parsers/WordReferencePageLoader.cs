@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Options;
+﻿using Microsoft.Extensions.Options;
 
 namespace VocabularyBuilder.Infrastructure.Parsers;
 
@@ -11,7 +11,19 @@ public interface IWordReferencePageLoader
     Task<string?> GetPageAsync(string url);
 }
 
-public class HttpWordReferencePageLoader : IWordReferencePageLoader
+/// <summary>A fetched page, or what stopped it arriving.</summary>
+public record PageFetch(string? Html, int? StatusCode = null, string? Error = null, bool IsMock = false);
+
+/// <summary>
+/// A loader that can say why a page did not arrive - the 418 the VPS gets, as against a word
+/// with no page. Used by the call log; callers that only want the page keep GetPageAsync.
+/// </summary>
+public interface IDetailedPageLoader
+{
+    Task<PageFetch> FetchAsync(string url);
+}
+
+public class HttpWordReferencePageLoader : IWordReferencePageLoader, IDetailedPageLoader
 {
     private readonly HttpClient _httpClient;
 
@@ -24,15 +36,21 @@ public class HttpWordReferencePageLoader : IWordReferencePageLoader
 
     public async Task<string?> GetPageAsync(string url)
     {
+        return (await FetchAsync(url)).Html;
+    }
+
+    public async Task<PageFetch> FetchAsync(string url)
+    {
         var response = await _httpClient.GetAsync(url);
+        var statusCode = (int)response.StatusCode;
 
         if (!response.IsSuccessStatusCode)
         {
-            Console.WriteLine($"WordReference returned {(int)response.StatusCode} for {url}");
-            return null;
+            Console.WriteLine($"WordReference returned {statusCode} for {url}");
+            return new PageFetch(null, statusCode, $"WordReference returned {statusCode}");
         }
 
-        return await response.Content.ReadAsStringAsync();
+        return new PageFetch(await response.Content.ReadAsStringAsync(), statusCode);
     }
 }
 
@@ -40,7 +58,7 @@ public class HttpWordReferencePageLoader : IWordReferencePageLoader
 /// Serves pages recorded under MockData/wordreference, keyed by the word in the
 /// URL, so the E2E tests never reach the network.
 /// </summary>
-public class MockWordReferencePageLoader : IWordReferencePageLoader
+public class MockWordReferencePageLoader : IWordReferencePageLoader, IDetailedPageLoader
 {
     private readonly string _mockDataPath;
 
@@ -48,6 +66,13 @@ public class MockWordReferencePageLoader : IWordReferencePageLoader
     {
         _mockDataPath = mockDataPath
             ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "MockData", "wordreference");
+    }
+
+    public async Task<PageFetch> FetchAsync(string url)
+    {
+        var html = await GetPageAsync(url);
+
+        return new PageFetch(html, Error: html is null ? "No recorded page" : null, IsMock: true);
     }
 
     public Task<string?> GetPageAsync(string url)

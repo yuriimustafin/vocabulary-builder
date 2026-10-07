@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using VocabularyBuilder.Application.History;
+using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Web;
@@ -76,7 +77,12 @@ public class WordReferenceFrenchParser : IWordReferenceParser
             try
             {
                 var url = GetAddress(term);
-                var html = await _pageLoader.GetPageAsync(url);
+                string? html;
+
+                using (ExternalCallScope.Begin(target: term))
+                {
+                    html = await _pageLoader.GetPageAsync(url);
+                }
 
                 if (string.IsNullOrEmpty(html))
                 {

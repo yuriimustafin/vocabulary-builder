@@ -1,4 +1,5 @@
-﻿using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.History;
+using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -67,6 +68,12 @@ public class CreateWordCommandHandler : IRequestHandler<CreateWordCommand, int>
         };
         
         _context.WordEncounters.Add(encounter);
+
+        _context.RecordActivity(
+            ActivityAction.WordCreated,
+            entity,
+            summary: request.Context is { Length: > 0 } ? $"Added ({request.Source}): {request.Context}" : $"Added ({request.Source})");
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return entity.Id;

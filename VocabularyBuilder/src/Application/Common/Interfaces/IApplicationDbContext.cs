@@ -1,5 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore.ChangeTracking;
 using VocabularyBuilder.Domain.Entities.Frequency;
+using VocabularyBuilder.Domain.Entities.History;
+using VocabularyBuilder.Domain.Entities.Imports;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Samples.Entities;
 using VocabularyBuilder.Domain.Samples.Entities.ImportedBook;
@@ -40,6 +42,22 @@ public interface IApplicationDbContext
     DbSet<ReviewLog> ReviewLogs { get; }
 
     DbSet<WordStudyContent> WordStudyContents { get; }
+
+    DbSet<VocabularyImport> VocabularyImports { get; }
+
+    DbSet<VocabularyImportItem> VocabularyImportItems { get; }
+
+    /// <summary>
+    /// What each user did. Written through <c>RecordActivity</c>, alongside the change it
+    /// describes, so that the entry is saved exactly when the change is.
+    /// </summary>
+    DbSet<ActivityLogEntry> ActivityLog { get; }
+
+    /// <summary>
+    /// Every request to a model or a dictionary site. Written by the recorder on a context of
+    /// its own rather than through this one - see <c>IExternalCallRecorder</c>.
+    /// </summary>
+    DbSet<ExternalCallLog> ExternalCallLog { get; }
 
     ChangeTracker ChangeTracker { get; }
 

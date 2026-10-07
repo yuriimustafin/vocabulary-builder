@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Infrastructure.Ai;
@@ -10,7 +10,7 @@ namespace VocabularyBuilder.Infrastructure.HttpClients;
 /// <summary>
 /// Mock GPT client for testing that returns pre-recorded responses
 /// </summary>
-public class MockGptClient : IGptClient
+public class MockGptClient : IGptClient, IDetailedGptClient
 {
     /// <summary>
     /// Headword prefix that makes generation fail on purpose, so a study session's failure
@@ -64,6 +64,17 @@ public class MockGptClient : IGptClient
                 Console.WriteLine($"Error loading mock data from {file}: {ex.Message}");
             }
         }
+    }
+
+    public async Task<GptCompletion> CompleteAsync(string prompt)
+    {
+        var content = await SendMessageAsync(prompt);
+
+        return new GptCompletion(
+            content,
+            Model: "mock",
+            Error: content is null ? "No recorded response" : null,
+            IsMock: true);
     }
 
     public Task<string?> SendMessageAsync(string prompt)

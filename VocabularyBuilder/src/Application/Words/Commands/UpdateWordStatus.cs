@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 
@@ -24,6 +25,15 @@ public class UpdateWordStatusCommandHandler : IRequestHandler<UpdateWordStatusCo
             .FindAsync(new object[] { request.Id }, cancellationToken);
 
         Guard.Against.NotFound(request.Id, word);
+
+        if (word.Status != request.Status)
+        {
+            _context.RecordActivity(
+                ActivityAction.WordStatusChanged,
+                word,
+                summary: $"{word.Status} → {request.Status}",
+                details: new { from = word.Status, to = request.Status });
+        }
 
         word.Status = request.Status;
 

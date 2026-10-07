@@ -1,5 +1,6 @@
 ﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Queries;
+using VocabularyBuilder.Domain.Entities.Imports;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -36,6 +37,18 @@ public record UpsertWordCommand : IRequest<int>
     /// with the word, and must not count as one.
     /// </summary>
     public bool RecordEncounter { get; init; } = true;
+
+    /// <summary>
+    /// The import this upsert is part of, if any. The word is filed under it - new or not,
+    /// and whether or not the encounter was - so the import can show everything it touched.
+    /// </summary>
+    public int? ImportId { get; init; }
+
+    /// <summary>
+    /// The term as the import source wrote it, when that differs from the headword:
+    /// "Vous allez" for "aller". Defaults to the headword.
+    /// </summary>
+    public string? ImportSourceTerm { get; init; }
 
     // Dictionary sources for caching (optional)
     public List<WordDictionarySource>? DictionarySources { get; init; }
@@ -103,7 +116,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             await SaveWordForms(newWord.Id, request, cancellationToken);
             
             // Create the encounter record
-            await CreateWordEncounter(newWord.Id, request, cancellationToken);
+            var encounterAdded = await CreateWordEncounter(newWord.Id, request, cancellationToken);
+            await FileUnderImport(newWord, created: true, encounterAdded, request, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
             
             return newWord.Id;
@@ -183,7 +197,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             await SaveWordForms(existingWord.Id, request, cancellationToken);
             
             // Create new encounter record (idempotency check based on SourceIdentifier)
-            await CreateWordEncounter(existingWord.Id, request, cancellationToken);
+            var encounterAdded = await CreateWordEncounter(existingWord.Id, request, cancellationToken);
+            await FileUnderImport(existingWord, created: false, encounterAdded, request, cancellationToken);
             
             await _context.SaveChangesAsync(cancellationToken);
             
@@ -225,11 +240,46 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
         }
     }
 
-    private async Task CreateWordEncounter(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Records that the import brought this term in, and onto which word.
+    /// </summary>
+    /// <remarks>
+    /// A word an earlier term of the same import created counts as created for this term too.
+    /// Otherwise "une randonnée" would show as new and "la randonnée", two lines further down
+    /// the same file, as already known - known only since a moment ago, and only because of
+    /// this very import.
+    /// </remarks>
+    private async Task FileUnderImport(
+        Word word, bool created, bool encounterAdded, UpsertWordCommand request, CancellationToken cancellationToken)
+    {
+        if (request.ImportId is not > 0)
+        {
+            return;
+        }
+
+        var importId = request.ImportId.Value;
+
+        var createdHere = created || await _context.VocabularyImportItems.AnyAsync(
+            i => i.ImportId == importId && i.WordId == word.Id && i.Outcome == ImportItemOutcome.Created,
+            cancellationToken);
+
+        _context.VocabularyImportItems.Add(new VocabularyImportItem
+        {
+            ImportId = importId,
+            WordId = word.Id,
+            Headword = word.Headword,
+            SourceTerm = request.ImportSourceTerm ?? request.Headword,
+            Outcome = createdHere ? ImportItemOutcome.Created : ImportItemOutcome.Existing,
+            EncounterAdded = encounterAdded
+        });
+    }
+
+    /// <returns>Whether an encounter was added - false when it was already recorded, or not asked for.</returns>
+    private async Task<bool> CreateWordEncounter(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
     {
         if (!request.RecordEncounter)
         {
-            return;
+            return false;
         }
 
         // Generate SourceIdentifier from today's date if not provided (for manual entries)
@@ -246,7 +296,7 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
         if (existingEncounter != null)
         {
             // Encounter already exists, don't create duplicate
-            return;
+            return false;
         }
 
         var encounter = new WordEncounter
@@ -259,5 +309,7 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
         };
 
         _context.WordEncounters.Add(encounter);
+
+        return true;
     }
 }

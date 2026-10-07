@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using VocabularyBuilder.Application.History;
+using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Study.Exercises;
@@ -244,7 +245,12 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         try
         {
-            var response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps));
+            string? response;
+
+            using (ExternalCallScope.Begin(ExternalCallPurpose.StudyContent, target: word.Headword, wordId: word.Id))
+            {
+                response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps));
+            }
             generated = Parse(response);
         }
         catch (Exception ex)

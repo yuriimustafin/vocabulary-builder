@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 
@@ -93,6 +94,16 @@ public class FillMissingDictionaryDataCommandHandler
                     result.NotFound++;
                     break;
             }
+        }
+
+        if (result.Considered > 0)
+        {
+            _context.RecordActivity(
+                ActivityAction.DictionaryFillRun,
+                language: request.Language,
+                summary: $"{(request.Force ? "Forced refill" : "Fill")}: {result.Filled} filled, {result.NotFound} not found, of {result.Considered}",
+                details: new { request.Force, request.Limit, result.Considered, result.Filled, result.NotFound });
+            await _context.SaveChangesAsync(cancellationToken);
         }
 
         return result;

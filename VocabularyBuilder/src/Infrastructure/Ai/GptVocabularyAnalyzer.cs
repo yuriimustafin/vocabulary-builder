@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using VocabularyBuilder.Application.Ai;
@@ -91,7 +92,12 @@ The terms:
             return Array.Empty<string>();
         }
 
-        var response = await _gptClient.SendMessageAsync(ExtractionPrompt.Replace("{LANGUAGE}", language.ToString()) + notes);
+        string? response;
+
+        using (ExternalCallScope.Begin(ExternalCallPurpose.NotesExtraction))
+        {
+            response = await _gptClient.SendMessageAsync(ExtractionPrompt.Replace("{LANGUAGE}", language.ToString()) + notes);
+        }
 
         if (string.IsNullOrWhiteSpace(response))
         {
@@ -137,7 +143,12 @@ The terms:
     private async Task<IReadOnlyList<AnalyzedTerm>> ResolveBatchAsync(IReadOnlyList<string> batch)
     {
         var prompt = LemmaPrompt + JsonSerializer.Serialize(batch);
-        var response = await _gptClient.SendMessageAsync(prompt);
+        string? response;
+
+        using (ExternalCallScope.Begin(ExternalCallPurpose.LemmaResolution, target: $"{batch.Count} terms"))
+        {
+            response = await _gptClient.SendMessageAsync(prompt);
+        }
 
         var answers = string.IsNullOrWhiteSpace(response)
             ? null

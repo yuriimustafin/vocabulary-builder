@@ -1,4 +1,5 @@
-using VocabularyBuilder.Application.ImportWords.Queries;
+﻿using VocabularyBuilder.Application.ImportWords.Queries;
+using VocabularyBuilder.Application.Imports.Commands;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 
@@ -22,6 +23,9 @@ public class VocabularyImportResult
     /// discarded quietly so that anything worth keeping can be added by hand.
     /// </summary>
     public List<SkippedTerm> Skipped { get; set; } = new();
+
+    /// <summary>The record of this import, for the Imports page.</summary>
+    public int? ImportId { get; set; }
 }
 
 /// <summary>
@@ -51,6 +55,9 @@ public record ImportLingQWordsCommand : IRequest<VocabularyImportResult>
     /// by commas, and a word that already carries tags keeps them.
     /// </summary>
     public string? Tag { get; init; }
+
+    /// <summary>The uploaded file's name, kept on the import's record.</summary>
+    public string? FileName { get; init; }
 }
 
 public class ImportLingQWordsCommandHandler
@@ -63,16 +70,38 @@ public class ImportLingQWordsCommandHandler
         _sender = sender;
     }
 
-    public async Task<VocabularyImportResult> Handle(
+    public Task<VocabularyImportResult> Handle(
         ImportLingQWordsCommand request,
+        CancellationToken cancellationToken)
+    {
+        var sourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName)
+            ? request.ListName!
+            : "lingq";
+
+        return ImportRun.TrackAsync(_sender, new StartImportCommand
+        {
+            Kind = ImportKind.LingQ,
+            Language = request.Language,
+            Name = request.ListName,
+            FileName = request.FileName,
+            SourceIdentifierBase = sourceIdentifierBase,
+            Tags = WordTags.Parse(request.Tag)
+        }, importId => Import(request, importId, sourceIdentifierBase, cancellationToken), cancellationToken);
+    }
+
+    private async Task<VocabularyImportResult> Import(
+        ImportLingQWordsCommand request,
+        int importId,
+        string sourceIdentifierBase,
         CancellationToken cancellationToken)
     {
         var rows = LingQCsvReader.Read(request.FileContent);
 
-        var result = new VocabularyImportResult { TermsRead = rows.Count };
+        var result = new VocabularyImportResult { TermsRead = rows.Count, ImportId = importId > 0 ? importId : null };
 
         if (rows.Count == 0)
         {
+            await _sender.Send(new CompleteImportCommand(importId, 0), cancellationToken);
             return result;
         }
 
@@ -103,17 +132,18 @@ public class ImportLingQWordsCommandHandler
             Terms = terms,
             Language = request.Language,
             Source = WordEncounterSource.LingQ,
-            SourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName)
-                ? request.ListName!
-                : "lingq",
+            SourceIdentifierBase = sourceIdentifierBase,
             Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "LingQ import",
-            Tags = WordTags.Parse(request.Tag)
+            Tags = WordTags.Parse(request.Tag),
+            ImportId = importId
         }, cancellationToken);
 
         result.TermsImported = terms.Count;
         result.WordsCreated = saved.WordsCreated;
         result.EncountersCreated = saved.EncountersCreated;
         result.Lemmas = saved.Lemmas;
+
+        await _sender.Send(new CompleteImportCommand(importId, rows.Count, resolution.Skipped), cancellationToken);
 
         return result;
     }

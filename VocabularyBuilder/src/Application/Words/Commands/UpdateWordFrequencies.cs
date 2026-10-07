@@ -1,5 +1,7 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Queries;
+using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Words.Commands;
 
@@ -49,8 +51,13 @@ public class UpdateWordFrequenciesCommandHandler : IRequestHandler<UpdateWordFre
             }
         }
 
-        if (result.UpdatedWords > 0)
+        if (result.TotalWords > 0)
         {
+            _context.RecordActivity(
+                ActivityAction.FrequenciesUpdated,
+                summary: $"{result.UpdatedWords} of {result.TotalWords} words given a frequency",
+                details: result);
+
             await _context.SaveChangesAsync(cancellationToken);
         }
 

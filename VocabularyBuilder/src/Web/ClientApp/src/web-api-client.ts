@@ -376,6 +376,295 @@ export class TodoListsClient {
     }
 }
 
+export class HistoryClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
+    }
+
+    getApiHistoryActivity(lang: string, category: string | null | undefined, wordId: number | null | undefined, importId: number | null | undefined, pageNumber: number | undefined, pageSize: number | undefined): Promise<PaginatedListOfActivityLogEntryDto> {
+        let url_ = this.baseUrl + "/api/{lang}/history/activity?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (category !== undefined && category !== null)
+            url_ += "category=" + encodeURIComponent("" + category) + "&";
+        if (wordId !== undefined && wordId !== null)
+            url_ += "wordId=" + encodeURIComponent("" + wordId) + "&";
+        if (importId !== undefined && importId !== null)
+            url_ += "importId=" + encodeURIComponent("" + importId) + "&";
+        if (pageNumber === null)
+            throw new Error("The parameter 'pageNumber' cannot be null.");
+        else if (pageNumber !== undefined)
+            url_ += "pageNumber=" + encodeURIComponent("" + pageNumber) + "&";
+        if (pageSize === null)
+            throw new Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiHistoryActivity(_response);
+        });
+    }
+
+    protected processGetApiHistoryActivity(response: Response): Promise<PaginatedListOfActivityLogEntryDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PaginatedListOfActivityLogEntryDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PaginatedListOfActivityLogEntryDto>(null as any);
+    }
+
+    getApiHistoryCalls(lang: string, provider: ExternalCallProvider | null | undefined, purpose: ExternalCallPurpose | null | undefined, failedOnly: boolean | undefined, wordId: number | null | undefined, importId: number | null | undefined, pageNumber: number | undefined, pageSize: number | undefined): Promise<PaginatedListOfExternalCallDto> {
+        let url_ = this.baseUrl + "/api/{lang}/history/calls?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (provider !== undefined && provider !== null)
+            url_ += "provider=" + encodeURIComponent("" + provider) + "&";
+        if (purpose !== undefined && purpose !== null)
+            url_ += "purpose=" + encodeURIComponent("" + purpose) + "&";
+        if (failedOnly === null)
+            throw new Error("The parameter 'failedOnly' cannot be null.");
+        else if (failedOnly !== undefined)
+            url_ += "failedOnly=" + encodeURIComponent("" + failedOnly) + "&";
+        if (wordId !== undefined && wordId !== null)
+            url_ += "wordId=" + encodeURIComponent("" + wordId) + "&";
+        if (importId !== undefined && importId !== null)
+            url_ += "importId=" + encodeURIComponent("" + importId) + "&";
+        if (pageNumber === null)
+            throw new Error("The parameter 'pageNumber' cannot be null.");
+        else if (pageNumber !== undefined)
+            url_ += "pageNumber=" + encodeURIComponent("" + pageNumber) + "&";
+        if (pageSize === null)
+            throw new Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiHistoryCalls(_response);
+        });
+    }
+
+    protected processGetApiHistoryCalls(response: Response): Promise<PaginatedListOfExternalCallDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PaginatedListOfExternalCallDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PaginatedListOfExternalCallDto>(null as any);
+    }
+
+    getApiHistoryCalls2(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/history/calls/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiHistoryCalls2(_response);
+        });
+    }
+
+    protected processGetApiHistoryCalls2(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+
+    getApiHistoryWords(lang: string, wordId: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/history/words/{wordId}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (wordId === undefined || wordId === null)
+            throw new Error("The parameter 'wordId' must be defined.");
+        url_ = url_.replace("{wordId}", encodeURIComponent("" + wordId));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiHistoryWords(_response);
+        });
+    }
+
+    protected processGetApiHistoryWords(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
+export class ImportsClient {
+    private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
+    private baseUrl: string;
+    protected jsonParseReviver: ((key: string, value: any) => any) | undefined = undefined;
+
+    constructor(baseUrl?: string, http?: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> }) {
+        this.http = http ? http : window as any;
+        this.baseUrl = baseUrl !== undefined && baseUrl !== null ? baseUrl : "";
+    }
+
+    getApiImports(lang: string, pageNumber: number | undefined, pageSize: number | undefined): Promise<PaginatedListOfImportDto> {
+        let url_ = this.baseUrl + "/api/{lang}/imports?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (pageNumber === null)
+            throw new Error("The parameter 'pageNumber' cannot be null.");
+        else if (pageNumber !== undefined)
+            url_ += "pageNumber=" + encodeURIComponent("" + pageNumber) + "&";
+        if (pageSize === null)
+            throw new Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiImports(_response);
+        });
+    }
+
+    protected processGetApiImports(response: Response): Promise<PaginatedListOfImportDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PaginatedListOfImportDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PaginatedListOfImportDto>(null as any);
+    }
+
+    getApiImports2(lang: string, id: number): Promise<void> {
+        let url_ = this.baseUrl + "/api/{lang}/imports/{id}";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (id === undefined || id === null)
+            throw new Error("The parameter 'id' must be defined.");
+        url_ = url_.replace("{id}", encodeURIComponent("" + id));
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiImports2(_response);
+        });
+    }
+
+    protected processGetApiImports2(response: Response): Promise<void> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            return;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<void>(null as any);
+    }
+}
+
 export class ListsClient {
     private http: { fetch(url: RequestInfo, init?: RequestInit): Promise<Response> };
     private baseUrl: string;
@@ -2852,6 +3141,504 @@ export interface IUpdateTodoListCommand {
     title?: string | undefined;
 }
 
+export class PaginatedListOfActivityLogEntryDto implements IPaginatedListOfActivityLogEntryDto {
+    items?: ActivityLogEntryDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+
+    constructor(data?: IPaginatedListOfActivityLogEntryDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(ActivityLogEntryDto.fromJS(item));
+            }
+            this.pageNumber = _data["pageNumber"];
+            this.totalPages = _data["totalPages"];
+            this.totalCount = _data["totalCount"];
+            this.hasPreviousPage = _data["hasPreviousPage"];
+            this.hasNextPage = _data["hasNextPage"];
+        }
+    }
+
+    static fromJS(data: any): PaginatedListOfActivityLogEntryDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new PaginatedListOfActivityLogEntryDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["pageNumber"] = this.pageNumber;
+        data["totalPages"] = this.totalPages;
+        data["totalCount"] = this.totalCount;
+        data["hasPreviousPage"] = this.hasPreviousPage;
+        data["hasNextPage"] = this.hasNextPage;
+        return data;
+    }
+}
+
+export interface IPaginatedListOfActivityLogEntryDto {
+    items?: ActivityLogEntryDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+}
+
+export class ActivityLogEntryDto implements IActivityLogEntryDto {
+    id?: number;
+    occurredAtUtc?: Date;
+    action?: string;
+    category?: string;
+    language?: Language | undefined;
+    wordId?: number | undefined;
+    headword?: string | undefined;
+    listId?: number | undefined;
+    importId?: number | undefined;
+    summary?: string | undefined;
+    details?: string | undefined;
+
+    constructor(data?: IActivityLogEntryDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.occurredAtUtc = _data["occurredAtUtc"] ? new Date(_data["occurredAtUtc"].toString()) : <any>undefined;
+            this.action = _data["action"];
+            this.category = _data["category"];
+            this.language = _data["language"];
+            this.wordId = _data["wordId"];
+            this.headword = _data["headword"];
+            this.listId = _data["listId"];
+            this.importId = _data["importId"];
+            this.summary = _data["summary"];
+            this.details = _data["details"];
+        }
+    }
+
+    static fromJS(data: any): ActivityLogEntryDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ActivityLogEntryDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["occurredAtUtc"] = this.occurredAtUtc ? this.occurredAtUtc.toISOString() : <any>undefined;
+        data["action"] = this.action;
+        data["category"] = this.category;
+        data["language"] = this.language;
+        data["wordId"] = this.wordId;
+        data["headword"] = this.headword;
+        data["listId"] = this.listId;
+        data["importId"] = this.importId;
+        data["summary"] = this.summary;
+        data["details"] = this.details;
+        return data;
+    }
+}
+
+export interface IActivityLogEntryDto {
+    id?: number;
+    occurredAtUtc?: Date;
+    action?: string;
+    category?: string;
+    language?: Language | undefined;
+    wordId?: number | undefined;
+    headword?: string | undefined;
+    listId?: number | undefined;
+    importId?: number | undefined;
+    summary?: string | undefined;
+    details?: string | undefined;
+}
+
+export enum Language {
+    English = 0,
+    French = 1,
+}
+
+export class PaginatedListOfExternalCallDto implements IPaginatedListOfExternalCallDto {
+    items?: ExternalCallDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+
+    constructor(data?: IPaginatedListOfExternalCallDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(ExternalCallDto.fromJS(item));
+            }
+            this.pageNumber = _data["pageNumber"];
+            this.totalPages = _data["totalPages"];
+            this.totalCount = _data["totalCount"];
+            this.hasPreviousPage = _data["hasPreviousPage"];
+            this.hasNextPage = _data["hasNextPage"];
+        }
+    }
+
+    static fromJS(data: any): PaginatedListOfExternalCallDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new PaginatedListOfExternalCallDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["pageNumber"] = this.pageNumber;
+        data["totalPages"] = this.totalPages;
+        data["totalCount"] = this.totalCount;
+        data["hasPreviousPage"] = this.hasPreviousPage;
+        data["hasNextPage"] = this.hasNextPage;
+        return data;
+    }
+}
+
+export interface IPaginatedListOfExternalCallDto {
+    items?: ExternalCallDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+}
+
+export class ExternalCallDto implements IExternalCallDto {
+    id?: number;
+    startedAtUtc?: Date;
+    durationMs?: number;
+    provider?: string;
+    purpose?: string;
+    model?: string | undefined;
+    target?: string | undefined;
+    url?: string | undefined;
+    statusCode?: number | undefined;
+    succeeded?: boolean;
+    error?: string | undefined;
+    responseLength?: number | undefined;
+    promptTokens?: number | undefined;
+    completionTokens?: number | undefined;
+    isMock?: boolean;
+    wordId?: number | undefined;
+    importId?: number | undefined;
+    hasBody?: boolean;
+
+    constructor(data?: IExternalCallDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.startedAtUtc = _data["startedAtUtc"] ? new Date(_data["startedAtUtc"].toString()) : <any>undefined;
+            this.durationMs = _data["durationMs"];
+            this.provider = _data["provider"];
+            this.purpose = _data["purpose"];
+            this.model = _data["model"];
+            this.target = _data["target"];
+            this.url = _data["url"];
+            this.statusCode = _data["statusCode"];
+            this.succeeded = _data["succeeded"];
+            this.error = _data["error"];
+            this.responseLength = _data["responseLength"];
+            this.promptTokens = _data["promptTokens"];
+            this.completionTokens = _data["completionTokens"];
+            this.isMock = _data["isMock"];
+            this.wordId = _data["wordId"];
+            this.importId = _data["importId"];
+            this.hasBody = _data["hasBody"];
+        }
+    }
+
+    static fromJS(data: any): ExternalCallDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ExternalCallDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["startedAtUtc"] = this.startedAtUtc ? this.startedAtUtc.toISOString() : <any>undefined;
+        data["durationMs"] = this.durationMs;
+        data["provider"] = this.provider;
+        data["purpose"] = this.purpose;
+        data["model"] = this.model;
+        data["target"] = this.target;
+        data["url"] = this.url;
+        data["statusCode"] = this.statusCode;
+        data["succeeded"] = this.succeeded;
+        data["error"] = this.error;
+        data["responseLength"] = this.responseLength;
+        data["promptTokens"] = this.promptTokens;
+        data["completionTokens"] = this.completionTokens;
+        data["isMock"] = this.isMock;
+        data["wordId"] = this.wordId;
+        data["importId"] = this.importId;
+        data["hasBody"] = this.hasBody;
+        return data;
+    }
+}
+
+export interface IExternalCallDto {
+    id?: number;
+    startedAtUtc?: Date;
+    durationMs?: number;
+    provider?: string;
+    purpose?: string;
+    model?: string | undefined;
+    target?: string | undefined;
+    url?: string | undefined;
+    statusCode?: number | undefined;
+    succeeded?: boolean;
+    error?: string | undefined;
+    responseLength?: number | undefined;
+    promptTokens?: number | undefined;
+    completionTokens?: number | undefined;
+    isMock?: boolean;
+    wordId?: number | undefined;
+    importId?: number | undefined;
+    hasBody?: boolean;
+}
+
+export enum ExternalCallProvider {
+    Gpt = 0,
+    WordReference = 1,
+    Oxford = 2,
+}
+
+export enum ExternalCallPurpose {
+    Other = 0,
+    DictionaryEntry = 1,
+    Conjugation = 2,
+    StudyContent = 3,
+    NotesExtraction = 4,
+    LemmaResolution = 5,
+    ListGeneration = 6,
+    AudioText = 7,
+}
+
+export class PaginatedListOfImportDto implements IPaginatedListOfImportDto {
+    items?: ImportDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+
+    constructor(data?: IPaginatedListOfImportDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(ImportDto.fromJS(item));
+            }
+            this.pageNumber = _data["pageNumber"];
+            this.totalPages = _data["totalPages"];
+            this.totalCount = _data["totalCount"];
+            this.hasPreviousPage = _data["hasPreviousPage"];
+            this.hasNextPage = _data["hasNextPage"];
+        }
+    }
+
+    static fromJS(data: any): PaginatedListOfImportDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new PaginatedListOfImportDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["pageNumber"] = this.pageNumber;
+        data["totalPages"] = this.totalPages;
+        data["totalCount"] = this.totalCount;
+        data["hasPreviousPage"] = this.hasPreviousPage;
+        data["hasNextPage"] = this.hasNextPage;
+        return data;
+    }
+}
+
+export interface IPaginatedListOfImportDto {
+    items?: ImportDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+}
+
+export class ImportDto implements IImportDto {
+    id?: number;
+    kind?: string;
+    language?: Language;
+    name?: string | undefined;
+    fileName?: string | undefined;
+    tags?: string[];
+    status?: string;
+    startedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+    error?: string | undefined;
+    isReconstructed?: boolean;
+    termsRead?: number;
+    wordsCreated?: number;
+    wordsTouched?: number;
+    encountersCreated?: number;
+    termsSkipped?: number;
+
+    constructor(data?: IImportDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.kind = _data["kind"];
+            this.language = _data["language"];
+            this.name = _data["name"];
+            this.fileName = _data["fileName"];
+            if (Array.isArray(_data["tags"])) {
+                this.tags = [] as any;
+                for (let item of _data["tags"])
+                    this.tags!.push(item);
+            }
+            this.status = _data["status"];
+            this.startedAtUtc = _data["startedAtUtc"] ? new Date(_data["startedAtUtc"].toString()) : <any>undefined;
+            this.completedAtUtc = _data["completedAtUtc"] ? new Date(_data["completedAtUtc"].toString()) : <any>undefined;
+            this.error = _data["error"];
+            this.isReconstructed = _data["isReconstructed"];
+            this.termsRead = _data["termsRead"];
+            this.wordsCreated = _data["wordsCreated"];
+            this.wordsTouched = _data["wordsTouched"];
+            this.encountersCreated = _data["encountersCreated"];
+            this.termsSkipped = _data["termsSkipped"];
+        }
+    }
+
+    static fromJS(data: any): ImportDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ImportDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["kind"] = this.kind;
+        data["language"] = this.language;
+        data["name"] = this.name;
+        data["fileName"] = this.fileName;
+        if (Array.isArray(this.tags)) {
+            data["tags"] = [];
+            for (let item of this.tags)
+                data["tags"].push(item);
+        }
+        data["status"] = this.status;
+        data["startedAtUtc"] = this.startedAtUtc ? this.startedAtUtc.toISOString() : <any>undefined;
+        data["completedAtUtc"] = this.completedAtUtc ? this.completedAtUtc.toISOString() : <any>undefined;
+        data["error"] = this.error;
+        data["isReconstructed"] = this.isReconstructed;
+        data["termsRead"] = this.termsRead;
+        data["wordsCreated"] = this.wordsCreated;
+        data["wordsTouched"] = this.wordsTouched;
+        data["encountersCreated"] = this.encountersCreated;
+        data["termsSkipped"] = this.termsSkipped;
+        return data;
+    }
+}
+
+export interface IImportDto {
+    id?: number;
+    kind?: string;
+    language?: Language;
+    name?: string | undefined;
+    fileName?: string | undefined;
+    tags?: string[];
+    status?: string;
+    startedAtUtc?: Date;
+    completedAtUtc?: Date | undefined;
+    error?: string | undefined;
+    isReconstructed?: boolean;
+    termsRead?: number;
+    wordsCreated?: number;
+    wordsTouched?: number;
+    encountersCreated?: number;
+    termsSkipped?: number;
+}
+
 export class VocabularyListDto implements IVocabularyListDto {
     id?: number;
     title?: string;
@@ -2910,11 +3697,6 @@ export interface IVocabularyListDto {
     itemCount?: number;
     masteredCount?: number;
     created?: Date;
-}
-
-export enum Language {
-    English = 0,
-    French = 1,
 }
 
 export enum ListStatus {

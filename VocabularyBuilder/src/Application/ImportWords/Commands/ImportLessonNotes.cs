@@ -1,7 +1,8 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.ImportWords.Queries;
+using VocabularyBuilder.Application.Imports.Commands;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
 
@@ -48,16 +49,37 @@ public class ImportLessonNotesCommandHandler
         _sender = sender;
     }
 
-    public async Task<VocabularyImportResult> Handle(
+    public Task<VocabularyImportResult> Handle(
         ImportLessonNotesCommand request,
+        CancellationToken cancellationToken)
+    {
+        var sourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName)
+            ? request.ListName!
+            : ComputeHash(request.Notes);
+
+        return ImportRun.TrackAsync(_sender, new StartImportCommand
+        {
+            Kind = ImportKind.LessonNotes,
+            Language = request.Language,
+            Name = request.ListName,
+            SourceIdentifierBase = sourceIdentifierBase,
+            Tags = WordTags.Parse(request.Tag)
+        }, importId => Import(request, importId, sourceIdentifierBase, cancellationToken), cancellationToken);
+    }
+
+    private async Task<VocabularyImportResult> Import(
+        ImportLessonNotesCommand request,
+        int importId,
+        string sourceIdentifierBase,
         CancellationToken cancellationToken)
     {
         var items = await _analyzer.ExtractItemsAsync(request.Notes, request.Language, cancellationToken);
 
-        var result = new VocabularyImportResult { TermsRead = items.Count };
+        var result = new VocabularyImportResult { TermsRead = items.Count, ImportId = importId > 0 ? importId : null };
 
         if (items.Count == 0)
         {
+            await _sender.Send(new CompleteImportCommand(importId, 0), cancellationToken);
             return result;
         }
 
@@ -78,17 +100,18 @@ public class ImportLessonNotesCommandHandler
             Terms = terms,
             Language = request.Language,
             Source = WordEncounterSource.LessonNotes,
-            SourceIdentifierBase = !string.IsNullOrWhiteSpace(request.ListName)
-                ? request.ListName!
-                : ComputeHash(request.Notes),
+            SourceIdentifierBase = sourceIdentifierBase,
             Context = !string.IsNullOrWhiteSpace(request.ListName) ? request.ListName : "Lesson notes",
-            Tags = WordTags.Parse(request.Tag)
+            Tags = WordTags.Parse(request.Tag),
+            ImportId = importId
         }, cancellationToken);
 
         result.TermsImported = terms.Count;
         result.WordsCreated = saved.WordsCreated;
         result.EncountersCreated = saved.EncountersCreated;
         result.Lemmas = saved.Lemmas;
+
+        await _sender.Send(new CompleteImportCommand(importId, items.Count, resolution.Skipped), cancellationToken);
 
         return result;
     }

@@ -11,6 +11,8 @@ using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 using Microsoft.Identity.Client;
+using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Domain.Entities.History;
 
 namespace VocabularyBuilder.Infrastructure.Parsers;
 
@@ -20,6 +22,14 @@ namespace VocabularyBuilder.Infrastructure.Parsers;
 public class OxfordParser : IWordReferenceParser
 {
     const string SearchUrl = "https://www.oxfordlearnersdictionaries.com/us/search/english/?q=";
+
+    private readonly IExternalCallRecorder? _recorder;
+
+    /// <param name="recorder">Where each page fetch is logged. Left out by the mock, which fetches nothing.</param>
+    public OxfordParser(IExternalCallRecorder? recorder = null)
+    {
+        _recorder = recorder;
+    }
 
     public DictionarySourceType SourceType => DictionarySourceType.Oxford;
     
@@ -37,7 +47,7 @@ public class OxfordParser : IWordReferenceParser
             //https://www.oxfordlearnersdictionaries.com/us/definition/english/grade_1?q=grade - FIX: idioms included as senses
             // for now searchedWord is a URL
             var address = HttpUtility.UrlDecode(GetAddress(searchedWord));
-            var document = await context.OpenAsync(address);
+            var document = await OpenAsync(context, address, searchedWord);
             var word = GetWord(document);
             if (word != null)
             {
@@ -47,6 +57,60 @@ public class OxfordParser : IWordReferenceParser
         }
 
         return words;
+    }
+
+    /// <summary>
+    /// Opens the page and logs the fetch - its URL, status and size, not the page, which is
+    /// cached against the word when it parses.
+    /// </summary>
+    private async Task<IDocument> OpenAsync(IBrowsingContext context, string address, string searchedWord)
+    {
+        var startedAt = DateTime.UtcNow;
+        var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+        IDocument document;
+
+        try
+        {
+            document = await context.OpenAsync(address);
+        }
+        catch (Exception ex)
+        {
+            await Record(address, searchedWord, startedAt, stopwatch, null, null, ex.Message);
+            throw;
+        }
+
+        var statusCode = (int)document.StatusCode;
+        var length = document.DocumentElement?.OuterHtml.Length;
+        var succeeded = statusCode is >= 200 and < 300;
+
+        await Record(address, searchedWord, startedAt, stopwatch, statusCode, length,
+            succeeded ? null : $"Oxford returned {statusCode}");
+
+        return document;
+    }
+
+    private Task Record(
+        string address, string searchedWord, DateTime startedAt, System.Diagnostics.Stopwatch stopwatch,
+        int? statusCode, int? length, string? error)
+    {
+        if (_recorder is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        return _recorder.RecordAsync(new ExternalCallLog
+        {
+            StartedAtUtc = startedAt,
+            DurationMs = (int)stopwatch.ElapsedMilliseconds,
+            Provider = ExternalCallProvider.Oxford,
+            Purpose = ExternalCallPurpose.DictionaryEntry,
+            Target = searchedWord,
+            Url = address,
+            StatusCode = statusCode,
+            ResponseLength = length,
+            Succeeded = error is null,
+            Error = error
+        });
     }
 
     /// <summary>
@@ -61,7 +125,7 @@ public class OxfordParser : IWordReferenceParser
         foreach (var searchedWord in searchedWords)
         {
             var address = HttpUtility.UrlDecode(GetAddress(searchedWord));
-            var document = await context.OpenAsync(address);
+            var document = await OpenAsync(context, address, searchedWord);
             var word = GetWord(document);
             if (word != null)
             {

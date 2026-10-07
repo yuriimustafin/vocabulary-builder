@@ -1,4 +1,5 @@
-﻿using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.History;
+using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Application.Words.Queries;
 using VocabularyBuilder.Domain.Enums;
@@ -124,6 +125,13 @@ public class ExportWordsCommandHandler : IRequestHandler<ExportWordsCommand, Exp
 
         // Generate CSV content (includes SyncId)
         var csvContent = _wordsExporter.ExportWords(words);
+
+        _context.RecordActivity(
+            ActivityAction.WordsExported,
+            language: words.Select(w => w.Language).Distinct().Count() == 1 ? words[0].Language : null,
+            summary: $"{words.Count} words exported" +
+                     (unparsedWords.Any() ? $", {unparsedWords.Count} looked up first" : ""),
+            details: new { words = words.Select(w => new { w.Id, w.Headword }).ToList() });
 
         // Save changes to database
         await _context.SaveChangesAsync(cancellationToken);
