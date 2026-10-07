@@ -43,10 +43,10 @@ public class ExerciseLadderTests
         ladder.TopRung.Should().Be(Production);
         ladder.TypesAt(Introduction).Should().Equal(ExerciseType.WordToMeaningReveal);
         ladder.TypesAt(Recognition).Should().Equal(
-            ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice,
-            ExerciseType.WordToCollocatesChoice, ExerciseType.WordToMeaningChoice);
+            ExerciseType.WordToSpellingCopy, ExerciseType.MeaningToWordChoice,
+            ExerciseType.ContextToWordChoice, ExerciseType.WordToMeaningChoice);
         ladder.TypesAt(Scaffolded).Should().Equal(
-            ExerciseType.MeaningToWordSyllableScramble, ExerciseType.MeaningToWordScramble,
+            ExerciseType.WordToSpellingCover, ExerciseType.MeaningToWordScramble,
             ExerciseType.TranslationToSentenceScramble, ExerciseType.MeaningToWordCuedType);
         ladder.TypesAt(Production).Should().Equal(ExerciseType.ContextToWordRecall, ExerciseType.MeaningToWordRecall);
     }
@@ -64,13 +64,13 @@ public class ExerciseLadderTests
     }
 
     [Test]
-    public void RecognitionAsksForTheWordThenTheWordInASentenceThenWhatItGoesWith()
+    public void RecognitionCopiesTheWordThenPicksItFromItsMeaningThenFromASentence()
     {
-        Probe(Card(rung: Recognition, streak: 0)).Should().Be(ExerciseType.MeaningToWordChoice);
-        Probe(Card(rung: Recognition, streak: 1, last: ExerciseType.MeaningToWordChoice))
+        Probe(Card(rung: Recognition, streak: 0)).Should().Be(ExerciseType.WordToSpellingCopy);
+        Probe(Card(rung: Recognition, streak: 1, last: ExerciseType.WordToSpellingCopy))
+            .Should().Be(ExerciseType.MeaningToWordChoice);
+        Probe(Card(rung: Recognition, streak: 2, last: ExerciseType.MeaningToWordChoice))
             .Should().Be(ExerciseType.ContextToWordChoice);
-        Probe(Card(rung: Recognition, streak: 2, last: ExerciseType.ContextToWordChoice))
-            .Should().Be(ExerciseType.WordToCollocatesChoice);
     }
 
     [Test]
@@ -78,9 +78,11 @@ public class ExerciseLadderTests
     {
         var ladder = Ladder();
 
-        ladder.IsTolerant(ExerciseType.WordToCollocatesChoice).Should().BeTrue();
+        ladder.IsTolerant(ExerciseType.WordToSpellingCover).Should().BeTrue("a slip writing from memory costs nothing");
+        ladder.IsTolerant(ExerciseType.MeaningToWordScramble).Should().BeTrue("ordering pieces is not knowing the word");
         ladder.IsTolerant(ExerciseType.TranslationToSentenceScramble).Should().BeTrue();
-        ladder.IsTolerant(ExerciseType.MeaningToWordScramble).Should().BeTrue("ordering letters is not knowing the word");
+        ladder.IsTolerant(ExerciseType.WordToSpellingCopy).Should().BeFalse();
+        ladder.IsTolerant(ExerciseType.WordToCollocatesChoice).Should().BeFalse("it is no longer on the ladder");
         ladder.IsTolerant(ExerciseType.MeaningToWordChoice).Should().BeFalse();
         ladder.IsTolerant(ExerciseType.ContextToWordRecall).Should().BeFalse();
         ladder.IsTolerant(ExerciseType.MeaningToWordType).Should().BeFalse("it is not on the ladder at all");
@@ -152,10 +154,17 @@ public class ExerciseLadderTests
     [Test]
     public void TheSupportFadesAsTheStreakOnALevelGrows()
     {
-        // Syllables, then letters, then a whole sentence around the word.
-        Probe(Card(rung: Scaffolded, streak: 0)).Should().Be(ExerciseType.MeaningToWordSyllableScramble);
-        Probe(Card(rung: Scaffolded, streak: 1)).Should().Be(ExerciseType.MeaningToWordScramble);
-        Probe(Card(rung: Scaffolded, streak: 2)).Should().Be(ExerciseType.TranslationToSentenceScramble);
+        // Written from memory, then put together from its pieces, then a sentence around it
+        Probe(Card(rung: Scaffolded, streak: 0, interval: 3)).Should().Be(ExerciseType.WordToSpellingCover);
+        Probe(Card(rung: Scaffolded, streak: 1, interval: 3)).Should().Be(ExerciseType.MeaningToWordScramble);
+        Probe(Card(rung: Scaffolded, streak: 2, interval: 3)).Should().Be(ExerciseType.TranslationToSentenceScramble);
+    }
+
+    [Test]
+    public void NoSentenceIsRebuiltOnTheDayAWordIsFirstLearned()
+    {
+        // Still learning, so not yet a day out: the sentence waits for the reviews
+        Probe(Card(rung: Scaffolded, streak: 2, interval: 0)).Should().Be(ExerciseType.MeaningToWordCuedType);
     }
 
     [Test]
@@ -171,8 +180,8 @@ public class ExerciseLadderTests
     {
         // After a miss the streak is back to zero, which would ask the same first exercise
         // again; the next one along is asked instead.
-        Probe(Card(rung: Recognition, streak: 0, last: ExerciseType.MeaningToWordChoice))
-            .Should().Be(ExerciseType.ContextToWordChoice);
+        Probe(Card(rung: Recognition, streak: 0, last: ExerciseType.WordToSpellingCopy))
+            .Should().Be(ExerciseType.MeaningToWordChoice);
         Probe(Card(rung: Production, streak: 2, last: ExerciseType.MeaningToWordRecall))
             .Should().Be(ExerciseType.ContextToWordRecall);
     }
@@ -187,15 +196,11 @@ public class ExerciseLadderTests
     [Test]
     public void AnExerciseThatCannotBeBuiltIsSkippedWithinTheLevel()
     {
-        // A two-syllable word makes no syllable puzzle, so the letters come first instead;
-        // and one with no sentence of its own is asked to type the word instead.
-        bool NoSyllables(ExerciseType t) => t != ExerciseType.MeaningToWordSyllableScramble;
-        bool NoSyllablesOrSentence(ExerciseType t) =>
-            NoSyllables(t) && t != ExerciseType.TranslationToSentenceScramble;
+        // A word with no sentence of its own is asked to type the word instead.
+        bool NoSentence(ExerciseType t) => t != ExerciseType.TranslationToSentenceScramble;
 
-        Probe(Card(rung: Scaffolded, streak: 0), NoSyllables).Should().Be(ExerciseType.MeaningToWordScramble);
-        Probe(Card(rung: Scaffolded, streak: 1), NoSyllables).Should().Be(ExerciseType.TranslationToSentenceScramble);
-        Probe(Card(rung: Scaffolded, streak: 1), NoSyllablesOrSentence).Should().Be(ExerciseType.MeaningToWordCuedType);
+        Probe(Card(rung: Scaffolded, streak: 2, interval: 3)).Should().Be(ExerciseType.TranslationToSentenceScramble);
+        Probe(Card(rung: Scaffolded, streak: 2, interval: 3), NoSentence).Should().Be(ExerciseType.MeaningToWordCuedType);
     }
 
     [Test]
@@ -203,8 +208,8 @@ public class ExerciseLadderTests
     {
         // No distractor pool: nothing in recognition can be rendered.
         bool CanBuild(ExerciseType t) =>
-            t is not (ExerciseType.WordToMeaningChoice or ExerciseType.MeaningToWordChoice
-                or ExerciseType.ContextToWordChoice or ExerciseType.WordToCollocatesChoice);
+            t is not (ExerciseType.WordToSpellingCopy or ExerciseType.WordToMeaningChoice
+                or ExerciseType.MeaningToWordChoice or ExerciseType.ContextToWordChoice);
 
         var probe = Ladder().SelectProbe(Card(rung: Recognition, streak: 0), "noun", Now, CanBuild);
 
@@ -340,7 +345,8 @@ public class ExerciseLadderTests
     public void AWordAnsweredCleanlyMeetsEachExerciseOnItsWayUpAndThenProduction()
     {
         var ladder = Ladder();
-        var card = Card(rung: Recognition);
+        // A day out, as a word is once it has left learning, so the sentence is offered too
+        var card = Card(rung: Recognition, interval: 3);
         var seen = new List<ExerciseType>();
 
         for (var i = 0; i < 8; i++)
@@ -355,10 +361,10 @@ public class ExerciseLadderTests
         }
 
         seen.Should().Equal(
+            ExerciseType.WordToSpellingCopy,
             ExerciseType.MeaningToWordChoice,
             ExerciseType.ContextToWordChoice,
-            ExerciseType.WordToCollocatesChoice,
-            ExerciseType.MeaningToWordSyllableScramble,
+            ExerciseType.WordToSpellingCover,
             ExerciseType.MeaningToWordScramble,
             ExerciseType.TranslationToSentenceScramble,
             ExerciseType.ContextToWordRecall,
@@ -375,7 +381,7 @@ public class ExerciseLadderTests
         card.CurrentRung = move.Rung;
         card.RungStreak = move.Streak;
 
-        ladder.SelectProbe(card, "noun", Now, Anything).Type.Should().Be(ExerciseType.MeaningToWordSyllableScramble);
+        ladder.SelectProbe(card, "noun", Now, Anything).Type.Should().Be(ExerciseType.WordToSpellingCover);
 
         for (var i = 0; i < 3; i++)
         {

@@ -104,7 +104,8 @@ public class StudyOptionsBindingTests
     }
 
     private static string Describe(LadderRungOptions level) =>
-        $"{level.PromoteAfter}: {string.Join(", ", level.Exercises.Select(e => e.Tolerant ? $"{e.Type} (tolerant)" : e.Type.ToString()))}";
+        $"{level.PromoteAfter}: {string.Join(", ", level.Exercises.Select(e =>
+            e.Type + (e.Tolerant ? " (tolerant)" : "") + (e.MinIntervalDays is { } days ? $" (from day {days})" : "")))}";
 
     private static string ShippedSettingsPath()
     {

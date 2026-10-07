@@ -53,7 +53,6 @@ public class ReviewFeedbackTests
             new MeaningToWordScrambleExerciseDefinition(_options, grades, random),
             new MeaningToWordRecallExerciseDefinition(),
             new MeaningToWordPartialLettersExerciseDefinition(),
-            new MeaningToWordSyllableScrambleExerciseDefinition(_options, grades, random),
             new MeaningToWordTypeExerciseDefinition(grades),
             new MeaningToWordCuedTypeExerciseDefinition(grades),
             new ContextToWordChoiceExerciseDefinition(_options, grades, random)

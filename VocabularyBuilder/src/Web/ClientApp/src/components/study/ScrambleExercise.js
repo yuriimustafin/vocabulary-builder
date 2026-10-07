@@ -2,7 +2,8 @@ import React, { Component } from 'react';
 import { Button } from 'reactstrap';
 
 /**
- * Spelling from tiles: the meaning is shown and the word is rebuilt letter by letter.
+ * The word put back together: the meaning is shown and the word is rebuilt from three or
+ * four shuffled pieces - its syllables where they make that many, letters for a short word.
  *
  * Starting over is counted and sent with the answer. Needing to reset means the spelling
  * was not actually known, so the server grades it down however quickly it finished.
@@ -73,7 +74,7 @@ export class ScrambleExercise extends Component {
 
   submit = () => {
     this.props.onAnswer({
-      text: this.state.placed.map(tile => tile.letter).join(this.props.separator || ''),
+      text: this.state.placed.map(tile => tile.letter).join(''),
       resets: this.state.resets
     });
   };
@@ -81,7 +82,7 @@ export class ScrambleExercise extends Component {
   giveUp = () => this.props.onAnswer({ text: '', abandoned: true, resets: this.state.resets });
 
   render() {
-    const { exercise, submitting, placeholder = 'Tap the letters in order' } = this.props;
+    const { exercise, submitting } = this.props;
     const { placed, available } = this.state;
 
     return (
@@ -96,7 +97,7 @@ export class ScrambleExercise extends Component {
               {tile.letter}
             </Button>
           ))}
-          {placed.length === 0 && <span className="text-muted align-self-center">{placeholder}</span>}
+          {placed.length === 0 && <span className="text-muted align-self-center">Tap the pieces in order</span>}
         </div>
 
         <div className="d-flex flex-wrap gap-2 mt-3" data-testid="scramble-tiles">
@@ -129,20 +130,4 @@ export class ScrambleExercise extends Component {
       </div>
     );
   }
-}
-
-/**
- * The same puzzle in bigger pieces: the word's syllables rather than its letters. The
- * tiles already hold the spelling, so what is being recalled is only their order.
- */
-export function SyllableScrambleExercise(props) {
-  return <ScrambleExercise {...props} placeholder="Tap the syllables in order" />;
-}
-
-/**
- * One of the word's example sentences rebuilt from its words, from what it says. The words
- * are joined with spaces, and a slip in the order costs the word nothing.
- */
-export function SentenceScrambleExercise(props) {
-  return <ScrambleExercise {...props} separator=" " placeholder="Tap the words in order" />;
 }

@@ -132,18 +132,42 @@ test.describe('Study page', () => {
       'choice-option',            // multiple choice
       'reveal-button',            // a self-graded card, revealed first
       'grade-good',               // then judged
-      'scramble-give-up',         // spelling, which this driver does not attempt
-      'typed-give-up'             // nor typing
+      'scramble-give-up',         // putting pieces in order, which this driver does not attempt
+      'typed-give-up'             // nor typing from a cue
     ];
 
-    for (let step = 0; step < 60; step++) {
+    // The word is copied, or looked at and written from memory - which this driver does, since
+    // the word is on screen until it is covered
+    let remembered = null;
+    const spell = async () => {
+      if (await page.getByTestId('spelling-cover').count() > 0) {
+        const piece = page.getByTestId('current-piece');
+        remembered = await (await piece.count() > 0 ? piece : page.getByTestId('spelling-word')).textContent();
+        return clickIfPresent(page, 'spelling-cover');
+      }
+
+      const input = page.getByTestId('spelling-input');
+      if (await input.count() > 0 && await input.isEnabled()) {
+        try {
+          await input.fill(remembered ?? await page.getByTestId('spelling-word').textContent(), { timeout: 2000 });
+        } catch {
+          return false; // answered already, and on its way off the screen
+        }
+        remembered = null;
+        return clickIfPresent(page, 'spelling-submit');
+      }
+
+      return false;
+    };
+
+    for (let step = 0; step < 80; step++) {
       if (await page.getByTestId('study-done').count() > 0) {
         break;
       }
 
-      let acted = false;
+      let acted = await clickIfPresent(page, 'feedback-continue') || await spell();
 
-      for (const control of controls) {
+      for (const control of acted ? [] : controls) {
         if (await clickIfPresent(page, control)) {
           acted = true;
           break;
@@ -215,7 +239,7 @@ test.describe('Study page', () => {
   test('the scramble is assembled from tiles', async ({ request, page }) => {
     await seedWords(request, ['abc']);
     await seedCard(request, {
-      headword: 'abc', rung: rungOf(ExerciseType.MeaningToWordScramble), state: 2, intervalDays: 3,
+      headword: 'abc', rung: rungOf(ExerciseType.MeaningToWordScramble), rungStreak: 1, state: 2, intervalDays: 3,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 

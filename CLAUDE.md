@@ -410,11 +410,22 @@ recognition, scaffolded, production - each a pool of exercises with a `PromoteAf
 and `LastExerciseType` (never the same one twice running). A miss drops one level; Hard or a
 used hint holds both level and streak - except a hint the exercise offers for free
 (`IExerciseDefinition.HintIsFree`), which costs nothing, the seconds spent reading it included.
-`ConfiguredExerciseLadder` is the whole of it.
+`ReviewLog.HintUsed` still records every hint taken, free or not. `ConfiguredExerciseLadder` is
+the whole of it.
+
+The pools, easiest first: the introduction; then copying the word with it on screen
+(`WordToSpellingCopy`), picking it from its meaning, picking it for a sentence, picking its
+meaning; then writing it from memory (`WordToSpellingCover` - look, cover, write), putting it
+together from its pieces, rebuilding the words around it in a sentence, typing it from its first
+letters; then the cloze and recall. An entry can carry `MinIntervalDays`: the sentence rebuild
+has 1, so a word still learning (interval 0) is never asked it and the first day never meets
+it. `ExerciseCatalog.Retired` lists the types kept in the enum only so old review logs read -
+the syllable scramble and "what goes with it" - which no definition backs.
 
 **Learning ends on a criterion, not when the steps run out.** `LearningStepsMinutes` only
 paces the tries; `LearningExitCriterion` lets a new word go once it has been built cleanly on
-`LearningExitLevel` (scaffolded) - intro, three recognitions, one build - and it keeps its level,
+`LearningExitLevel` (scaffolded) - intro, a copy, two recognitions, one written from memory - and
+it keeps its level,
 so the climb to production carries on in the following days' reviews. A relearning word goes
 on its first clean success wherever the lapse left it, and any word on its next success once it
 has had `MaxLearningRetrievals`. Easy only earns the easy interval on the answer that completes
@@ -428,7 +439,9 @@ level above; no re-exposure after a right answer while a word is still learning 
 minutes - `ScaffoldSequencer`, `learning`); a miss on a recognition exercise
 (`AsksToRecognise`) gets its connections card only, not the letter cues; and the study day
 rolls over at 08:00 UTC (`DayRolloverHourUtc`), four in the morning on the US east coast - at
-four UTC it rolled over mid-evening and queued a second batch of new words.
+four UTC it rolled over mid-evening and queued a second batch of new words. **Words still New or
+Learning from an earlier day count against `NewCardsPerDay`** (`GetStudyQueue`): a session left
+unfinished used to carry its sixteen words into the next day *and* get twelve fresh ones.
 
 **Typed answers are marked leniently** (`TypedAnswer`): case, spacing, hyphens and a leading
 article are ignored; a missing accent, one slipped letter (words of five or more) or a French
@@ -458,23 +471,37 @@ Ready content (`UpsertWord.CoverForm`); an import that keeps the sentence the wo
 (LingQ's phrase) stores that as the example instead. The mock writes three examples for any
 word and one per form the prompt asks for.
 
-**An exercise can be mistake-tolerant** (`Tolerant: true` on its ladder entry - the letter
-scramble, the collocate choice and the sentence rebuild are). A miss on one costs the word nothing: `SubmitReview`
+**An exercise can be mistake-tolerant** (`Tolerant: true` on its ladder entry - writing from
+memory, the piece scramble and the sentence rebuild are; copying is not). A miss on one costs the word nothing: `SubmitReview`
 keeps its level and streak, `IReviewScheduler.Hold` keeps its state, interval and ease and
 brings it back after the first learning step, its success average is left alone, and only the
 connections card follows. A success counts as usual. Every other miss also opens with that
 card (`WordToConnectionsReveal`, follow-up only) before the diminishing cues ask again.
 
-**The collocate choice is only as good as its wrong options**, and a real model's are not
-reliably wrong: it offered *prendre une fourchette* and *réparer la fenêtre* as impossible. The
-prompt asks for pairings impossible in every sense, and for none for a very general verb - which
-the model ignores - so `WordToCollocatesChoiceExerciseDefinition` also refuses a short list of
-such verbs (prendre, faire, take, make...) whatever the content holds. A word the prompt uses as
-its own example gets that example back verbatim, which is why the prompt says not to copy them.
-One slip there still counts (Good), and it is not judged on speed. Each partner comes with its
-translation (`CollocateTranslations`, paired by position), shown as a free hint; "pick the
-missing word" has one too - the missing word's meaning, which settles a sentence such as "Il a
-perdu son _____." that any noun would fit.
+**A word is scrambled in pieces, never letters** (`Syllabifier.Chunks`): three or four, syllables
+where they fall that way, merged or split to fit, avoiding a split through a digraph such as *ch* or
+*ou*. Only a word of three letters or fewer comes as letters. Writing from memory uses the same
+pieces for a word of more than five letters - look at one, cover it, write it, then the next -
+and the whole word below that. Both spelling exercises are typed answers, marked by
+`TypedAnswer`, so neither is ever a follow-up (`SubmitReview` skips typed exercises there).
+
+**A sentence rebuild gives most of the sentence** (`TranslationToSentenceScrambleExerciseDefinition.Gap`):
+only the word and two or three around it - its collocation's words first - are taken out, as
+three tiles, short words such as articles riding along with their neighbour. Punctuation at the
+gap's edges stays in the sentence. The answer is the tiles in order; the stored example it came
+from is credited as practised.
+
+**Every part an exercise shows has a free translation, except the headword itself.** The
+sentence rebuild's hint gives the sentence's translation and each tile's meaning; "pick the
+missing word" gives the missing word's meaning and the sentence's translation; the cloze gives
+the sentence's translation. Tile meanings come from `StudyExample.GlossWords` and
+`GlossTranslations` (paired by position), which the prompt asks for with each example and, for
+stored sentences that have none, as a separate `glosses` list - once per prompt version, since
+`StudyMaterialGaps.Glosses` is only raised alongside an outdated version.
+
+"What goes with it" is gone. A real model's wrong partners were not reliably wrong (*prendre
+une fourchette* offered as impossible), it missed one time in three, and the collocation still
+shapes the examples and the sentence gap.
 
 **The end-of-day review** (`GET /api/{lang}/study/day-review`) matches the day's new words to
 their gapped sentences, in the fewest groups of four to six (`DayReviewGroups`). It is practice
@@ -482,16 +509,16 @@ only: nothing is sent back and no schedule moves.
 
 **A seeded e2e word is not enriched unless the spec says `enrich: true`** - the seed hook gives it
 a finished content row, so it is studied exactly as seeded. Without that the worker would add
-collocates and stored sentences partway through a test and change which exercise the word is
-asked; that is how a spec's expected sequence went flaky. A word seeded without a definition is
-always enriched. The mock's collocates are "mock partner …", its wrong ones "mock stranger …",
-and it translates a sentence as "Translated: " and the sentence, which is how
-`correctAnswer` answers those exercises.
+stored sentences partway through a test and change which exercise the word is asked; that is
+how a spec's expected sequence went flaky. A word seeded without a definition is always
+enriched. The mock glosses each word of a sentence as "en:" and the word, and translates a
+sentence as "Translated: " and the sentence - which is how `correctAnswer` and `tilesInOrder`
+find the words a sentence rebuild took out.
 
 In e2e specs, seed a card by exercise with `seedCardFor(type)`, not by rung number. It
-assumes the word is too short for syllable tiles - the syllable scramble needs three
-syllables - and has no generated content, unless told `{ syllables: true }` or
-`{ content: true }`. `StudyOptionsBindingTests` reads the real `appsettings.json` and fails if
+assumes the word has no generated content, so no sentence to rebuild, unless told
+`{ content: true }`; and it seeds a review a day out, which is what lets the sentence rebuild
+be asked at all. `StudyOptionsBindingTests` reads the real `appsettings.json` and fails if
 it drifts from `StudyDefaults`.
 
 ## French support

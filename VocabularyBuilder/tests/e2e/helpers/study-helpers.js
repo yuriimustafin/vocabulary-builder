@@ -23,7 +23,9 @@ const ExerciseType = {
   ContextToWordChoice: 10,
   WordToCollocatesChoice: 11,
   TranslationToSentenceScramble: 12,
-  WordToConnectionsReveal: 13
+  WordToConnectionsReveal: 13,
+  WordToSpellingCopy: 14,
+  WordToSpellingCover: 15
 };
 
 /**
@@ -33,9 +35,9 @@ const ExerciseType = {
  */
 const Ladder = [
   [ExerciseType.WordToMeaningReveal],
-  [ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice, ExerciseType.WordToCollocatesChoice,
+  [ExerciseType.WordToSpellingCopy, ExerciseType.MeaningToWordChoice, ExerciseType.ContextToWordChoice,
     ExerciseType.WordToMeaningChoice],
-  [ExerciseType.MeaningToWordSyllableScramble, ExerciseType.MeaningToWordScramble,
+  [ExerciseType.WordToSpellingCover, ExerciseType.MeaningToWordScramble,
     ExerciseType.TranslationToSentenceScramble, ExerciseType.MeaningToWordCuedType],
   [ExerciseType.ContextToWordRecall, ExerciseType.MeaningToWordRecall]
 ];
@@ -43,8 +45,11 @@ const Ladder = [
 /** Clean successes that move a word up from each level; zero for the top, which it never leaves. */
 const PromoteAfter = [1, 3, 3, 0];
 
-/** Exercises only built from generated content: the collocates, and a stored sentence to rebuild. */
-const NeedsContent = [ExerciseType.WordToCollocatesChoice, ExerciseType.TranslationToSentenceScramble];
+/**
+ * Exercises only built from generated content: a stored sentence to rebuild. It is also
+ * offered only a day out of learning (MinIntervalDays), never on the day a word is first met.
+ */
+const NeedsContent = [ExerciseType.TranslationToSentenceScramble];
 
 /** The level a given exercise sits on. */
 function rungOf(type) {
@@ -60,16 +65,13 @@ function rungOf(type) {
 /**
  * The streak that points a word at this exercise within its level.
  *
- * Only the exercises a word can be asked count. The syllable scramble needs three
- * syllables, which the short made-up words most specs use never have; the collocates and
- * the sentence to rebuild need generated content, which a word seeded without
- * `enrich: true` never gets. Pass `syllables` or `content` for a word that has them.
+ * Only the exercises a word can be asked count. The sentence to rebuild needs generated
+ * content, which a word seeded without `enrich: true` never gets. Pass `content` for a word
+ * that has it.
  */
-function streakFor(type, { syllables = false, content = false } = {}) {
+function streakFor(type, { content = false } = {}) {
   const pool = Ladder[rungOf(type)].filter(t =>
-    t === type
-    || ((syllables || t !== ExerciseType.MeaningToWordSyllableScramble)
-      && (content || !NeedsContent.includes(t))));
+    t === type || content || !NeedsContent.includes(t));
 
   return pool.indexOf(type);
 }
@@ -128,11 +130,11 @@ function seedCard(request, card) {
  * Seeds a card whose next graded exercise will be the one given: a review due now, on that
  * exercise's level with the streak that selects it. Anything in `card` overrides the rest.
  */
-function seedCardFor(request, headword, type, card = {}, { syllables = false, content = false } = {}) {
+function seedCardFor(request, headword, type, card = {}, { content = false } = {}) {
   return seedCard(request, {
     headword,
     rung: rungOf(type),
-    rungStreak: streakFor(type, { syllables, content }),
+    rungStreak: streakFor(type, { content }),
     state: CardState.Review,
     intervalDays: 3,
     dueInDays: -0.1,
@@ -156,17 +158,44 @@ function correctAnswer(card, grade = ReviewGrade.Good) {
     return { answer: exercise.options.find(o => o.includes(card.headword)) };
   }
 
-  // The mock's collocates are the "partner" ones, its wrong ones "stranger"s
-  if (exercise.type === ExerciseType.WordToCollocatesChoice) {
-    return { selections: exercise.options.filter(o => o.includes('partner')) };
-  }
-
-  // The mock translates a sentence as "Translated: " and the sentence itself
   if (exercise.type === ExerciseType.TranslationToSentenceScramble) {
-    return { answer: exercise.prompt.replace(/^Translated: /, '').replace(/[.,!?]/g, '') };
+    return { answer: sentenceGap(exercise) };
   }
 
   return { answer: card.headword };
+}
+
+/**
+ * The words missing from a sentence to rebuild, in order. The mock translates a sentence as
+ * "Translated: " and the sentence itself, so the gap is what lies between the given start
+ * and end.
+ */
+function sentenceGap(exercise) {
+  const full = exercise.contextSentenceTranslation.replace(/^Translated: /, '');
+  return full.slice(exercise.sentenceStart.length, full.length - exercise.sentenceEnd.length);
+}
+
+/** A sentence's tiles in the order that fills its gap. */
+function tilesInOrder(exercise) {
+  const gap = sentenceGap(exercise);
+  const remaining = [...exercise.tiles];
+  const ordered = [];
+  let at = 0;
+
+  while (remaining.length > 0) {
+    at = gap.length - gap.slice(at).trimStart().length;
+    const next = remaining.findIndex(tile => gap.startsWith(tile, at));
+
+    if (next < 0) {
+      throw new Error(`No tile of ${JSON.stringify(exercise.tiles)} continues "${gap.slice(at)}"`);
+    }
+
+    ordered.push(remaining[next]);
+    at += remaining[next].length;
+    remaining.splice(next, 1);
+  }
+
+  return ordered;
 }
 
 function advanceClock(request, { days = 0, minutes = 0 } = {}) {
@@ -361,6 +390,8 @@ module.exports = {
   streakFor,
   seedCardFor,
   correctAnswer,
+  sentenceGap,
+  tilesInOrder,
   CardState,
   ReviewGrade,
   seedWords,

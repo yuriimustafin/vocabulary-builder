@@ -76,7 +76,7 @@ test.describe('Long-gap escalation', () => {
     const card = cardFor(await getQueue(request), 'lg04');
 
     expect(card.rung).toBe(1);
-    expect(card.exercise.type).toBe(ExerciseType.MeaningToWordChoice);
+    expect(card.exercise.type).toBe(ExerciseType.WordToSpellingCopy);
   });
 
   test('escalation does not move the rung the word has actually reached', async ({ request }) => {

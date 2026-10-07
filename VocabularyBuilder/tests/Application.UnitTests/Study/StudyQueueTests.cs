@@ -134,10 +134,42 @@ public class StudyQueueTests
 
         (await _db.Context.ReviewCards.CountAsync()).Should().Be(_options.NewCardsPerDay);
 
+        // The first day's words all got through learning
+        await FinishLearning(_options.NewCardsPerDay);
+
         _clock.Advance(TimeSpan.FromDays(1));
         await DrainNewWords();
 
         (await _db.Context.ReviewCards.CountAsync()).Should().Be(_options.NewCardsPerDay * 2);
+    }
+
+    [Test]
+    public async Task WordsNotThroughLearningFromAnEarlierDayCountAgainstTheNewOnes()
+    {
+        // A real session: sixteen words unfinished from the day before, and twelve new on top
+        await SeedWords(40);
+        await DrainNewWords();
+        await FinishLearning(5);
+
+        _clock.Advance(TimeSpan.FromDays(1));
+        await DrainNewWords();
+
+        var introducedToday = await _db.Context.ReviewCards.CountAsync() - _options.NewCardsPerDay;
+        introducedToday.Should().Be(5, "the seven still learning take seven of the day's places");
+    }
+
+    /// <summary>Moves this many of the cards into review, as if they had got through learning.</summary>
+    private async Task FinishLearning(int count)
+    {
+        foreach (var card in await _db.Context.ReviewCards.OrderBy(c => c.Id).Take(count).ToListAsync())
+        {
+            card.State = CardState.Review;
+            card.IntervalDays = 1;
+            card.DueAtUtc = _clock.GetUtcNow().UtcDateTime.AddDays(5);
+        }
+
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+        _db.Context.ChangeTracker.Clear();
     }
 
     [Test]

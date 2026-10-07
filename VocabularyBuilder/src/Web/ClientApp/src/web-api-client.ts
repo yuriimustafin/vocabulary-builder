@@ -3526,6 +3526,9 @@ export class ExercisePayload implements IExercisePayload {
     article?: NounArticleDto | undefined;
     options?: string[] | undefined;
     tiles?: string[] | undefined;
+    meaning?: string | undefined;
+    sentenceStart?: string | undefined;
+    sentenceEnd?: string | undefined;
     letterMask?: string | undefined;
     contextSentence?: string | undefined;
     meaningGloss?: string | undefined;
@@ -3565,6 +3568,9 @@ export class ExercisePayload implements IExercisePayload {
                 for (let item of _data["tiles"])
                     this.tiles!.push(item);
             }
+            this.meaning = _data["meaning"];
+            this.sentenceStart = _data["sentenceStart"];
+            this.sentenceEnd = _data["sentenceEnd"];
             this.letterMask = _data["letterMask"];
             this.contextSentence = _data["contextSentence"];
             this.meaningGloss = _data["meaningGloss"];
@@ -3610,6 +3616,9 @@ export class ExercisePayload implements IExercisePayload {
             for (let item of this.tiles)
                 data["tiles"].push(item);
         }
+        data["meaning"] = this.meaning;
+        data["sentenceStart"] = this.sentenceStart;
+        data["sentenceEnd"] = this.sentenceEnd;
         data["letterMask"] = this.letterMask;
         data["contextSentence"] = this.contextSentence;
         data["meaningGloss"] = this.meaningGloss;
@@ -3640,6 +3649,9 @@ export interface IExercisePayload {
     article?: NounArticleDto | undefined;
     options?: string[] | undefined;
     tiles?: string[] | undefined;
+    meaning?: string | undefined;
+    sentenceStart?: string | undefined;
+    sentenceEnd?: string | undefined;
     letterMask?: string | undefined;
     contextSentence?: string | undefined;
     meaningGloss?: string | undefined;
@@ -3664,6 +3676,8 @@ export enum ExerciseType {
     WordToCollocatesChoice = 11,
     TranslationToSentenceScramble = 12,
     WordToConnectionsReveal = 13,
+    WordToSpellingCopy = 14,
+    WordToSpellingCover = 15,
 }
 
 export enum GradingMode {
@@ -4123,7 +4137,6 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
     chosen?: ChosenAnswerDto | undefined;
     note?: string | undefined;
     connections?: WordConnectionsDto | undefined;
-    expectedOptions?: string[] | undefined;
 
     constructor(data?: IReviewFeedbackDto) {
         if (data) {
@@ -4148,11 +4161,6 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
             this.chosen = _data["chosen"] ? ChosenAnswerDto.fromJS(_data["chosen"]) : <any>undefined;
             this.note = _data["note"];
             this.connections = _data["connections"] ? WordConnectionsDto.fromJS(_data["connections"]) : <any>undefined;
-            if (Array.isArray(_data["expectedOptions"])) {
-                this.expectedOptions = [] as any;
-                for (let item of _data["expectedOptions"])
-                    this.expectedOptions!.push(item);
-            }
         }
     }
 
@@ -4177,11 +4185,6 @@ export class ReviewFeedbackDto implements IReviewFeedbackDto {
         data["chosen"] = this.chosen ? this.chosen.toJSON() : <any>undefined;
         data["note"] = this.note;
         data["connections"] = this.connections ? this.connections.toJSON() : <any>undefined;
-        if (Array.isArray(this.expectedOptions)) {
-            data["expectedOptions"] = [];
-            for (let item of this.expectedOptions)
-                data["expectedOptions"].push(item);
-        }
         return data;
     }
 }
@@ -4199,7 +4202,6 @@ export interface IReviewFeedbackDto {
     chosen?: ChosenAnswerDto | undefined;
     note?: string | undefined;
     connections?: WordConnectionsDto | undefined;
-    expectedOptions?: string[] | undefined;
 }
 
 export class ChosenAnswerDto implements IChosenAnswerDto {

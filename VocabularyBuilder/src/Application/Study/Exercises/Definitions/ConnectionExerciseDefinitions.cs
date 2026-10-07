@@ -4,148 +4,23 @@ using VocabularyBuilder.Domain.Enums;
 namespace VocabularyBuilder.Application.Study.Exercises.Definitions;
 
 /// <summary>
-/// "What can be bright?" - the word, and a few words to tick the ones it goes with.
+/// One of the word's example sentences, given as written but for a gap: the word and two or
+/// three words around it - the phrase it is used in, where the example names one - shuffled
+/// as three tiles to put back in order. A tile may hold two short words ("par la").
 ///
-/// The right ones come from the word's collocates, most typical first, and the wrong ones
-/// from words chosen to be clearly impossible beside it: a plausible wrong pairing is one a
-/// learner may keep. The first few of each are shown, so marking needs nothing but the word
-/// to know which were on screen.
-/// </summary>
-public class WordToCollocatesChoiceExerciseDefinition : IExerciseDefinition
-{
-    /// <summary>How many of each are shown.</summary>
-    public const int Shown = 3;
-
-    private readonly Random _random;
-
-    public WordToCollocatesChoiceExerciseDefinition(IGradeResolver gradeResolver) : this(gradeResolver, Random.Shared) { }
-
-    /// <summary>Test seam: supply a seeded Random to make the shuffle deterministic.</summary>
-    /// <remarks>
-    /// Takes the grade resolver like every other automatic exercise, and does not use it:
-    /// this one is not judged on speed - see <see cref="Resolve"/>.
-    /// </remarks>
-    public WordToCollocatesChoiceExerciseDefinition(IGradeResolver gradeResolver, Random random) => _random = random;
-
-    public ExerciseType Type => ExerciseType.WordToCollocatesChoice;
-
-    public GradingMode GradingMode => GradingMode.Automatic;
-
-    public bool CanBeProbe => true;
-
-    public bool AsksToRecognise => true;
-
-    /// <summary>The translations only make the options readable; the choice is still the learner's.</summary>
-    public bool HintIsFree => true;
-
-    /// <summary>
-    /// Two of each at least, or there is no choice to make - and never for a word that does
-    /// not combine with a range of partners, whatever the model offered for it.
-    /// </summary>
-    public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
-        CombinesWithPartners(material.PartOfSpeech)
-        && !TooGeneral.Contains(material.Headword.Trim())
-        && material.Collocates.Count >= 2
-        && material.NonCollocates.Count >= 2;
-
-    /// <summary>
-    /// Parts of speech that have no partners to speak of, as each source spells them - the
-    /// model ("interjection"), WordReference ("interj", "prép") and Oxford ("exclamation").
-    /// "What goes with bonjour?" has no honest answer, so the prompt asks for none and this
-    /// holds even when an answer arrives anyway.
-    /// </summary>
-    private static readonly string[] WithoutPartners =
-    {
-        "interj", "exclam", "greeting", "prep", "prép", "conj", "pron", "art", "det", "dét", "num"
-    };
-
-    /// <summary>
-    /// Verbs so general that almost anything can follow them, so nothing offered beside them
-    /// is certainly wrong. Asked for impossible partners anyway, a real model offered
-    /// "prendre une fourchette" and "prendre une note de musique" - both of them fine French -
-    /// and it does so even when the prompt asks it for none. Held here, whatever the content says.
-    /// </summary>
-    private static readonly HashSet<string> TooGeneral = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "take", "make", "have", "get", "put", "do", "give", "go", "keep", "set",
-        "prendre", "faire", "mettre", "avoir", "être", "donner", "aller", "tenir", "porter", "passer"
-    };
-
-    public static bool CombinesWithPartners(string? partOfSpeech)
-    {
-        var kind = partOfSpeech?.Trim().ToLowerInvariant();
-
-        return string.IsNullOrEmpty(kind) || !WithoutPartners.Any(prefix => kind.StartsWith(prefix, StringComparison.Ordinal));
-    }
-
-    public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context)
-    {
-        var options = Right(material).Concat(Wrong(material)).OrderBy(_ => _random.Next()).ToList();
-        var hints = options
-            .Where(material.PhraseTranslations.ContainsKey)
-            .ToDictionary(option => option, option => material.PhraseTranslations[option]);
-
-        return new ExercisePayload
-        {
-            Type = Type,
-            GradingMode = GradingMode,
-            WordId = material.WordId,
-            Prompt = material.Headword,
-            Options = options,
-            OptionHints = hints.Count > 0 ? hints : null,
-            Transcription = material.Transcription,
-            PartOfSpeech = material.PartOfSpeech
-        };
-    }
-
-    /// <summary>
-    /// All of them right, or one slip - a partner missed or a wrong one ticked - is a success;
-    /// more is a miss, which the ladder tolerates. Not judged on speed: reading six options
-    /// takes most of the time a click is allowed, and one slip was graded Hard, holding the
-    /// word where it was - on three answers in four in a real session.
-    /// </summary>
-    public ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material)
-    {
-        if (answer.Abandoned)
-        {
-            return ReviewGrade.Again;
-        }
-
-        return Errors(answer.Selections ?? Array.Empty<string>(), material) <= 1
-            ? ReviewGrade.Good
-            : ReviewGrade.Again;
-    }
-
-    /// <summary>The ones that should have been ticked.</summary>
-    public static IReadOnlyList<string> Right(StudyMaterial material) => material.Collocates.Take(Shown).ToList();
-
-    public IReadOnlyList<string>? ExpectedOptions(StudyMaterial material) => Right(material);
-
-    private static IEnumerable<string> Wrong(StudyMaterial material) => material.NonCollocates.Take(Shown);
-
-    /// <summary>Right ones left unticked, and anything ticked that is not one of them.</summary>
-    private static int Errors(IReadOnlyList<string> selected, StudyMaterial material)
-    {
-        var right = Right(material).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        var ticked = selected.Select(s => s.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
-
-        return right.Count(r => !ticked.Contains(r)) + ticked.Count(t => !right.Contains(t));
-    }
-}
-
-/// <summary>
-/// One of the word's example sentences, its words shuffled, to be put back in order from
-/// what it says.
+/// It used to be the whole sentence in pieces, prompted by its translation: a sentence-ordering
+/// puzzle that half the time was missed, and took sixteen seconds when it was not. What it is
+/// for is the word among the words it is used with, so only that much is asked.
 ///
-/// Rebuilding the sentence puts the word back among the words it is used with, which is
-/// what the examples were chosen to show. An ordering slip says more about the sentence than
-/// about the word, so the ladder marks this one mistake-tolerant.
+/// The translation of the sentence and of each tile is a free hint. An ordering slip says more
+/// about the sentence than about the word, so the ladder marks this mistake-tolerant, and keeps
+/// it for reviews (<c>MinIntervalDays</c>) rather than the first day.
 /// </summary>
 public class TranslationToSentenceScrambleExerciseDefinition : IExerciseDefinition
 {
-    private const int MinWords = 3;
-    private const int MaxWords = 14;
-    private static readonly char[] Punctuation = ",.;:!?¡¿«»\"“”()".ToCharArray();
+    private const int MaxWords = 20;
+    private const int Tiles = 3;
+    private static readonly char[] Punctuation = ",.;:!?¡¿«»\"“”()…".ToCharArray();
 
     private readonly IGradeResolver _gradeResolver;
     private readonly Random _random;
@@ -165,75 +40,205 @@ public class TranslationToSentenceScrambleExerciseDefinition : IExerciseDefiniti
 
     public bool CanBeProbe => true;
 
+    /// <summary>The translations only make the sentence readable; putting it together is still the learner's.</summary>
+    public bool HintIsFree => true;
+
     /// <summary>
-    /// Only a stored example, so rebuilding it counts as practising that sentence - and only
-    /// one with a translation, which is the whole of what the learner rebuilds it from.
+    /// Only a stored example, so rebuilding it counts as practising that sentence; only one
+    /// with a translation, for the hint; and only one long enough that some of it is left
+    /// standing around the gap.
     /// </summary>
     public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
         material.HasStoredExample
         && material.HasContextSentence
         && !string.IsNullOrWhiteSpace(material.ContextSentenceTranslation)
-        && Words(material.ContextSentence!).Count is >= MinWords and <= MaxWords;
+        && Gap(material) is not null;
 
     public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context)
     {
-        var words = Words(material.ContextSentence!);
-        var tiles = words.OrderBy(_ => _random.Next()).ToList();
+        var gap = Gap(material)!;
+        var tiles = gap.Tiles.OrderBy(_ => _random.Next()).ToList();
 
-        for (var attempt = 0; attempt < 10 && tiles.SequenceEqual(words); attempt++)
+        for (var attempt = 0; attempt < 10 && tiles.SequenceEqual(gap.Tiles); attempt++)
         {
-            tiles = words.OrderBy(_ => _random.Next()).ToList();
+            tiles = gap.Tiles.OrderBy(_ => _random.Next()).ToList();
         }
+
+        if (tiles.SequenceEqual(gap.Tiles) && tiles.Count > 1)
+        {
+            tiles.Add(tiles[0]);
+            tiles.RemoveAt(0);
+        }
+
+        var glosses = gap.Tiles
+            .Select(tile => (Tile: tile, Gloss: Gloss(tile, material.ContextGlosses)))
+            .Where(t => t.Gloss is not null)
+            .DistinctBy(t => t.Tile)
+            .ToDictionary(t => t.Tile, t => t.Gloss!);
 
         return new ExercisePayload
         {
             Type = Type,
             GradingMode = GradingMode,
             WordId = material.WordId,
-            // What the sentence says
-            Prompt = material.ContextSentenceTranslation!,
+            Prompt = gap.Start + string.Join(" ", Enumerable.Repeat(HeadwordText.Blank, gap.Tiles.Count)) + gap.End,
+            SentenceStart = gap.Start,
+            SentenceEnd = gap.End,
             Tiles = tiles,
             ExampleId = material.ExampleId,
-            PartOfSpeech = material.PartOfSpeech
+            PartOfSpeech = material.PartOfSpeech,
+            // The free hint: what the sentence says, and what each tile means
+            ContextSentenceTranslation = material.ContextSentenceTranslation,
+            OptionHints = glosses.Count > 0 ? glosses : null
         };
     }
 
     public ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material)
     {
+        var gap = Gap(material);
+
         var correct = !answer.Abandoned
             && answer.Text is not null
-            && material.ContextSentence is not null
-            && Normalise(answer.Text) == Normalise(material.ContextSentence);
+            && gap is not null
+            && Normalise(answer.Text) == Normalise(string.Join(' ', gap.Tiles));
+
+        // Reading the free hint takes time; a right answer after it is not marked down as slow
+        if (correct && answer.FreeHintTaken)
+        {
+            return ReviewGrade.Good;
+        }
 
         return _gradeResolver.Resolve(
             AnswerKind.Built,
             new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned,
-                material.ContextSentence?.Count(char.IsLetter) ?? 0));
+                gap?.Tiles.Sum(t => t.Count(char.IsLetter)) ?? 0));
     }
 
     /// <summary>
-    /// The sentence's words, stripped of the punctuation around them and with the first one
-    /// lower-cased - a capital would say which tile goes first.
+    /// The sentence split around its gap: the text before it, the tiles in their right order,
+    /// and the text after. The gap is the word - the form the sentence uses - and its
+    /// neighbours up to four words in a sentence of seven or more, three in a shorter one,
+    /// taking first the words of the phrase the example was built around.
     /// </summary>
-    public static List<string> Words(string sentence)
+    public static SentenceGap? Gap(StudyMaterial material)
     {
-        var words = sentence
-            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
-            .Select(w => w.Trim(Punctuation))
-            .Where(w => w.Length > 0)
-            .ToList();
+        var sentence = material.ContextSentence;
 
-        if (words.Count > 0 && words[0].Length > 1 && !words[0].Skip(1).All(char.IsUpper))
+        if (string.IsNullOrWhiteSpace(sentence))
         {
-            words[0] = char.ToLowerInvariant(words[0][0]) + words[0][1..];
+            return null;
         }
 
-        return words;
+        var tokens = Regex.Matches(sentence, @"\S+").ToList();
+        var found = HeadwordText.Locate(sentence, material.ContextForm ?? material.Headword);
+
+        if (found is not { } at || tokens.Count > MaxWords)
+        {
+            return null;
+        }
+
+        var inGap = Enumerable.Range(0, tokens.Count)
+            .Where(i => tokens[i].Index < at.Index + at.Length && tokens[i].Index + tokens[i].Length > at.Index)
+            .ToList();
+
+        var size = Math.Max(tokens.Count >= 7 ? 4 : 3, inGap.Count);
+
+        // Some of the sentence has to be left standing, or this is the old puzzle again
+        if (inGap.Count == 0 || tokens.Count <= size)
+        {
+            return null;
+        }
+
+        var related = (material.ContextCollocation ?? string.Empty)
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(Bare)
+            .ToHashSet();
+
+        int first = inGap[0], last = inGap[^1];
+
+        while (last - first + 1 < size)
+        {
+            var canLeft = first > 0;
+            var canRight = last < tokens.Count - 1;
+            var leftRelated = canLeft && related.Contains(Bare(tokens[first - 1].Value));
+            var rightRelated = canRight && related.Contains(Bare(tokens[last + 1].Value));
+
+            if (rightRelated || (canRight && !leftRelated))
+            {
+                last++;
+            }
+            else if (canLeft)
+            {
+                first--;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        var words = tokens.Skip(first).Take(last - first + 1).Select(t => t.Value).ToList();
+
+        // Punctuation at the edges of the gap stays with the sentence, so no tile shows where it goes
+        var leading = words[0][..^words[0].TrimStart(Punctuation).Length];
+        var trailing = words[^1][words[^1].TrimEnd(Punctuation).Length..];
+        words[0] = words[0][leading.Length..];
+        words[^1] = words[^1][..^trailing.Length];
+
+        if (words.Any(w => w.Length == 0))
+        {
+            return null;
+        }
+
+        var start = sentence[..tokens[first].Index] + leading;
+        var end = trailing + sentence[(tokens[last].Index + tokens[last].Length)..];
+
+        return new SentenceGap(start, TilesOf(words), end);
     }
 
+    /// <summary>
+    /// Three tiles from the gap's words: a short word - an article, a preposition - shares a
+    /// tile with the word after it until there are only three.
+    /// </summary>
+    private static List<string> TilesOf(List<string> words)
+    {
+        var tiles = words.ToList();
+
+        while (tiles.Count > Tiles)
+        {
+            var join = Enumerable.Range(0, tiles.Count - 1)
+                .OrderBy(i => tiles[i].Count(char.IsLetter) <= 3 ? 0 : 1)
+                .ThenBy(i => tiles[i].Length + tiles[i + 1].Length)
+                .ThenBy(i => i)
+                .First();
+
+            tiles[join] = tiles[join] + " " + tiles[join + 1];
+            tiles.RemoveAt(join + 1);
+        }
+
+        return tiles;
+    }
+
+    /// <summary>What a tile says, from the sentence's word-by-word glosses; null when none of it is glossed.</summary>
+    private static string? Gloss(string tile, IReadOnlyDictionary<string, string> glosses)
+    {
+        var parts = tile.Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Select(word => glosses.TryGetValue(Bare(word), out var meaning) ? meaning : null)
+            .Where(meaning => meaning is not null)
+            .ToList();
+
+        return parts.Count > 0 ? string.Join(" ", parts) : null;
+    }
+
+    /// <summary>A word as glosses and answers are compared: lower case, no punctuation round it.</summary>
+    public static string Bare(string word) => word.Trim(Punctuation).ToLowerInvariant();
+
     private static string Normalise(string value) =>
-        Regex.Replace(string.Join(' ', Words(value)).ToLowerInvariant(), @"\s+", " ").Trim();
+        string.Join(' ', value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(Bare).Where(w => w.Length > 0));
 }
+
+/// <summary>A sentence with a gap to rebuild: the text either side, and the tiles in their right order.</summary>
+public record SentenceGap(string Start, IReadOnlyList<string> Tiles, string End);
 
 /// <summary>
 /// Follow-up only: the word with its mnemonic, where it comes from and what it is related

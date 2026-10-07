@@ -44,15 +44,14 @@ public class EnrichWordStudyContentTests
               "definition": "a generated definition",
               "usage": "said of things found everywhere",
               "examples": [
-                {"sentence": "A line using {{word}} once.", "translation": "Рядок.", "form": "{{word}}", "collocation": "using {{word}}"},
+                {"sentence": "A line using {{word}} once.", "translation": "Рядок.", "form": "{{word}}", "collocation": "using {{word}}",
+                 "glosses": [{"word": "A", "translation": "один"}, {"word": "line", "translation": "рядок"}, {"word": "  "}]},
                 {"sentence": "Coffee shops are {{word}} here.", "translation": "Кав'ярні.", "form": "{{word}}", "collocation": "{{word}} here"},
                 {"sentence": "The {{word}} smartphone changed us.", "translation": "Смартфон.", "form": "{{word}}", "collocation": "the {{word}} smartphone"}
               ],
               "etymology": "From Latin ubique, everywhere.",
               "cognates": null,
-              "mnemonic": "Sounds like 'you bake it us': bread baked everywhere.",
-              "collocates": ["screens", "coffee shops", "  ", "Screens", "advertising"],
-              "nonCollocates": ["silence", "a whisper"]
+              "mnemonic": "Sounds like 'you bake it us': bread baked everywhere."
             }
             """;
     }
@@ -143,7 +142,7 @@ public class EnrichWordStudyContentTests
         (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
 
         _gpt.LastPrompt.Should().Contain("\"examples\"").And.Contain("\"etymology\"").And.Contain("\"mnemonic\"")
-            .And.Contain("\"collocates\"").And.Contain("\"nonCollocates\"").And.Contain("2 to 3");
+            .And.Contain("\"glosses\"").And.Contain("2 to 3");
         _gpt.LastPrompt.Should().NotContain("\"definition\"", "the word already has one");
         _gpt.LastPrompt.Should().Contain("meaning: found everywhere", "the examples should be for the sense being studied");
 
@@ -193,8 +192,12 @@ public class EnrichWordStudyContentTests
         content.Etymology.Should().Be("From Latin ubique, everywhere.");
         content.Cognates.Should().BeNull("the model had none, and said so");
         content.Mnemonic.Should().StartWith("Sounds like");
-        content.Collocates.Should().Equal("screens", "coffee shops", "advertising");
-        content.NonCollocates.Should().Equal("silence", "a whisper");
+
+        // Each example keeps what its words mean, for the hints on a sentence's pieces; a
+        // blank word is dropped with its translation, so the two stay paired
+        var first = (await Examples(word.Id))[0];
+        first.GlossWords.Should().Equal("A", "line");
+        first.GlossTranslations.Should().Equal("один", "рядок");
     }
 
     [Test]
@@ -450,56 +453,55 @@ public class EnrichWordStudyContentTests
     // --- prompt ------------------------------------------------------------
 
     [Test]
-    public async Task EachPartnerIsStoredWithItsTranslationPairedByPosition()
+    public async Task StoredSentencesWithoutGlossesAreGlossedOnTheNextGeneration()
     {
-        _gpt = new RecordingGptClient(prompt => UsableReply(prompt)!
-            .Replace("""["screens", "coffee shops", "  ", "Screens", "advertising"]""",
-                """[{"phrase": "screens", "translation": "екрани"}, "coffee shops", {"phrase": "  ", "translation": "x"}, {"phrase": "advertising", "translation": "реклама"}]""")
-            .Replace("""["silence", "a whisper"]""", """[{"phrase": "silence", "translation": "тиша"}, {"phrase": "a whisper"}]"""));
+        // Content from before glosses were asked for: two sentences stored, neither glossed
         var word = await AddWord(senses: new List<Sense> { Sense("found everywhere", "Screens are ubiquitous.") });
+        _db.Context.WordStudyContents.Add(new WordStudyContent { WordId = word.Id, Status = StudyContentStatus.Ready, PromptVersion = "v5" });
+        _db.Context.StudyExamples.AddRange(
+            new StudyExample { WordId = word.Id, Sentence = "Screens are ubiquitous.", Translation = "Екрани всюди.", Form = "ubiquitous" },
+            new StudyExample { WordId = word.Id, Sentence = "Ads are ubiquitous now.", Translation = "Реклама всюди.", Form = "ubiquitous" });
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        _gpt = new RecordingGptClient(_ => """
+            {
+              "usage": "said of things found everywhere",
+              "glosses": [
+                [{"word": "Screens", "translation": "екрани"}, {"word": "are", "translation": "є"}, {"word": "ubiquitous.", "translation": "всюдисущі"}],
+                [{"word": "Ads", "translation": "реклама"}]
+              ]
+            }
+            """);
 
         (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
 
-        // A plain string still reads - the shape before translations - and just has none;
-        // a blank phrase is dropped together with its translation, so the pairs stay aligned
-        var content = await Content(word.Id);
-        content!.Collocates.Should().Equal("screens", "coffee shops", "advertising");
-        content.CollocateTranslations.Should().Equal("екрани", "", "реклама");
-        content.NonCollocates.Should().Equal("silence", "a whisper");
-        content.NonCollocateTranslations.Should().Equal("тиша", "");
+        _gpt.LastPrompt.Should().Contain("\"glosses\": an array with one entry for each of these sentences, in this order")
+            .And.Contain("1. \"Screens are ubiquitous.\"")
+            .And.Contain("2. \"Ads are ubiquitous now.\"");
+
+        var examples = await Examples(word.Id);
+        examples[0].GlossWords.Should().Equal("Screens", "are", "ubiquitous.");
+        examples[0].GlossTranslations.Should().Equal("екрани", "є", "всюдисущі");
+        examples[1].GlossWords.Should().Equal("Ads");
     }
 
     [Test]
-    public void ThePromptAsksForEachPartnerWithItsTranslation()
+    public void ThePromptAsksForEveryExampleWordByWord()
     {
         var word = new Word { Headword = "lumineux", PartOfSpeech = "adjective", Language = Language.French };
 
-        var prompt = StudyContentPrompt.For(word, StudyMaterialGaps.Connections);
+        var prompt = StudyContentPrompt.For(word, StudyMaterialGaps.Examples);
 
-        prompt.Should().Contain("\"collocates\": an array of 4 to 6 objects {\"phrase\", \"translation\"}");
-        prompt.Should().Contain("what that phrase means in English");
-        prompt.Should().Contain("\"nonCollocates\": an array of 3 objects {\"phrase\", \"translation\"}");
-    }
-
-    [Test]
-    public void ThePromptSaysWhatKindOfPartnerToGiveForEachPartOfSpeech()
-    {
-        var word = new Word { Headword = "prendre", PartOfSpeech = "verb", Language = Language.French };
-
-        var prompt = StudyContentPrompt.For(word, StudyMaterialGaps.Connections);
-
-        prompt.Should().Contain("for an adjective, what it describes");
-        prompt.Should().Contain("for a noun, the verbs and adjectives used with it");
-        prompt.Should().Contain("for a verb, what it is done to or with");
-        prompt.Should().Contain("for an adverb, what it modifies");
-        prompt.Should().Contain("of the same kind as the collocates", "a wrong option of another kind gives itself away");
-        prompt.Should().Contain("null when it does not combine").And.Contain("\"bonjour\", \"please\"");
+        prompt.Should().Contain("\"sentence\", \"translation\", \"form\", \"collocation\", \"glosses\"");
+        prompt.Should().Contain("\"glosses\" is every word of the sentence in order");
+        prompt.Should().Contain("what it means there in English");
+        prompt.Should().NotContain("\"collocates\"", "what it goes with is no longer asked");
     }
 
     /// <summary>
-    /// What a real model got wrong for prendre and fenêtre: it copied the prompt's own
-    /// partners for prendre word for word, offered "une fourchette" and "réparer" as things
-    /// they cannot go with, and wrote a collocation in English.
+    /// What a real model got wrong: it copied the prompt's own examples for a word the prompt
+    /// used as one, left articles out, wrote a collocation in English, and gave no cognates
+    /// for a word whose etymology named some.
     /// </summary>
     [Test]
     public void ThePromptGuardsAgainstWhatARealModelGotWrong()
@@ -510,10 +512,6 @@ public class EnrichWordStudyContentTests
 
         prompt.Should().NotContain("\"le bus\"", "a word the prompt uses as its example gets that example back");
         prompt.Should().Contain("Never copy them into yours - answer for \"prendre\" itself");
-        prompt.Should().Contain("cannot combine with it in any of its senses")
-            .And.Contain("impossible rather than merely unusual")
-            .And.Contain("null for a very general verb that almost anything can follow")
-            .And.Contain("whenever 3 certainly impossible ones cannot be found");
         prompt.Should().Contain("\"collocation\" is the French phrase");
         prompt.Should().Contain("grammatically complete French - articles included");
         prompt.Should().Contain("including any the etymology names");

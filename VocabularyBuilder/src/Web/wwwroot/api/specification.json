@@ -2719,6 +2719,18 @@
               "type": "string"
             }
           },
+          "meaning": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentenceStart": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentenceEnd": {
+            "type": "string",
+            "nullable": true
+          },
           "letterMask": {
             "type": "string",
             "nullable": true
@@ -2774,7 +2786,9 @@
           "ContextToWordChoice",
           "WordToCollocatesChoice",
           "TranslationToSentenceScramble",
-          "WordToConnectionsReveal"
+          "WordToConnectionsReveal",
+          "WordToSpellingCopy",
+          "WordToSpellingCover"
         ],
         "enum": [
           0,
@@ -2790,7 +2804,9 @@
           10,
           11,
           12,
-          13
+          13,
+          14,
+          15
         ]
       },
       "GradingMode": {
@@ -3084,13 +3100,6 @@
                 "$ref": "#/components/schemas/WordConnectionsDto"
               }
             ]
-          },
-          "expectedOptions": {
-            "type": "array",
-            "nullable": true,
-            "items": {
-              "type": "string"
-            }
           }
         }
       },

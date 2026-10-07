@@ -31,6 +31,15 @@ public class StudyExample : BaseAuditableEntity
     /// <summary>The phrase the sentence is built around, such as "a bright future".</summary>
     public string? Collocation { get; set; }
 
+    /// <summary>
+    /// Each word of the sentence as written, paired by position with <see cref="GlossTranslations"/>:
+    /// what the pieces of a sentence mean, for the hint on one rebuilt from them.
+    /// </summary>
+    public IList<string>? GlossWords { get; set; }
+
+    /// <summary>What each of <see cref="GlossWords"/> means in that sentence, in the learner's language.</summary>
+    public IList<string>? GlossTranslations { get; set; }
+
     /// <summary>Times an exercise built on this sentence was answered correctly.</summary>
     public int Successes { get; set; }
 

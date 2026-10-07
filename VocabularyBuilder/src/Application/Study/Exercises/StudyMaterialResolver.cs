@@ -1,5 +1,6 @@
 using VocabularyBuilder.Application.Common.Models;
 using VocabularyBuilder.Application.Study.Enrichment;
+using VocabularyBuilder.Application.Study.Exercises.Definitions;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Samples.Entities;
 
@@ -31,6 +32,9 @@ public interface IStudyMaterialResolver
 
     /// <summary>Forms the word was met in that no example sentence uses yet.</summary>
     IReadOnlyList<string> UncoveredForms(Word word, StudyExampleSet examples);
+
+    /// <summary>Stored examples with a translation but no word-by-word glosses yet.</summary>
+    IReadOnlyList<StudyExample> UnglossedExamples(StudyExampleSet examples);
 }
 
 /// <summary>
@@ -67,9 +71,8 @@ public class StudyMaterialResolver : IStudyMaterialResolver
             Etymology = Trimmed(generated?.Etymology),
             Cognates = Trimmed(generated?.Cognates),
             Mnemonic = Trimmed(generated?.Mnemonic),
-            Collocates = generated?.Collocates?.ToList() ?? new List<string>(),
-            NonCollocates = generated?.NonCollocates?.ToList() ?? new List<string>(),
-            PhraseTranslations = PhraseTranslations(generated)
+            ContextCollocation = Trimmed(stored?.Collocation),
+            ContextGlosses = Glosses(stored)
         };
     }
 
@@ -100,13 +103,47 @@ public class StudyMaterialResolver : IStudyMaterialResolver
         }
 
         // The version is set only when a generation succeeds, so content from before these
-        // fields existed - or a word never filled in at all - is asked for them once.
+        // fields existed - or a word never filled in at all - is asked for them once. Glosses
+        // for sentences stored before they were asked for go with that same once: a sentence
+        // the model leaves unglossed is not worth a call on every later run.
         if (generated is null || generated.PromptVersion != StudyContentPrompt.Version)
         {
             gaps |= StudyMaterialGaps.Connections;
+
+            if (UnglossedExamples(set).Count > 0)
+            {
+                gaps |= StudyMaterialGaps.Glosses;
+            }
         }
 
         return gaps;
+    }
+
+    public IReadOnlyList<StudyExample> UnglossedExamples(StudyExampleSet examples) =>
+        examples.Examples
+            .Where(e => Usable(e) && !string.IsNullOrWhiteSpace(e.Translation) && (e.GlossWords is null || e.GlossWords.Count == 0))
+            .OrderBy(e => e.Id)
+            .ToList();
+
+    /// <summary>
+    /// What each word of a stored example means there, keyed the way a sentence's pieces are
+    /// compared - lower case, no punctuation round it. Empty for a sentence never glossed.
+    /// </summary>
+    private static Dictionary<string, string> Glosses(StudyExample? example)
+    {
+        var glosses = new Dictionary<string, string>();
+        var words = example?.GlossWords;
+        var meanings = example?.GlossTranslations;
+
+        for (var i = 0; i < (words?.Count ?? 0) && i < (meanings?.Count ?? 0); i++)
+        {
+            if (!string.IsNullOrWhiteSpace(meanings![i]))
+            {
+                glosses.TryAdd(TranslationToSentenceScrambleExerciseDefinition.Bare(words![i]), meanings[i].Trim());
+            }
+        }
+
+        return glosses;
     }
 
     public IReadOnlyList<string> UncoveredForms(Word word, StudyExampleSet examples)
@@ -145,31 +182,6 @@ public class StudyMaterialResolver : IStudyMaterialResolver
             .ThenBy(e => e.LastUsedAtUtc ?? DateTime.MinValue)
             .ThenBy(e => e.Id)
             .FirstOrDefault();
-    }
-
-    /// <summary>
-    /// Each partner phrase with its translation, read from the two pairs of lists stored side
-    /// by side. A phrase with no translation - content from before they were asked for, or
-    /// one the model left out - is simply not in it.
-    /// </summary>
-    private static Dictionary<string, string> PhraseTranslations(WordStudyContent? generated)
-    {
-        var translations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
-        void Add(IList<string>? phrases, IList<string>? meanings)
-        {
-            for (var i = 0; i < (phrases?.Count ?? 0) && i < (meanings?.Count ?? 0); i++)
-            {
-                if (!string.IsNullOrWhiteSpace(meanings![i]))
-                {
-                    translations.TryAdd(phrases![i], meanings[i].Trim());
-                }
-            }
-        }
-
-        Add(generated?.Collocates, generated?.CollocateTranslations);
-        Add(generated?.NonCollocates, generated?.NonCollocateTranslations);
-        return translations;
     }
 
     /// <summary>A sentence is only usable if the form it names is really in it.</summary>

@@ -61,11 +61,18 @@ export class ChoiceExercise extends Component {
 
         {exercise.hint && (
           hintShown
-            ? <p className="text-muted fst-italic mt-2 mb-0" data-testid="hint-text">{exercise.hint}</p>
+            ? (
+              <div className="text-muted fst-italic mt-2" data-testid="hint-text">
+                <div>The missing word means: <span data-testid="hint-meaning">{exercise.hint}</span></div>
+                {exercise.contextSentenceTranslation && (
+                  <div data-testid="hint-translation">{exercise.contextSentenceTranslation}</div>
+                )}
+              </div>
+            )
             : (
               <Button color="link" size="sm" className="ps-0 mt-1" data-testid="hint-button"
                       disabled={chosen !== null} onClick={this.showHint}>
-                Show the translation <span className="text-muted">(free)</span>
+                Show translations <span className="text-muted">(free)</span>
               </Button>
             )
         )}

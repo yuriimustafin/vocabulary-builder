@@ -209,16 +209,30 @@ public class ExerciseDefinitionTests
         payload.Answer.Should().BeNull("the tiles are the exercise; spelling it out would defeat it");
     }
 
-    [Test]
-    public void DecoyLettersAreAddedWhenConfiguredAndNeverBelongToTheWord()
+    [TestCase("remember", new[] { "re", "mem", "ber" })]
+    [TestCase("information", new[] { "in", "for", "ma", "tion" })]
+    public void ALongerWordIsOfferedAsItsSyllablesWhenTheyMakeThreeOrFour(string headword, string[] chunks)
     {
-        var options = new StudyOptions { ScrambleDecoyLetters = 2 };
-        var definition = new MeaningToWordScrambleExerciseDefinition(options, Grades, new Random(11));
+        var payload = new MeaningToWordScrambleExerciseDefinition(Options, Grades, new Random(1))
+            .Build(Material(headword), new ExerciseBuildContext());
 
-        var tiles = definition.Build(Material("apt"), new ExerciseBuildContext()).Tiles!;
+        payload.Tiles.Should().BeEquivalentTo(chunks);
+        payload.Tiles.Should().NotEqual(chunks, "pieces already in order ask nothing");
+    }
 
-        tiles.Should().HaveCount(5);
-        tiles.Count(t => t is "a" or "p" or "t").Should().Be(3);
+    [TestCase("window")]
+    [TestCase("bright")]
+    [TestCase("ice cream")]
+    [TestCase("approfondissement")]
+    public void AnyWordOfMoreThanThreeLettersComesInThreeOrFourPiecesThatJoinBackIntoIt(string headword)
+    {
+        var tiles = new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded)
+            .Build(Material(headword), new ExerciseBuildContext()).Tiles!;
+
+        tiles.Count.Should().BeInRange(3, 4);
+        tiles.Should().OnlyContain(t => t.Length > 0);
+        string.Concat(Syllabifier.Chunks(headword, Domain.Enums.Language.English))
+            .Should().Be(headword.Replace(" ", string.Empty));
     }
 
     [Test]
@@ -252,8 +266,9 @@ public class ExerciseDefinitionTests
     {
         var definition = new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded);
 
+        // In pieces now, but an accent never comes apart from its letter
         definition.Build(Material("élève"), new ExerciseBuildContext()).Tiles
-            .Should().BeEquivalentTo(new[] { "é", "l", "è", "v", "e" });
+            .Should().BeEquivalentTo(new[] { "é", "lè", "ve" });
     }
 
     // --- free production ---------------------------------------------------
@@ -297,49 +312,45 @@ public class ExerciseDefinitionTests
         mask.Should().Be("i _ _ / _ _ _ _ _");
     }
 
-    // --- syllable scramble -------------------------------------------------
+    // --- spelling it -----------------------------------------------------------
 
     [Test]
-    public void TheSyllableScrambleOffersTheWordsSyllablesShuffled()
+    public void CopyingShowsTheWordAndWhatItMeans()
     {
-        var definition = new MeaningToWordSyllableScrambleExerciseDefinition(Options, Grades, new Random(1));
+        var payload = new WordToSpellingCopyExerciseDefinition().Build(Material("remember"), new ExerciseBuildContext());
 
-        var payload = definition.Build(Material("chocolat"), new ExerciseBuildContext());
-
-        payload.Tiles.Should().BeEquivalentTo(new[] { "cho", "co", "lat" });
-        payload.Tiles.Should().NotEqual(new[] { "cho", "co", "lat" }, "tiles already in order ask nothing");
-        payload.GradingMode.Should().Be(GradingMode.Automatic);
+        payload.Prompt.Should().Be("remember");
+        payload.Meaning.Should().Be("found everywhere");
+        payload.Tiles.Should().BeNull("it is copied whole, while it stays on screen");
     }
 
     [Test]
-    public void AWordOfFewerThanThreeSyllablesIsLeftToTheLetters()
+    public void ALongWordIsCoveredAPieceAtATimeAndAShortOneWhole()
     {
-        var definition = new MeaningToWordSyllableScrambleExerciseDefinition(Options, Grades, Seeded);
+        var cover = new WordToSpellingCoverExerciseDefinition();
 
-        definition.CanBuild(Material("window"), null).Should().BeFalse();
-        definition.CanBuild(Material("remember"), null).Should().BeTrue();
+        cover.Build(Material("remember"), new ExerciseBuildContext()).Tiles.Should().Equal("re", "mem", "ber");
+        cover.Build(Material("apple"), new ExerciseBuildContext()).Tiles.Should().BeNull("five letters are taken in one look");
     }
 
     [Test]
-    public void TheSyllableScrambleIsMarkedLikeTheLetterScramble()
+    public void SpellingIsMarkedLikeTypingButNeverOnSpeed()
     {
-        var definition = new MeaningToWordSyllableScrambleExerciseDefinition(Options, Grades, Seeded);
+        var copy = new WordToSpellingCopyExerciseDefinition();
 
-        definition.Resolve(new ExerciseAnswer("chocolat", ElapsedMs: 5000), Material("chocolat")).Should().Be(ReviewGrade.Good);
-        definition.Resolve(new ExerciseAnswer("cocholat", ElapsedMs: 5000), Material("chocolat")).Should().Be(ReviewGrade.Again);
-        definition.Resolve(new ExerciseAnswer("chocolat", ElapsedMs: 5000, Resets: 1), Material("chocolat"))
-            .Should().Be(ReviewGrade.Hard);
+        copy.Resolve(new ExerciseAnswer("remember", ElapsedMs: 60_000), Material("remember")).Should().Be(ReviewGrade.Good);
+        copy.Resolve(new ExerciseAnswer("rememebr", ElapsedMs: 5000), Material("remember")).Should().Be(ReviewGrade.Hard);
+        copy.Resolve(new ExerciseAnswer("forget", ElapsedMs: 5000), Material("remember")).Should().Be(ReviewGrade.Again);
+        copy.Resolve(new ExerciseAnswer(Abandoned: true), Material("remember")).Should().Be(ReviewGrade.Again);
     }
 
     [Test]
-    public void TheSyllableScrambleNeverAddsDecoys()
+    public void APhraseWrittenAPieceAtATimeGetsItsSpacesBack()
     {
-        // A decoy syllable would be a misspelling of the word, and seeing one makes it
-        // more likely to be written later.
-        var options = new StudyOptions { ScrambleDecoyLetters = 3 };
-        var definition = new MeaningToWordSyllableScrambleExerciseDefinition(options, new GradeResolver(options), Seeded);
-
-        definition.Build(Material("chocolat"), new ExerciseBuildContext()).Tiles.Should().HaveCount(3);
+        // The pieces drop the space, so "ice cream" comes back as "icecream"
+        new WordToSpellingCoverExerciseDefinition()
+            .Resolve(new ExerciseAnswer("icecream", ElapsedMs: 5000), Material("ice cream"))
+            .Should().Be(ReviewGrade.Good);
     }
 
     // --- typing ------------------------------------------------------------
@@ -455,7 +466,7 @@ public class ExerciseDefinitionTests
     {
         var catalog = new ExerciseCatalog(AllDefinitions());
 
-        foreach (var type in Enum.GetValues<ExerciseType>())
+        foreach (var type in Enum.GetValues<ExerciseType>().Except(ExerciseCatalog.Retired))
         {
             catalog.Get(type).Type.Should().Be(type);
         }
@@ -477,12 +488,12 @@ public class ExerciseDefinitionTests
         new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded),
         new MeaningToWordRecallExerciseDefinition(),
         new MeaningToWordPartialLettersExerciseDefinition(),
-        new MeaningToWordSyllableScrambleExerciseDefinition(Options, Grades, Seeded),
         new MeaningToWordTypeExerciseDefinition(Grades),
         new MeaningToWordCuedTypeExerciseDefinition(Grades),
         new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded),
-        new WordToCollocatesChoiceExerciseDefinition(Grades, Seeded),
         new TranslationToSentenceScrambleExerciseDefinition(Grades, Seeded),
-        new WordToConnectionsRevealExerciseDefinition()
+        new WordToConnectionsRevealExerciseDefinition(),
+        new WordToSpellingCopyExerciseDefinition(),
+        new WordToSpellingCoverExerciseDefinition()
     };
 }

@@ -51,6 +51,106 @@ public static class Syllabifier
     /// The words of a phrase, with spaces and hyphens dropped - they are not part of what
     /// is being assembled - and an elision kept with the word after it.
     /// </summary>
+    /// <summary>Fewest pieces a word is put back together from, unless it is too short for them.</summary>
+    public const int FewestChunks = 3;
+
+    /// <summary>Most pieces: past four, putting them in order is a search rather than a recall.</summary>
+    public const int MostChunks = 4;
+
+    /// <summary>Pairs of letters a chunk boundary avoids when it can - a digraph or a vowel sound.</summary>
+    private static readonly HashSet<string> KeptTogether = new(StringComparer.Ordinal)
+    {
+        "qu", "ch", "ph", "th", "gn", "sh", "ck", "ng", "wh",
+        "ou", "ai", "au", "ei", "eu", "oi", "oo", "ee", "ea", "ie", "ue"
+    };
+
+    /// <summary>
+    /// The pieces a word is put back together from: three or four, its syllables wherever
+    /// they make that many - a longer syllable split, the shortest neighbours joined, until
+    /// they do. A word of three letters or fewer is simply its letters. The pieces always
+    /// join back into the word exactly, spaces and hyphens aside.
+    /// </summary>
+    public static IReadOnlyList<string> Chunks(string text, Language language)
+    {
+        var letters = Letters(text);
+
+        if (letters.Count <= FewestChunks)
+        {
+            return letters;
+        }
+
+        var chunks = Split(text, language).ToList();
+
+        while (chunks.Count < FewestChunks && SplitLongest(chunks))
+        {
+        }
+
+        while (chunks.Count > MostChunks)
+        {
+            // The neighbours that make the shortest piece together
+            var join = Enumerable.Range(0, chunks.Count - 1)
+                .OrderBy(i => Length(chunks[i]) + Length(chunks[i + 1]))
+                .ThenBy(i => i)
+                .First();
+
+            chunks[join] += chunks[join + 1];
+            chunks.RemoveAt(join + 1);
+        }
+
+        return chunks;
+    }
+
+    /// <summary>
+    /// Splits the longest piece that can be split in two, as near its middle as possible
+    /// without parting a digraph or a vowel sound. False when every piece is a single letter.
+    /// </summary>
+    private static bool SplitLongest(List<string> chunks)
+    {
+        var index = Enumerable.Range(0, chunks.Count)
+            .Where(i => Length(chunks[i]) > 1)
+            .OrderByDescending(i => Length(chunks[i]))
+            .ThenBy(i => i)
+            .DefaultIfEmpty(-1)
+            .First();
+
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var elements = Elements(chunks[index]);
+        var middle = elements.Count / 2.0;
+
+        var at = Enumerable.Range(1, elements.Count - 1)
+            .OrderBy(i => KeptTogether.Contains((elements[i - 1] + elements[i]).ToLowerInvariant()) ? 1 : 0)
+            .ThenBy(i => Math.Abs(i - middle))
+            .ThenByDescending(i => i)
+            .First();
+
+        chunks[index] = string.Concat(elements.Take(at));
+        chunks.Insert(index + 1, string.Concat(elements.Skip(at)));
+        return true;
+    }
+
+    /// <summary>The letters of a word or phrase as written, without its spaces and hyphens.</summary>
+    private static List<string> Letters(string text) =>
+        Elements(text).Where(e => !string.IsNullOrWhiteSpace(e) && e != "-").ToList();
+
+    private static List<string> Elements(string text)
+    {
+        var elements = new List<string>();
+        var enumerator = StringInfo.GetTextElementEnumerator(text.Trim().Normalize(NormalizationForm.FormC));
+
+        while (enumerator.MoveNext())
+        {
+            elements.Add((string)enumerator.Current);
+        }
+
+        return elements;
+    }
+
+    private static int Length(string chunk) => Elements(chunk).Count;
+
     private static IEnumerable<string> Parts(string text)
     {
         var pending = string.Empty;

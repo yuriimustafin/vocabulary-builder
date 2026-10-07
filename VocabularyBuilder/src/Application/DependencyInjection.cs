@@ -52,13 +52,13 @@ public static class DependencyInjection
         services.AddSingleton<IExerciseDefinition, MeaningToWordScrambleExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordRecallExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordPartialLettersExerciseDefinition>();
-        services.AddSingleton<IExerciseDefinition, MeaningToWordSyllableScrambleExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordTypeExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, MeaningToWordCuedTypeExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, ContextToWordChoiceExerciseDefinition>();
-        services.AddSingleton<IExerciseDefinition, WordToCollocatesChoiceExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, TranslationToSentenceScrambleExerciseDefinition>();
         services.AddSingleton<IExerciseDefinition, WordToConnectionsRevealExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, WordToSpellingCopyExerciseDefinition>();
+        services.AddSingleton<IExerciseDefinition, WordToSpellingCoverExerciseDefinition>();
         services.AddSingleton<IExerciseCatalog, ExerciseCatalog>();
 
         services.AddSingleton<IStudyEnrichmentQueue, StudyEnrichmentQueue>();
