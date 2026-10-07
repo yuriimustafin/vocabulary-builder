@@ -2,25 +2,27 @@
 <html>
 <head><title>test - Oxford Advanced Learner's Dictionary</title></head>
 <body>
-<div class="entry" data-hw="test">
+<!-- Shaped like a real entry page, so the real parser reads it: h1, .webtop .pos,
+     .phons_n_am .phon, li.sense .def and ul.examples li -->
+<div class="entry" id="test_1">
   <div class="top-container">
-    <div class="top-g">
-      <div class="webtop">
-        <span class="headword">test</span>
-        <span class="phonetics">
-          <span class="phon">/test/</span>
-        </span>
-      </div>
+    <div class="webtop">
+      <h1 class="headword">test</h1>
       <span class="pos">noun</span>
+      <div class="phonetics">
+        <div class="phons_n_am">
+          <span class="phon">/test/</span>
+        </div>
+      </div>
     </div>
   </div>
   <ol class="senses_multiple">
     <li class="sense">
       <span class="def">a way of discovering whether something works correctly or how good a person or thing is</span>
-      <span class="examples">
-        <span class="x">I'm going to take a test tomorrow.</span>
-        <span class="x">The new drug is undergoing clinical tests.</span>
-      </span>
+      <ul class="examples">
+        <li><span class="x">I'm going to take a test tomorrow.</span></li>
+        <li><span class="x">The new drug is undergoing clinical tests.</span></li>
+      </ul>
     </li>
   </ol>
 </div>

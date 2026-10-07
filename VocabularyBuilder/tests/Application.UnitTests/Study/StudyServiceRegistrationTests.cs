@@ -70,7 +70,7 @@ public class StudyServiceRegistrationTests
         using var provider = BuildProvider();
         var catalog = provider.GetRequiredService<IExerciseCatalog>();
 
-        foreach (var type in Enum.GetValues<ExerciseType>())
+        foreach (var type in Enum.GetValues<ExerciseType>().Except(ExerciseCatalog.Retired))
         {
             catalog.Get(type).Type.Should().Be(type);
         }

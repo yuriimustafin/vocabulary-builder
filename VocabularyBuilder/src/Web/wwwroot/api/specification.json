@@ -1107,6 +1107,37 @@
         }
       }
     },
+    "/api/{lang}/study/day-review": {
+      "get": {
+        "tags": [
+          "Study"
+        ],
+        "operationId": "GetApiStudyDayReview",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DayReviewDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/{lang}/study/reviews": {
       "post": {
         "tags": [
@@ -3366,6 +3397,18 @@
               "type": "string"
             }
           },
+          "meaning": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentenceStart": {
+            "type": "string",
+            "nullable": true
+          },
+          "sentenceEnd": {
+            "type": "string",
+            "nullable": true
+          },
           "letterMask": {
             "type": "string",
             "nullable": true
@@ -3381,6 +3424,26 @@
           "contextSentenceTranslation": {
             "type": "string",
             "nullable": true
+          },
+          "exampleId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "connections": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WordConnectionsDto"
+              }
+            ]
+          },
+          "optionHints": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {
+              "type": "string"
+            }
           }
         }
       },
@@ -3394,7 +3457,16 @@
           "ContextToWordRecall",
           "MeaningToWordScramble",
           "MeaningToWordRecall",
-          "MeaningToWordPartialLetters"
+          "MeaningToWordPartialLetters",
+          "MeaningToWordSyllableScramble",
+          "MeaningToWordType",
+          "MeaningToWordCuedType",
+          "ContextToWordChoice",
+          "WordToCollocatesChoice",
+          "TranslationToSentenceScramble",
+          "WordToConnectionsReveal",
+          "WordToSpellingCopy",
+          "WordToSpellingCover"
         ],
         "enum": [
           0,
@@ -3403,7 +3475,16 @@
           3,
           4,
           5,
-          6
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15
         ]
       },
       "GradingMode": {
@@ -3436,6 +3517,28 @@
           },
           "isPlural": {
             "type": "boolean"
+          }
+        }
+      },
+      "WordConnectionsDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "usage": {
+            "type": "string",
+            "nullable": true
+          },
+          "etymology": {
+            "type": "string",
+            "nullable": true
+          },
+          "cognates": {
+            "type": "string",
+            "nullable": true
+          },
+          "mnemonic": {
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -3485,6 +3588,62 @@
           }
         }
       },
+      "DayReviewDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayReviewGroupDto"
+            }
+          }
+        }
+      },
+      "DayReviewGroupDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "pairs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DayReviewPairDto"
+            }
+          }
+        }
+      },
+      "DayReviewPairDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "wordId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "headword": {
+            "type": "string"
+          },
+          "article": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/NounArticleDto"
+              }
+            ]
+          },
+          "sentence": {
+            "type": "string"
+          },
+          "form": {
+            "type": "string",
+            "nullable": true
+          },
+          "translation": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
       "ReviewResultDto": {
         "type": "object",
         "additionalProperties": false,
@@ -3518,6 +3677,9 @@
             }
           },
           "wasDuplicate": {
+            "type": "boolean"
+          },
+          "tolerated": {
             "type": "boolean"
           },
           "feedback": {
@@ -3604,6 +3766,18 @@
                 "$ref": "#/components/schemas/ChosenAnswerDto"
               }
             ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "connections": {
+            "nullable": true,
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/WordConnectionsDto"
+              }
+            ]
           }
         }
       },
@@ -3664,6 +3838,18 @@
           },
           "abandoned": {
             "type": "boolean"
+          },
+          "exampleId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "selections": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
           }
         }
       },

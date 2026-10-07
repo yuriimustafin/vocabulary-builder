@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  seedWords, seedBareWords, seedCard, getCard, isolateWord
+  ExerciseType, rungOf, seedWords, seedBareWords, seedCard, seedCardFor, getCard, isolateWord
 } = require('./helpers/study-helpers');
 
 /**
@@ -117,7 +117,7 @@ test.describe('Study page', () => {
   });
 
   test('the whole first day can be worked through in one sitting', async ({ request, page }) => {
-    // Six words is eighteen interactions once each has been met and tested twice, with a
+    // Six words is over forty interactions once each has been met and tested to criterion, with a
     // refetch between batches, so this needs more than the default budget.
     test.setTimeout(120_000);
 
@@ -132,17 +132,42 @@ test.describe('Study page', () => {
       'choice-option',            // multiple choice
       'reveal-button',            // a self-graded card, revealed first
       'grade-good',               // then judged
-      'scramble-give-up'          // spelling, which this driver does not attempt
+      'scramble-give-up',         // putting pieces in order, which this driver does not attempt
+      'typed-give-up'             // nor typing from a cue
     ];
 
-    for (let step = 0; step < 60; step++) {
+    // The word is copied, or looked at and written from memory - which this driver does, since
+    // the word is on screen until it is covered
+    let remembered = null;
+    const spell = async () => {
+      if (await page.getByTestId('spelling-cover').count() > 0) {
+        const piece = page.getByTestId('current-piece');
+        remembered = await (await piece.count() > 0 ? piece : page.getByTestId('spelling-word')).textContent();
+        return clickIfPresent(page, 'spelling-cover');
+      }
+
+      const input = page.getByTestId('spelling-input');
+      if (await input.count() > 0 && await input.isEnabled()) {
+        try {
+          await input.fill(remembered ?? await page.getByTestId('spelling-word').textContent(), { timeout: 2000 });
+        } catch {
+          return false; // answered already, and on its way off the screen
+        }
+        remembered = null;
+        return clickIfPresent(page, 'spelling-submit');
+      }
+
+      return false;
+    };
+
+    for (let step = 0; step < 80; step++) {
       if (await page.getByTestId('study-done').count() > 0) {
         break;
       }
 
-      let acted = false;
+      let acted = await clickIfPresent(page, 'feedback-continue') || await spell();
 
-      for (const control of controls) {
+      for (const control of acted ? [] : controls) {
         if (await clickIfPresent(page, control)) {
           acted = true;
           break;
@@ -162,9 +187,7 @@ test.describe('Study page', () => {
 
   test('a multiple-choice card is answered by clicking an option', async ({ request, page }) => {
     await seedWords(request, Array.from({ length: 10 }, (_, i) => `mc${String(i).padStart(2, '0')}`));
-    await seedCard(request, {
-      headword: 'mc00', rung: 1, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
-    });
+    await seedCardFor(request, 'mc00', ExerciseType.WordToMeaningChoice);
 
     // Keep the rest out of the way so mc00 is the only card in the session. The others
     // still serve as distractors: the pool is drawn from the words, not from their cards.
@@ -216,7 +239,8 @@ test.describe('Study page', () => {
   test('the scramble is assembled from tiles', async ({ request, page }) => {
     await seedWords(request, ['abc']);
     await seedCard(request, {
-      headword: 'abc', rung: 4, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+      headword: 'abc', rung: rungOf(ExerciseType.MeaningToWordScramble), rungStreak: 1, state: 2, intervalDays: 3,
+      dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
     await openStudy(page);
@@ -240,7 +264,8 @@ test.describe('Study page', () => {
   test('a cloze hides its hint until it is asked for', async ({ request, page }) => {
     await seedWords(request, ['hintword']);
     await seedCard(request, {
-      headword: 'hintword', rung: 3, state: 2, intervalDays: 3, dueInDays: -0.1, lastReviewedDaysAgo: 1
+      headword: 'hintword', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 3,
+      dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
     await openStudy(page);

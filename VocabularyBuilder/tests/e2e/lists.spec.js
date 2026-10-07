@@ -198,9 +198,13 @@ test.describe('Lists Management', () => {
     await page.fill('input[name="text"]', 'excellent');
     // Click the Add button within the modal footer to avoid ambiguity
     await page.locator('.modal').last().locator('.modal-footer button:has-text("Add")').click();
-    
-    await expect(page.locator('.modal.show')).toHaveCount(0, { timeout: 10000 });
-    
+
+    // The Add Item dialog closes and the list's own dialog stays open, now with the item in
+    // it - the next step clicks Add Item there. Waiting for no dialog at all only passed when
+    // it happened to catch the list dialog re-rendering after its items reloaded.
+    await expect(page.locator('.modal.show .modal-title', { hasText: 'Add Item' })).toHaveCount(0, { timeout: 10000 });
+    await expect(page.locator('td:has-text("excellent")')).toBeVisible();
+
     // Add second item
     await page.click('button:has-text("Add Item")');
     await expect(page.locator('.modal').last().locator('.modal-title')).toContainText('Add Item', { timeout: 10000 });

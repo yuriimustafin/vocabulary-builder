@@ -9,11 +9,36 @@ namespace VocabularyBuilder.Application.Study.Exercises;
 /// <param name="RevealedLetters">
 /// Letters to show for <see cref="ExerciseType.MeaningToWordPartialLetters"/>; ignored otherwise.
 /// </param>
-public record ScaffoldStep(ExerciseType Type, int RevealedLetters = 0);
+/// <param name="Alternatives">
+/// Other exercises that would serve, in order, for when <paramref name="Type"/> cannot be
+/// built for this word - a level replayed as a whole rather than one exercise from it.
+/// </param>
+public record ScaffoldStep(ExerciseType Type, int RevealedLetters = 0, IReadOnlyList<ExerciseType>? Alternatives = null)
+{
+    /// <summary>The exercise first, then its alternatives.</summary>
+    public IEnumerable<ExerciseType> Candidates =>
+        new[] { Type }.Concat(Alternatives ?? Array.Empty<ExerciseType>()).Distinct();
+}
 
 public interface IScaffoldSequencer
 {
-    IReadOnlyList<ScaffoldStep> Build(int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength);
+    /// <param name="tolerated">
+    /// The miss was on a mistake-tolerant exercise and cost the word nothing. Only the
+    /// word's connections follow: the word comes back shortly to be asked another way, so
+    /// there is no need to walk it through its letters now.
+    /// </param>
+    /// <param name="recognition">
+    /// The exercise asked the word to be recognised among options. A miss there is not
+    /// knowing which word it was, not how it is spelled, so only its connections follow -
+    /// walking it through its letters answers a question that was not asked.
+    /// </param>
+    /// <param name="learning">
+    /// The word is still being learned and comes back within minutes anyway, so a right answer
+    /// gets no re-exposure on top: that is what made a first session twice as long.
+    /// </param>
+    IReadOnlyList<ScaffoldStep> Build(
+        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength,
+        bool tolerated = false, bool recognition = false, bool learning = false);
 }
 
 /// <summary>
@@ -23,7 +48,7 @@ public interface IScaffoldSequencer
 /// progressively more of it revealed until it can be produced. That pattern is documented
 /// to help in exactly the situation a plain retry does not - a word that was just missed.
 ///
-/// A merely shaky word gets a gentler version: the rungs just below the probe, replayed
+/// A merely shaky word gets a gentler version: the levels just below the probe, replayed
 /// as re-exposure. Nothing here is graded, so none of it can inflate the card's ease.
 /// </summary>
 public class ScaffoldSequencer : IScaffoldSequencer
@@ -37,11 +62,20 @@ public class ScaffoldSequencer : IScaffoldSequencer
         _ladder = ladder;
     }
 
-    public IReadOnlyList<ScaffoldStep> Build(int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength)
+    public IReadOnlyList<ScaffoldStep> Build(
+        int probeRung, ReviewGrade grade, CardDifficulty difficulty, int headwordLength,
+        bool tolerated = false, bool recognition = false, bool learning = false)
     {
         if (grade == ReviewGrade.Again)
         {
-            return DiminishingCues(headwordLength);
+            return tolerated || recognition
+                ? new List<ScaffoldStep> { new(ExerciseType.WordToConnectionsReveal) }
+                : DiminishingCues(headwordLength);
+        }
+
+        if (learning)
+        {
+            return Array.Empty<ScaffoldStep>();
         }
 
         var count = _options.FollowUpsByTier.For(difficulty);
@@ -60,18 +94,19 @@ public class ScaffoldSequencer : IScaffoldSequencer
 
         var start = Math.Max(0, probeRung - count);
         return Enumerable.Range(start, probeRung - start)
-            .Select(rung => new ScaffoldStep(_ladder.TypeAt(rung)))
+            .Select(rung => new ScaffoldStep(_ladder.TypeAt(rung), Alternatives: _ladder.TypesAt(rung)))
             .ToList();
     }
 
     /// <summary>
-    /// Cues shrink step by step: a first letter, then roughly half the word, then the
-    /// letters shuffled as tiles, and finally the whole word alongside its meaning.
-    /// The session stops at whichever step the learner finally produces the word.
+    /// First what ties the word to things already known - its mnemonic, where it comes
+    /// from - and then it is asked again with cues that shrink step by step: a first letter,
+    /// then roughly half the word, then the letters shuffled as tiles, and finally the whole
+    /// word alongside its meaning. A word with no connections starts at the cues.
     /// </summary>
     private static List<ScaffoldStep> DiminishingCues(int headwordLength)
     {
-        var steps = new List<ScaffoldStep>();
+        var steps = new List<ScaffoldStep> { new(ExerciseType.WordToConnectionsReveal) };
 
         if (headwordLength > 1)
         {

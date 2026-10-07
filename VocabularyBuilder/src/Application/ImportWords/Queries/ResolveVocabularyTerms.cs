@@ -6,7 +6,11 @@ namespace VocabularyBuilder.Application.ImportWords.Queries;
 
 /// <param name="SourceTerm">The term as the import source wrote it: "une randonnée", "Vous allez".</param>
 /// <param name="Lemma">The headword it was reduced to: "randonnée", "aller".</param>
-public record ResolvedTerm(string SourceTerm, string Lemma);
+/// <param name="Form">
+/// The word itself as it was met, without its article or pronoun: "randonnée", "allez".
+/// Kept so study can make sure there is an example with the form that was actually read.
+/// </param>
+public record ResolvedTerm(string SourceTerm, string Lemma, string? Form = null);
 
 /// <param name="SourceTerm">The term that will not be imported.</param>
 /// <param name="Reason">Why, for the import report: "Question", "Sentence", "Expression".</param>
@@ -71,7 +75,7 @@ public class ResolveVocabularyTermsQueryHandler
 
                 if (cleaned.Length > 0)
                 {
-                    result.Resolved.Add(new ResolvedTerm(term, cleaned));
+                    result.Resolved.Add(new ResolvedTerm(term, cleaned, cleaned));
                 }
             }
 
@@ -82,7 +86,7 @@ public class ResolveVocabularyTermsQueryHandler
 
         foreach (var analysis in analyses.Where(a => a.Verdict == TermVerdict.Lemma))
         {
-            result.Resolved.Add(new ResolvedTerm(analysis.SourceTerm, analysis.Lemma!));
+            result.Resolved.Add(new ResolvedTerm(analysis.SourceTerm, analysis.Lemma!, analysis.Lemma));
         }
 
         foreach (var analysis in analyses.Where(a => a.Verdict == TermVerdict.NotVocabulary))
@@ -141,11 +145,18 @@ public class ResolveVocabularyTermsQueryHandler
                 continue;
             }
 
-            result.Resolved.Add(new ResolvedTerm(analysis.SourceTerm, lemma));
+            result.Resolved.Add(new ResolvedTerm(analysis.SourceTerm, lemma, FormOf(analysis)));
         }
 
         return result;
     }
+
+    /// <summary>
+    /// The word as it was met: the verb a pronoun stood in front of, or the compound
+    /// without its article.
+    /// </summary>
+    private static string? FormOf(FrenchTermAnalysis analysis) =>
+        analysis.InflectedForm ?? FrenchTermNormalizer.StripArticle(analysis.Candidate ?? analysis.SourceTerm);
 
     /// <summary>
     /// Settles the conjugated verbs the frequency data can reduce on its own, and returns
@@ -187,7 +198,7 @@ public class ResolveVocabularyTermsQueryHandler
         {
             if (analysis.InflectedForm != null && lemmas.TryGetValue(analysis.InflectedForm, out var lemma))
             {
-                result.Resolved.Add(new ResolvedTerm(analysis.SourceTerm, lemma));
+                result.Resolved.Add(new ResolvedTerm(analysis.SourceTerm, lemma, analysis.InflectedForm));
                 continue;
             }
 

@@ -134,10 +134,42 @@ public class StudyQueueTests
 
         (await _db.Context.ReviewCards.CountAsync()).Should().Be(_options.NewCardsPerDay);
 
+        // The first day's words all got through learning
+        await FinishLearning(_options.NewCardsPerDay);
+
         _clock.Advance(TimeSpan.FromDays(1));
         await DrainNewWords();
 
         (await _db.Context.ReviewCards.CountAsync()).Should().Be(_options.NewCardsPerDay * 2);
+    }
+
+    [Test]
+    public async Task WordsNotThroughLearningFromAnEarlierDayCountAgainstTheNewOnes()
+    {
+        // A real session: sixteen words unfinished from the day before, and twelve new on top
+        await SeedWords(40);
+        await DrainNewWords();
+        await FinishLearning(5);
+
+        _clock.Advance(TimeSpan.FromDays(1));
+        await DrainNewWords();
+
+        var introducedToday = await _db.Context.ReviewCards.CountAsync() - _options.NewCardsPerDay;
+        introducedToday.Should().Be(5, "the seven still learning take seven of the day's places");
+    }
+
+    /// <summary>Moves this many of the cards into review, as if they had got through learning.</summary>
+    private async Task FinishLearning(int count)
+    {
+        foreach (var card in await _db.Context.ReviewCards.OrderBy(c => c.Id).Take(count).ToListAsync())
+        {
+            card.State = CardState.Review;
+            card.IntervalDays = 1;
+            card.DueAtUtc = _clock.GetUtcNow().UtcDateTime.AddDays(5);
+        }
+
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+        _db.Context.ChangeTracker.Clear();
     }
 
     [Test]
@@ -306,6 +338,121 @@ public class StudyQueueTests
 
         queue.Cards.Should().HaveCount(2);
         queue.PendingEnrichmentCount.Should().Be(2);
+    }
+
+    /// <summary>A word the dictionary has filled in, with one example sentence.</summary>
+    private async Task<Word> SeedDictionaryWord(string example, WordStudyContent? content = null)
+    {
+        var word = new Word
+        {
+            Headword = "ubiquitous",
+            PartOfSpeech = "adjective",
+            Language = Language.English,
+            Senses = new List<Sense> { new() { Definition = "found everywhere", Examples = new List<string> { example } } }
+        };
+        _db.Context.Words.Add(word);
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        if (content is not null)
+        {
+            content.WordId = word.Id;
+            _db.Context.WordStudyContents.Add(content);
+            await _db.Context.SaveChangesAsync(CancellationToken.None);
+        }
+
+        return word;
+    }
+
+    [Test]
+    public async Task AWordWithNoUsableSentenceIsStudiedAndAskedForOne()
+    {
+        // Regression: a word with complete dictionary data was never sent for enrichment, so
+        // when no example contained the headword the cloze rung fell back to multiple choice
+        // for ever.
+        await SeedDictionaryWord("Phones are everywhere these days.");
+
+        var queue = await Queue();
+
+        queue.Cards.Should().ContainSingle();
+        queue.PendingEnrichmentCount.Should().Be(0, "the word can be studied meanwhile");
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordNeverFilledInIsSentOnceForExamplesAndConnections()
+    {
+        // Even one the dictionary covers: examples around its collocations, its origin and
+        // a mnemonic are generated for every word.
+        await SeedDictionaryWord("Phones are ubiquitous these days.");
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordFilledInForTheCurrentPromptIsNotSentAgain()
+    {
+        // Including one the model could not give a usable sentence for: asking every session
+        // would spend a call each time for the same answer.
+        await SeedDictionaryWord(
+            "Phones are everywhere these days.",
+            new WordStudyContent { Status = StudyContentStatus.Ready, PromptVersion = StudyContentPrompt.Version });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AWordFilledInByAnOlderPromptIsSentOnceForWhatTheNewOneAdds()
+    {
+        await SeedDictionaryWord(
+            "Phones are ubiquitous these days.",
+            new WordStudyContent { Status = StudyContentStatus.Ready, PromptVersion = "v2" });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(1);
+    }
+
+    [Test]
+    public async Task AWordEnrichmentGaveUpOnIsNotSentAgain()
+    {
+        await SeedDictionaryWord(
+            "Phones are ubiquitous these days.",
+            new WordStudyContent { Status = StudyContentStatus.Failed, PromptVersion = "v2" });
+
+        await Queue();
+
+        _enrichment.PendingCount.Should().Be(0);
+    }
+
+    [Test]
+    public async Task AClozeIsAskedOnAStoredExampleAndCarriesItsId()
+    {
+        await SeedWords(6);
+        var word = await _db.Context.Words.FirstAsync(w => w.Headword == "word00");
+
+        var example = new StudyExample { WordId = word.Id, Sentence = "Nobody expected word00 today.", Form = "word00" };
+        _db.Context.StudyExamples.Add(example);
+        _db.Context.ReviewCards.Add(new ReviewCard
+        {
+            WordId = word.Id,
+            State = CardState.Review,
+            CurrentRung = 3,
+            IntervalDays = 3,
+            IntroducedAtUtc = Start.UtcDateTime.AddDays(-5),
+            LastReviewedAtUtc = Start.UtcDateTime.AddDays(-1),
+            DueAtUtc = Start.UtcDateTime
+        });
+        await _db.Context.SaveChangesAsync(CancellationToken.None);
+
+        var card = (await Queue()).Cards.Single(c => c.Headword == "word00");
+
+        card.Exercise.Type.Should().Be(ExerciseType.ContextToWordRecall);
+        card.Exercise.Prompt.Should().Be("Nobody expected _____ today.");
+        card.Exercise.ExampleId.Should().Be(example.Id);
     }
 
     [Test]

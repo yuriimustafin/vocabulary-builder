@@ -22,21 +22,50 @@ public class ScaffoldSequencerTests
     }
 
     [Test]
-    public void AShakyWordBringsBackTheRungBelow()
+    public void AMissPickingTheWordAmongOptionsBringsOnlyItsConnections()
     {
-        var steps = Sequencer().Build(3, ReviewGrade.Good, CardDifficulty.Shaky, headwordLength: 8);
-
-        steps.Select(s => s.Type).Should().Equal(ExerciseType.MeaningToWordChoice);
+        // Not knowing which word it was: walking it through its letters answers another question
+        Sequencer().Build(1, ReviewGrade.Again, CardDifficulty.Shaky, headwordLength: 8, recognition: true)
+            .Select(s => s.Type).Should().Equal(ExerciseType.WordToConnectionsReveal);
     }
 
     [Test]
-    public void ADifficultWordBringsBackTwoRungsInAscendingOrder()
+    public void AWordStillBeingLearnedGetsNoReExposureAfterARightAnswer()
+    {
+        // It is back within minutes anyway
+        Sequencer().Build(2, ReviewGrade.Hard, CardDifficulty.Difficult, headwordLength: 8, learning: true)
+            .Should().BeEmpty();
+
+        // A miss still gets its support
+        Sequencer().Build(2, ReviewGrade.Again, CardDifficulty.Difficult, headwordLength: 8, learning: true)
+            .Should().NotBeEmpty();
+    }
+
+    [Test]
+    public void AShakyWordBringsBackTheLevelBelow()
+    {
+        // Probed on production, so the scaffolded level is replayed - its first exercise,
+        // with the rest of the level to fall back on for a word that cannot be built that way.
+        var steps = Sequencer().Build(3, ReviewGrade.Good, CardDifficulty.Shaky, headwordLength: 8);
+
+        steps.Select(s => s.Type).Should().Equal(ExerciseType.WordToSpellingCover);
+        steps[0].Candidates.Should().Equal(
+            ExerciseType.WordToSpellingCover,
+            ExerciseType.MeaningToWordScramble,
+            ExerciseType.TranslationToSentenceScramble,
+            ExerciseType.MeaningToWordCuedType);
+    }
+
+    [Test]
+    public void ADifficultWordBringsBackTwoLevelsInAscendingOrder()
     {
         var steps = Sequencer().Build(3, ReviewGrade.Good, CardDifficulty.Difficult, headwordLength: 8);
 
+        // Each level's first exercise, with the rest of it to fall back on - the typed ones are
+        // passed over when the follow-ups are built, as a follow-up is not marked
         steps.Select(s => s.Type).Should().Equal(
-            ExerciseType.WordToMeaningChoice,
-            ExerciseType.MeaningToWordChoice);
+            ExerciseType.WordToSpellingCopy,
+            ExerciseType.WordToSpellingCover);
     }
 
     [Test]
@@ -52,16 +81,28 @@ public class ScaffoldSequencerTests
     {
         var steps = Sequencer().Build(3, ReviewGrade.Again, CardDifficulty.Shaky, headwordLength: 10);
 
-        // Cues shrink: one letter, then roughly half the word, then tiles, then the whole thing.
+        // First what ties the word to things already known, then it is asked again with cues
+        // that shrink: one letter, then roughly half the word, then tiles, then the whole thing.
         steps.Select(s => s.Type).Should().Equal(
+            ExerciseType.WordToConnectionsReveal,
             ExerciseType.MeaningToWordPartialLetters,
             ExerciseType.MeaningToWordPartialLetters,
             ExerciseType.MeaningToWordScramble,
             ExerciseType.WordToMeaningReveal);
 
-        steps[0].RevealedLetters.Should().Be(1);
-        steps[1].RevealedLetters.Should().Be(4);
-        steps[1].RevealedLetters.Should().BeLessThan(10, "the word must never be spelled out as its own cue");
+        steps[1].RevealedLetters.Should().Be(1);
+        steps[2].RevealedLetters.Should().Be(4);
+        steps[2].RevealedLetters.Should().BeLessThan(10, "the word must never be spelled out as its own cue");
+    }
+
+    [Test]
+    public void AMissThatCostsNothingIsFollowedOnlyByTheWordsConnections()
+    {
+        // The word comes back shortly to be asked another way, so it is not walked through
+        // its letters now.
+        var steps = Sequencer().Build(2, ReviewGrade.Again, CardDifficulty.Shaky, headwordLength: 8, tolerated: true);
+
+        steps.Select(s => s.Type).Should().Equal(ExerciseType.WordToConnectionsReveal);
     }
 
     [Test]

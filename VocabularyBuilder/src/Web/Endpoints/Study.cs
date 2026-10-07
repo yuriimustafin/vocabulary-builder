@@ -16,6 +16,7 @@ public class Study : EndpointGroupBase
 
         group.MapGet("/queue", GetQueue);
         group.MapGet("/stats", GetStats);
+        group.MapGet("/day-review", GetDayReview);
         group.MapPost("/reviews", SubmitReview);
         group.MapPost("/introductions", AcknowledgeIntroduction);
         group.MapPost("/follow-ups", RecordFollowUp);
@@ -33,6 +34,11 @@ public class Study : EndpointGroupBase
     public async Task<StudyStatsDto> GetStats(ISender sender, string lang)
     {
         return await sender.Send(new GetStudyStatsQuery(ParseLanguage(lang)));
+    }
+
+    public async Task<DayReviewDto> GetDayReview(ISender sender, string lang)
+    {
+        return await sender.Send(new GetDayReviewQuery(ParseLanguage(lang)));
     }
 
     public async Task<ReviewResultDto> SubmitReview(ISender sender, string lang, SubmitReviewCommand command)

@@ -52,11 +52,14 @@ public class ReviewFeedbackTests
             new ContextToWordRecallExerciseDefinition(),
             new MeaningToWordScrambleExerciseDefinition(_options, grades, random),
             new MeaningToWordRecallExerciseDefinition(),
-            new MeaningToWordPartialLettersExerciseDefinition()
+            new MeaningToWordPartialLettersExerciseDefinition(),
+            new MeaningToWordTypeExerciseDefinition(grades),
+            new MeaningToWordCuedTypeExerciseDefinition(grades),
+            new ContextToWordChoiceExerciseDefinition(_options, grades, random)
         });
 
         return new SubmitReviewCommandHandler(
-            _db.Context, new Sm2Scheduler(_options, random), ladder, catalog,
+            _db.Context, new Sm2Scheduler(_options, random), new LearningExitCriterion(_options, ladder), ladder, catalog,
             new StudyMaterialResolver(), new DistractorPicker(_options, random),
             new DistractorSource(_db.Context), new CardDifficultyCalculator(_options),
             new ScaffoldSequencer(_options, ladder), new StudyWordLookup(_db.Context),
@@ -203,6 +206,54 @@ public class ReviewFeedbackTests
         result.Feedback.Headword.Should().Be("ubiquitous");
         result.Feedback.Chosen!.Text.Should().Be("ubiqutious");
         result.Feedback.Chosen.Headword.Should().BeNull("a misspelling is not another word");
+    }
+
+    /// <summary>
+    /// A one-letter slip that spells another word in the collection is that word known, not
+    /// this one nearly known. The typed answer is compared tidied - lower case, ligatures
+    /// spelled out - so the other word has to be found however its headword was stored.
+    /// </summary>
+    [TestCase("Poisson", "poison", "poisson", TestName = "ASlipOntoACapitalisedHeadwordIsAnotherWord")]
+    [TestCase("cœurs", "chœurs", "coeurs", TestName = "ASlipOntoAHeadwordWithALigatureIsAnotherWord")]
+    public async Task ASlipThatSpellsAnotherStoredWordIsWrong(string otherHeadword, string target, string typed)
+    {
+        await AddWordWithCard(otherHeadword, "something else");
+        var card = await AddWordWithCard(target, "the word asked");
+
+        var result = await Answer(card, ExerciseType.MeaningToWordType, typed);
+
+        result.Grade.Should().Be(ReviewGrade.Again);
+        result.Feedback!.Correct.Should().BeFalse();
+        result.Feedback.Note.Should().BeNull("it is not nearly right - it is a different word");
+
+        // And which word it is, so the learner sees what they did know
+        result.Feedback.Chosen!.Text.Should().Be(typed);
+        result.Feedback.Chosen.Headword.Should().Be(otherHeadword);
+        result.Feedback.Chosen.Meaning.Should().Be("something else");
+    }
+
+    [Test]
+    public async Task TypingAnotherStoredWordEntirelyNamesItToo()
+    {
+        await AddWordWithCard("window", "an opening in a wall");
+        var card = await AddWordWithCard("poison", "the word asked");
+
+        var result = await Answer(card, ExerciseType.MeaningToWordType, "the window");
+
+        result.Feedback!.Correct.Should().BeFalse();
+        result.Feedback.Chosen!.Headword.Should().Be("window", "the article typed in front does not hide the word");
+        result.Feedback.Chosen.Meaning.Should().Be("an opening in a wall");
+    }
+
+    [Test]
+    public async Task ASlipThatSpellsNoOtherWordIsNearlyRight()
+    {
+        var card = await AddWordWithCard("poison", "the word asked");
+
+        var result = await Answer(card, ExerciseType.MeaningToWordType, "poisson");
+
+        result.Grade.Should().Be(ReviewGrade.Hard);
+        result.Feedback!.Note.Should().Be("Nearly - one letter out.");
     }
 
     [Test]

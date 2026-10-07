@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  seedWords, seedCard, getQueue, getStats, submitReview, answerCard, introduceAllNewWords,
+  CardState, seedWords, seedCard, getQueue, getStats, submitReview, answerCard, introduceAllNewWords,
   cardFor, advanceClock, getCard
 } = require('./helpers/study-helpers');
 
@@ -52,14 +52,35 @@ test.describe('Study queue', () => {
     const words = Array.from({ length: 40 }, (_, i) => `roll${String(i).padStart(2, '0')}`);
     await seedWords(request, words);
 
-    await introduceAllNewWords(request);
+    const met = await introduceAllNewWords(request);
     expect((await getStats(request)).newToday).toBe(12);
+
+    // Each one taken through learning, so nothing is left over from the day
+    for (const headword of met) {
+      await seedCard(request, { headword, state: CardState.Review, rung: 2, intervalDays: 3, dueInDays: 3 });
+    }
 
     await advanceClock(request, { days: 1 });
     expect((await getStats(request)).newToday).toBe(0);
 
     await getQueue(request);
     expect((await getStats(request)).newToday).toBeGreaterThan(0);
+  });
+
+  test('words left unfinished from an earlier day hold back the new ones', async ({ request }) => {
+    const words = Array.from({ length: 40 }, (_, i) => `left${String(i).padStart(2, '0')}`);
+    await seedWords(request, words);
+
+    const met = await introduceAllNewWords(request);
+    expect(met).toHaveLength(12);
+
+    // Eight of them got through learning; four are still in it the next day
+    for (const headword of met.slice(0, 8)) {
+      await seedCard(request, { headword, state: CardState.Review, rung: 2, intervalDays: 3, dueInDays: 3 });
+    }
+
+    await advanceClock(request, { days: 1 });
+    expect(await introduceAllNewWords(request)).toHaveLength(8);
   });
 
   test('a marked word does not wait behind the frequency list', async ({ request }) => {
@@ -196,10 +217,10 @@ test.describe('Study queue', () => {
 
   test('resetting a word puts it back to the beginning', async ({ request }) => {
     await seedWords(request, ['resetme']);
-    await seedCardAtRung(request, 'resetme', 4);
+    await seedCardAtRung(request, 'resetme', 3);
 
     const before = await getCard(request, 'resetme');
-    expect(before.rung).toBe(4);
+    expect(before.rung).toBe(3);
 
     const response = await request.post(`/api/en/study/cards/${before.id}/reset`);
     expect(response.ok()).toBeTruthy();

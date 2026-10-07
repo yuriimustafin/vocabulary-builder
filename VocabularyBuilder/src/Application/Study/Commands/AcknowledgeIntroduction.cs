@@ -85,8 +85,12 @@ public class AcknowledgeIntroductionCommandHandler
         card.DueAtUtc = scheduling.DueAtUtc;
         card.LastReviewedAtUtc = now;
 
-        // Climbs unconditionally: the 85% rule weighs a record this word does not have yet.
-        card.CurrentRung = Math.Min(rungBefore + 1, _ladder.RungCount - 1);
+        // Moves up unconditionally: meeting the word is what the introduction asks, and there
+        // is no record yet for a quota to weigh. It starts the next level with a clean slate.
+        card.CurrentRung = Math.Min(rungBefore + 1, _ladder.TopRung);
+        card.RungStreak = 0;
+        card.LastExerciseType = request.ExerciseType;
+        card.PhaseRetrievals = 0;
 
         // Logged as support rather than assessment, so it stays out of every statistic that
         // judges how well the word is known.

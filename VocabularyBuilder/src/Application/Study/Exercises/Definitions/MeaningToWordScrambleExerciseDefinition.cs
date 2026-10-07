@@ -1,21 +1,18 @@
-﻿using System.Globalization;
 using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Study.Exercises.Definitions;
 
 /// <summary>
-/// Spelling from tiles: the meaning is shown and the word has to be rebuilt from its
-/// shuffled letters.
+/// The word put back together from its pieces: the meaning is shown and the word has to be
+/// rebuilt from three or four shuffled chunks - its syllables wherever they make that many
+/// (<see cref="Syllabifier.Chunks"/>), single letters only for a word of three or fewer.
 ///
-/// Every letter is on the table, which makes this a strongly cued task - easier than
-/// producing the word unaided - so it sits below free recall on the ladder. Decoy letters
-/// can be mixed in to take some of that support away.
+/// It used to be a word's worth of single letters, with a separate syllable version beside it.
+/// Ordering seven letters is a search, not a recall: a real session missed or slowed on half
+/// of them. A handful of chunks asks for the shape of the word without the search.
 /// </summary>
 public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
 {
-    private const string DecoyAlphabet = "abcdefghijklmnopqrstuvwxyz";
-
-    private readonly StudyOptions _options;
     private readonly IGradeResolver _gradeResolver;
     private readonly Random _random;
 
@@ -27,7 +24,6 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
     /// <summary>Test seam: supply a seeded Random to make the shuffle deterministic.</summary>
     public MeaningToWordScrambleExerciseDefinition(StudyOptions options, IGradeResolver gradeResolver, Random random)
     {
-        _options = options;
         _gradeResolver = gradeResolver;
         _random = random;
     }
@@ -38,16 +34,13 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
 
     public bool CanBeProbe => true;
 
-    /// <summary>A one-letter word has nothing to rearrange.</summary>
+    /// <summary>A one-letter word has nothing to rearrange, and a meaning that is the word itself spells it out.</summary>
     public bool CanBuild(StudyMaterial material, DistractorSet? distractors) =>
-        material.HasMeaning && Letters(material.Headword).Count > 1;
+        material.CanAskFromMeaning && Pieces(material).Count >= 2;
 
     public ExercisePayload Build(StudyMaterial material, ExerciseBuildContext context)
     {
-        var tiles = Letters(material.Headword)
-            .Concat(Decoys(material.Headword))
-            .OrderBy(_ => _random.Next())
-            .ToList();
+        var pieces = Pieces(material);
 
         return new ExercisePayload
         {
@@ -55,11 +48,11 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
             GradingMode = GradingMode,
             WordId = material.WordId,
             Prompt = material.Meaning!,
-            Tiles = tiles,
+            Tiles = Shuffle(pieces),
             PartOfSpeech = material.PartOfSpeech,
             ContextSentence = material.ContextSentence,
-        ContextSentenceTranslation = material.ContextSentenceTranslation,
-        MeaningGloss = material.MeaningGloss
+            ContextSentenceTranslation = material.ContextSentenceTranslation,
+            MeaningGloss = material.MeaningGloss
         };
     }
 
@@ -70,51 +63,36 @@ public class MeaningToWordScrambleExerciseDefinition : IExerciseDefinition
             && string.Equals(Normalise(answer.Text), Normalise(material.Headword), StringComparison.OrdinalIgnoreCase);
 
         return _gradeResolver.Resolve(
-            Type,
-            new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned));
+            AnswerKind.Built,
+            new AutoGradeSignals(correct, answer.ElapsedMs, answer.Resets, answer.Abandoned, material.Headword.Length));
     }
+
+    private static IReadOnlyList<string> Pieces(StudyMaterial material) =>
+        Syllabifier.Chunks(material.Headword, material.Language);
 
     /// <summary>
-    /// Split by text element rather than by char so that accented letters stay on one tile
-    /// instead of breaking into a base letter and a combining mark.
+    /// Shuffled, and never left in the word's own order when there is another: tiles that
+    /// already spell the word would ask nothing.
     /// </summary>
-    private static List<string> Letters(string headword)
+    private List<string> Shuffle(IReadOnlyList<string> inOrder)
     {
-        var letters = new List<string>();
-        var enumerator = StringInfo.GetTextElementEnumerator(headword.Trim());
+        var shuffled = inOrder.OrderBy(_ => _random.Next()).ToList();
 
-        while (enumerator.MoveNext())
+        for (var attempt = 0; attempt < 10 && shuffled.SequenceEqual(inOrder); attempt++)
         {
-            var element = (string)enumerator.Current;
-            if (!string.IsNullOrWhiteSpace(element) && element != "-")
-            {
-                letters.Add(element);
-            }
+            shuffled = inOrder.OrderBy(_ => _random.Next()).ToList();
         }
 
-        return letters;
-    }
-
-    private IEnumerable<string> Decoys(string headword)
-    {
-        if (_options.ScrambleDecoyLetters <= 0)
+        if (shuffled.SequenceEqual(inOrder) && shuffled.Count > 1)
         {
-            yield break;
+            // Every piece the same, near enough: move the first to the end.
+            shuffled.Add(shuffled[0]);
+            shuffled.RemoveAt(0);
         }
 
-        // Letters the word does not contain, so a decoy can never be mistaken for a
-        // legitimate tile the learner simply has not placed yet.
-        var used = Letters(headword).Select(l => l.ToLowerInvariant()).ToHashSet();
-        var available = DecoyAlphabet.Select(c => c.ToString()).Where(c => !used.Contains(c)).ToList();
-
-        for (var i = 0; i < _options.ScrambleDecoyLetters && available.Count > 0; i++)
-        {
-            var index = _random.Next(available.Count);
-            yield return available[index];
-            available.RemoveAt(index);
-        }
+        return shuffled;
     }
 
     private static string Normalise(string value) =>
-        new(value.Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray());
+        new(value.Normalize(System.Text.NormalizationForm.FormC).Where(c => !char.IsWhiteSpace(c) && c != '-').ToArray());
 }

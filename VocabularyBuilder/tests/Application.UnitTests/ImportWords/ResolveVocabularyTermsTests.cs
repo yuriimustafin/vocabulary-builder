@@ -137,6 +137,7 @@ public class ResolveVocabularyTermsTests
         result.Resolved.Should().HaveCount(2);
         result.Resolved.Select(r => r.Lemma).Distinct().Should().ContainSingle().Which.Should().Be("randonnée");
         result.Resolved.Select(r => r.SourceTerm).Should().Equal("une randonnée", "la randonnée");
+        result.Resolved.Select(r => r.Form).Should().AllBe("randonnée", "the article is not part of the form");
     }
 
     /// <summary>
@@ -172,6 +173,7 @@ public class ResolveVocabularyTermsTests
         result.Resolved.Should().ContainSingle();
         result.Resolved[0].SourceTerm.Should().Be("Vous allez");
         result.Resolved[0].Lemma.Should().Be("aller");
+        result.Resolved[0].Form.Should().Be("allez", "the form that was met is kept beside the headword");
 
         _analyzer.Verify(
             a => a.ResolveLemmasAsync(It.IsAny<IReadOnlyList<string>>(), It.IsAny<Language>(), It.IsAny<CancellationToken>()),
@@ -206,6 +208,7 @@ public class ResolveVocabularyTermsTests
         var result = await Resolve("Vous allez", "il neige");
 
         result.Resolved.Select(r => r.Lemma).Should().BeEquivalentTo(new[] { "aller", "neiger" });
+        result.Resolved.Single(r => r.Lemma == "neiger").Form.Should().Be("neige", "the model gives the headword, the term gives the form");
 
         // Only the form the frequency data missed is paid for
         _analyzer.Verify(

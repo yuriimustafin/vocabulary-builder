@@ -110,7 +110,9 @@ public class ImportBookWordsCommandHandler : IRequestHandler<ImportBookWordsComm
             Context = importedWord.Book?.Title,
             Notes = importedWord.Note,
             ImportId = importId,
-            ImportSourceTerm = importedWord.Headword
+            ImportSourceTerm = importedWord.Headword,
+            // A highlight is the word exactly as the book printed it
+            EncounterForm = trimmedHeadword
         };
     }
 

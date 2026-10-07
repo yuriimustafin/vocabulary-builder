@@ -59,6 +59,8 @@ public interface IApplicationDbContext
     /// </summary>
     DbSet<ExternalCallLog> ExternalCallLog { get; }
 
+    DbSet<StudyExample> StudyExamples { get; }
+
     ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);

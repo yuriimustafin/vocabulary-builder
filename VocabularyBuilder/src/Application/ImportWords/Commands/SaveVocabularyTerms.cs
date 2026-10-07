@@ -7,7 +7,10 @@ namespace VocabularyBuilder.Application.ImportWords.Commands;
 /// <param name="SourceTerm">The term as the source wrote it, which makes the encounter distinct.</param>
 /// <param name="Lemma">The headword the word is stored under.</param>
 /// <param name="Notes">Anything worth keeping about this particular encounter, such as the sentence it was met in.</param>
-public record ImportedTerm(string SourceTerm, string Lemma, string? Notes = null);
+/// <param name="Form">The word as it was met, without an article or pronoun, when the source shows it.</param>
+/// <param name="Sentence">The sentence it was met in, when the source keeps one.</param>
+public record ImportedTerm(
+    string SourceTerm, string Lemma, string? Notes = null, string? Form = null, string? Sentence = null);
 
 public class SaveVocabularyTermsResult
 {
@@ -103,6 +106,8 @@ public class SaveVocabularyTermsCommandHandler
                 SourceIdentifier = prefix + term.SourceTerm,
                 Context = request.Context,
                 Notes = term.Notes,
+                EncounterForm = term.Form,
+                EncounterSentence = term.Sentence,
                 Tags = request.Tags,
                 ImportId = request.ImportId,
                 ImportSourceTerm = term.SourceTerm

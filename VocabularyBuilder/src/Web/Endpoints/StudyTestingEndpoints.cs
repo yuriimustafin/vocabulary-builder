@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using VocabularyBuilder.Application.Study.Enrichment;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -45,6 +46,9 @@ public class StudyTestingEndpoints : EndpointGroupBase
         public int? Frequency { get; init; }
         public Language Language { get; init; } = Language.English;
 
+        /// <summary>For a French noun, which article it is shown and marked with.</summary>
+        public GrammaticalGender? Gender { get; init; }
+
         /// <summary>Set to give the word a dictionary sense, so nothing has to be generated.</summary>
         public string? Definition { get; init; }
 
@@ -53,6 +57,17 @@ public class StudyTestingEndpoints : EndpointGroupBase
 
         public int EncounterCount { get; init; }
         public bool IsMarkedForStudy { get; init; }
+
+        /// <summary>Forms the word was met in, each recorded as an encounter of its own.</summary>
+        public List<string>? EncounterForms { get; init; }
+
+        /// <summary>
+        /// Leave the word to be filled in by the enrichment worker - examples, collocates,
+        /// connections - as a real one is. Off by default, so a seeded word is studied exactly
+        /// as seeded and nothing arrives in the background halfway through a test to change
+        /// which exercise it is asked. A word seeded without a definition is always filled in.
+        /// </summary>
+        public bool Enrich { get; init; }
     }
 
     public async Task<IResult> SeedWords(
@@ -68,6 +83,7 @@ public class StudyTestingEndpoints : EndpointGroupBase
                 PartOfSpeech = seed.PartOfSpeech,
                 Frequency = seed.Frequency,
                 Language = seed.Language,
+                Gender = seed.Gender,
                 IsMarkedForStudy = seed.IsMarkedForStudy
             };
 
@@ -87,6 +103,16 @@ public class StudyTestingEndpoints : EndpointGroupBase
                 word.Examples = new List<string> { seed.Example };
             }
 
+            foreach (var form in seed.EncounterForms ?? new List<string>())
+            {
+                word.WordEncounters.Add(new WordEncounter
+                {
+                    Source = WordEncounterSource.Manual,
+                    SourceIdentifier = $"seed:{seed.Headword}:form:{form}",
+                    Form = form.Trim().ToLowerInvariant()
+                });
+            }
+
             for (var i = 0; i < seed.EncounterCount; i++)
             {
                 word.WordEncounters.Add(new WordEncounter
@@ -98,6 +124,18 @@ public class StudyTestingEndpoints : EndpointGroupBase
 
             context.Words.Add(word);
             await context.SaveChangesAsync();
+
+            if (!seed.Enrich && seed.Definition is not null)
+            {
+                context.WordStudyContents.Add(new WordStudyContent
+                {
+                    WordId = word.Id,
+                    Status = StudyContentStatus.Ready,
+                    PromptVersion = StudyContentPrompt.Version
+                });
+                await context.SaveChangesAsync();
+            }
+
             created.Add(new { word.Id, word.Headword });
         }
 
@@ -109,6 +147,10 @@ public class StudyTestingEndpoints : EndpointGroupBase
         public string Headword { get; init; } = string.Empty;
         public CardState State { get; init; } = CardState.Review;
         public int Rung { get; init; }
+        public int RungStreak { get; init; }
+        public ExerciseType? LastExerciseType { get; init; }
+        public int PhaseRetrievals { get; init; }
+        public int LearningStepIndex { get; init; }
         public int IntervalDays { get; init; } = 1;
         public double EaseFactor { get; init; } = 2.5;
         public int Lapses { get; init; }
@@ -140,6 +182,10 @@ public class StudyTestingEndpoints : EndpointGroupBase
 
         card.State = seed.State;
         card.CurrentRung = seed.Rung;
+        card.RungStreak = seed.RungStreak;
+        card.LastExerciseType = seed.LastExerciseType;
+        card.PhaseRetrievals = seed.PhaseRetrievals;
+        card.LearningStepIndex = seed.LearningStepIndex;
         card.IntervalDays = seed.IntervalDays;
         card.EaseFactor = seed.EaseFactor;
         card.Lapses = seed.Lapses;
@@ -209,6 +255,9 @@ public class StudyTestingEndpoints : EndpointGroupBase
             headword,
             state = card.State,
             rung = card.CurrentRung,
+            card.RungStreak,
+            card.LastExerciseType,
+            card.PhaseRetrievals,
             card.IntervalDays,
             card.EaseFactor,
             card.Lapses,

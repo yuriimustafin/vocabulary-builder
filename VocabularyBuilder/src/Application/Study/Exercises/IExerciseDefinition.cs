@@ -42,8 +42,20 @@ public record ExercisePayload
     /// <summary>Choices for a multiple-choice exercise, already shuffled.</summary>
     public IReadOnlyList<string>? Options { get; init; }
 
-    /// <summary>Letter tiles to assemble, already shuffled.</summary>
+    /// <summary>
+    /// Pieces to assemble, already shuffled - a word's chunks, or the words of a sentence's gap.
+    /// For look-cover-write, the chunks a long word is shown and covered in, in order.
+    /// </summary>
     public IReadOnlyList<string>? Tiles { get; init; }
+
+    /// <summary>What the word means, shown beside it where the word itself is the prompt - spelling it.</summary>
+    public string? Meaning { get; init; }
+
+    /// <summary>For a sentence with a gap to rebuild, the text before the gap, as written.</summary>
+    public string? SentenceStart { get; init; }
+
+    /// <summary>For a sentence with a gap to rebuild, the text after the gap, as written.</summary>
+    public string? SentenceEnd { get; init; }
 
     /// <summary>Partially revealed spelling, for example "d _ _ _ _ _".</summary>
     public string? LetterMask { get; init; }
@@ -59,6 +71,22 @@ public record ExercisePayload
 
     /// <summary>What <see cref="ContextSentence"/> says, in the learner's language.</summary>
     public string? ContextSentenceTranslation { get; init; }
+
+    /// <summary>
+    /// The stored example the exercise is built on, sent back with the answer so that
+    /// answering it is recorded against that sentence. Set only by exercises that ask
+    /// about a sentence.
+    /// </summary>
+    public int? ExampleId { get; init; }
+
+    /// <summary>What ties the word to things already known: usage, origin, related words, a mnemonic.</summary>
+    public WordConnectionsDto? Connections { get; init; }
+
+    /// <summary>
+    /// What each of an exercise's pieces means - keyed by the piece, a sentence tile - for the
+    /// learner to ask to see. Only the pieces that could be translated are in it.
+    /// </summary>
+    public Dictionary<string, string>? OptionHints { get; init; }
 }
 
 /// <summary>
@@ -70,23 +98,34 @@ public record ExercisePayload
 /// False on a probe that has been escalated after a long absence: a cue there would
 /// inflate the grade and stretch the next interval on evidence that was never earned.
 /// </param>
+/// <param name="CueLevel">
+/// How far the support has faded for this word on its level - see <see cref="ProbeChoice.CueLevel"/>.
+/// </param>
 public record ExerciseBuildContext(
     DistractorSet? Distractors = null,
     int RevealedLetters = 0,
-    bool AllowHint = true);
+    bool AllowHint = true,
+    int CueLevel = 0);
 
 /// <summary>
 /// What the learner did.
 /// </summary>
 /// <param name="Text">Chosen option, or the word as assembled.</param>
 /// <param name="SelfGrade">The learner's own judgement, for self-graded exercises.</param>
+/// <param name="Selections">Every option ticked, for an exercise with more than one right answer.</param>
+/// <param name="FreeHintTaken">
+/// A hint the exercise offers for free was opened. It costs nothing - including the seconds
+/// spent reading it, which would otherwise mark a right answer down as slow.
+/// </param>
 public record ExerciseAnswer(
     string? Text = null,
     ReviewGrade? SelfGrade = null,
     int ElapsedMs = 0,
     int Resets = 0,
     bool HintUsed = false,
-    bool Abandoned = false);
+    bool Abandoned = false,
+    IReadOnlyList<string>? Selections = null,
+    bool FreeHintTaken = false);
 
 /// <summary>
 /// One exercise type. Adding a seventh kind of question means writing one of these,
@@ -115,6 +154,31 @@ public interface IExerciseDefinition
     /// automatic ones mark the answer against the word.
     /// </summary>
     ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material);
+
+    /// <summary>
+    /// The word is picked out among options rather than produced. A miss there is not
+    /// knowing which word it was, so what follows is the word's connections, not its letters.
+    /// </summary>
+    bool AsksToRecognise => false;
+
+    /// <summary>
+    /// The hint only makes a choice among real words fair - a translation - so taking it
+    /// neither holds the word on its level nor marks the answer down.
+    /// </summary>
+    bool HintIsFree => false;
+}
+
+/// <summary>
+/// An exercise where the word is typed. Marked leniently, so the handler asks for the match
+/// itself as well as the grade: to say what was nearly right, and to catch a "typo" that is
+/// really another word.
+/// </summary>
+public interface ITypedExerciseDefinition : IExerciseDefinition
+{
+    TypedMatch Match(ExerciseAnswer answer, StudyMaterial material);
+
+    /// <summary>Grades an answer already matched, so the match is made once.</summary>
+    ReviewGrade Resolve(ExerciseAnswer answer, StudyMaterial material, TypedMatch match);
 }
 
 public interface IExerciseCatalog

@@ -1,6 +1,7 @@
 ﻿using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Study.Enrichment;
+using VocabularyBuilder.Application.Study.Exercises.Definitions;
 using VocabularyBuilder.Infrastructure.Ai;
 
 using VocabularyBuilder.Infrastructure.Parsers;
@@ -143,8 +144,9 @@ public class MockGptClient : IGptClient, IDetailedGptClient
     }
 
     /// <summary>
-    /// Builds study content for the requested word. The sentence must contain the headword
-    /// verbatim or the resolver rejects it - the same rule a real response is held to.
+    /// Builds study content for the requested word. Every sentence contains the form it
+    /// names verbatim or the handler rejects it - the same rule a real response is held to -
+    /// and a form the prompt asks for gets an example of its own.
     /// </summary>
     private static string? StudyContentResponse(string prompt)
     {
@@ -155,13 +157,62 @@ public class MockGptClient : IGptClient, IDetailedGptClient
             return null;
         }
 
+        var examples = new List<object>
+        {
+            Example($"This sentence uses {word} exactly once.", word, $"uses {word}"),
+            Example($"People often pair {word} with good company.", word, $"pair {word}")
+        };
+
+        examples.AddRange(RequestedForms(prompt)
+            .Select(form => Example($"Here the form {form} appears in a sentence.", form, $"the form {form}")));
+
         var payload = new
         {
             definition = $"a mock definition of {word}",
-            sentence = $"This sentence uses {word} exactly once."
+            usage = $"said of mock things and ideas, like {word}",
+            examples,
+            etymology = $"From a mock root of {word}.",
+            cognates = $"mock{word} (a related English word)",
+            mnemonic = $"{word} sounds like mock; picture a mockingbird saying it.",
+            // For the sentences already stored that the prompt lists, in its order
+            glosses = SentencesToGloss(prompt).Select(Glosses).ToArray()
         };
 
         return JsonSerializer.Serialize(payload);
+    }
+
+    private static object Example(string sentence, string form, string collocation) => new
+    {
+        sentence,
+        translation = $"Translated: {sentence}",
+        form,
+        collocation,
+        glosses = Glosses(sentence)
+    };
+
+    /// <summary>Every word of a sentence glossed as "en:" and the word, so a spec can tell what a tile's hint says.</summary>
+    private static object[] Glosses(string sentence) => sentence
+        .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+        .Select(word => (object)new { word, translation = "en:" + word.Trim(',', '.', '!', '?', ';', ':') })
+        .ToArray();
+
+    /// <summary>The stored sentences the prompt asks glosses for, listed as <c>1. "..."</c>.</summary>
+    private static IEnumerable<string> SentencesToGloss(string prompt) =>
+        System.Text.RegularExpressions.Regex.Matches(prompt, @"^\s+\d+\. ""(.*)""\s*$", System.Text.RegularExpressions.RegexOptions.Multiline)
+            .Select(m => m.Groups[1].Value);
+
+    /// <summary>The forms the prompt asks for an example of, in the quotes it lists them in.</summary>
+    private static IEnumerable<string> RequestedForms(string prompt)
+    {
+        var match = System.Text.RegularExpressions.Regex.Match(prompt, @"written exactly like this: ([^\n]+?)\.(\s|$)");
+
+        if (!match.Success)
+        {
+            return Enumerable.Empty<string>();
+        }
+
+        return System.Text.RegularExpressions.Regex.Matches(match.Groups[1].Value, @"""([^""]+)""")
+            .Select(m => m.Groups[1].Value);
     }
 
     /// <summary>

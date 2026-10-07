@@ -28,32 +28,52 @@ public class Sm2SchedulerTests
         };
 
     [Test]
-    public void NewCardWalksTheLearningStepsInOrderThenGraduates()
+    public void TheStepsSetThePaceAndTheLastOneRepeats()
     {
         var scheduler = Scheduler();
         var card = Card();
+        var due = new List<DateTime>();
 
-        // Three same-day touches is what puts the first three exercise types in one session.
-        var first = scheduler.Schedule(card, ReviewGrade.Good, Now);
-        first.State.Should().Be(CardState.Learning);
-        first.DueAtUtc.Should().Be(Now.AddMinutes(1));
+        // The introduction, then four successes, then more: the word stays in learning
+        // however many it answers until the exit criterion says otherwise.
+        for (var i = 0; i < 6; i++)
+        {
+            var result = scheduler.Schedule(card, ReviewGrade.Good, Now, learningComplete: false);
+            result.State.Should().Be(CardState.Learning);
+            due.Add(result.DueAtUtc);
+            card.LearningStepIndex = result.LearningStepIndex;
+        }
 
-        card.LearningStepIndex = first.LearningStepIndex;
-        var second = scheduler.Schedule(card, ReviewGrade.Good, Now);
-        second.State.Should().Be(CardState.Learning);
-        second.DueAtUtc.Should().Be(Now.AddMinutes(10));
+        due.Should().Equal(
+            Now.AddMinutes(1), Now.AddMinutes(3), Now.AddMinutes(5), Now.AddMinutes(8),
+            Now.AddMinutes(8), Now.AddMinutes(8));
+    }
 
-        card.LearningStepIndex = second.LearningStepIndex;
-        var third = scheduler.Schedule(card, ReviewGrade.Good, Now);
-        third.State.Should().Be(CardState.Review);
-        third.IntervalDays.Should().Be(1);
-        third.DueAtUtc.Should().Be(Now.AddDays(1));
+    [Test]
+    public void AWordLeavesLearningOnlyWhenTheCriterionIsMet()
+    {
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 2), ReviewGrade.Good, Now, learningComplete: true);
+
+        result.State.Should().Be(CardState.Review);
+        result.IntervalDays.Should().Be(1);
+        result.DueAtUtc.Should().Be(Now.AddDays(1));
+        result.LearningStepIndex.Should().Be(0);
+    }
+
+    [Test]
+    public void AFailedAnswerNeverCompletesLearning()
+    {
+        // The criterion is only ever asked about successes; a miss is a miss whatever it says.
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 3), ReviewGrade.Again, Now, learningComplete: true);
+
+        result.State.Should().Be(CardState.Learning);
+        result.LearningStepIndex.Should().Be(0);
     }
 
     [Test]
     public void AgainDuringLearningReturnsToTheFirstStep()
     {
-        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 2), ReviewGrade.Again, Now);
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 2), ReviewGrade.Again, Now, false);
 
         result.State.Should().Be(CardState.Learning);
         result.LearningStepIndex.Should().Be(0);
@@ -63,25 +83,76 @@ public class Sm2SchedulerTests
     [Test]
     public void HardDuringLearningRepeatsTheCurrentStep()
     {
-        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 1), ReviewGrade.Hard, Now);
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 2), ReviewGrade.Hard, Now, false);
 
-        result.LearningStepIndex.Should().Be(1);
-        result.DueAtUtc.Should().Be(Now.AddMinutes(1));
+        result.LearningStepIndex.Should().Be(2);
+        result.DueAtUtc.Should().Be(Now.AddMinutes(3));
     }
 
     [Test]
-    public void EasySkipsTheRemainingLearningSteps()
+    public void EasyBeforeTheCriterionIsMetOnlyMovesOnOneStep()
     {
-        var result = Scheduler().Schedule(Card(), ReviewGrade.Easy, Now);
+        // Regression: one quick answer a minute after meeting a word sent it four days away.
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 1), ReviewGrade.Easy, Now, false);
+
+        result.State.Should().Be(CardState.Learning);
+        result.LearningStepIndex.Should().Be(2);
+        result.DueAtUtc.Should().Be(Now.AddMinutes(3));
+    }
+
+    [Test]
+    public void EasyOnTheAnswerThatCompletesLearningEarnsTheEasyInterval()
+    {
+        var result = Scheduler().Schedule(Card(CardState.Learning, stepsCompleted: 4), ReviewGrade.Easy, Now, true);
 
         result.State.Should().Be(CardState.Review);
         result.IntervalDays.Should().Be(4);
     }
 
     [Test]
+    public void EasyWhileRelearningReturnsToAtLeastTheEasyInterval()
+    {
+        var result = Scheduler().Schedule(Card(CardState.Relearning, interval: 2), ReviewGrade.Easy, Now, true);
+
+        result.State.Should().Be(CardState.Review);
+        result.IntervalDays.Should().Be(4);
+    }
+
+    [Test]
+    public void EasyWhileRelearningDoesNotSkipTheCriterion()
+    {
+        var result = Scheduler().Schedule(Card(CardState.Relearning, interval: 2), ReviewGrade.Easy, Now, false);
+
+        result.State.Should().Be(CardState.Relearning);
+    }
+
+    [Test]
+    public void AHeldCardKeepsEverythingAndComesBackAfterTheFirstStep()
+    {
+        var card = Card(CardState.Review, interval: 12, stepsCompleted: 0, ease: 2.2);
+
+        var result = Scheduler().Hold(card, Now);
+
+        result.State.Should().Be(CardState.Review);
+        result.IntervalDays.Should().Be(12);
+        result.EaseFactor.Should().Be(2.2);
+        result.IsLapse.Should().BeFalse();
+        result.DueAtUtc.Should().Be(Now.AddMinutes(1));
+    }
+
+    [Test]
+    public void TheCriterionIsIgnoredForACardInReview()
+    {
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Good, Now, learningComplete: false);
+
+        result.State.Should().Be(CardState.Review);
+        result.IntervalDays.Should().Be(25);
+    }
+
+    [Test]
     public void ReviewIntervalGrowsByTheEaseFactor()
     {
-        var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Good, Now);
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Good, Now, false);
 
         result.IntervalDays.Should().Be(25);
         result.EaseFactor.Should().Be(2.5);
@@ -91,7 +162,7 @@ public class Sm2SchedulerTests
     [Test]
     public void HardShrinksEaseAndGrowsTheIntervalOnlyGently()
     {
-        var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Hard, Now);
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Hard, Now, false);
 
         result.EaseFactor.Should().BeApproximately(2.35, 1e-9);
         result.IntervalDays.Should().Be(12);
@@ -100,7 +171,7 @@ public class Sm2SchedulerTests
     [Test]
     public void EasyRaisesEaseAndAppliesTheBonus()
     {
-        var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Easy, Now);
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 10, ease: 2.5), ReviewGrade.Easy, Now, false);
 
         result.EaseFactor.Should().BeApproximately(2.65, 1e-9);
         result.IntervalDays.Should().Be(34); // 10 * 2.65 * 1.3
@@ -110,7 +181,7 @@ public class Sm2SchedulerTests
     public void AnIntervalAlwaysMovesForwardEvenAtTheMinimumEase()
     {
         // At ease 1.3 a one-day interval would otherwise round straight back to one day.
-        var result = Scheduler().Schedule(Card(CardState.Review, interval: 1, ease: 1.3), ReviewGrade.Good, Now);
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 1, ease: 1.3), ReviewGrade.Good, Now, false);
 
         result.IntervalDays.Should().BeGreaterThan(1);
     }
@@ -118,7 +189,7 @@ public class Sm2SchedulerTests
     [Test]
     public void FailingAReviewLapsesTheCardIntoRelearning()
     {
-        var result = Scheduler().Schedule(Card(CardState.Review, interval: 30, ease: 2.5), ReviewGrade.Again, Now);
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 30, ease: 2.5), ReviewGrade.Again, Now, false);
 
         result.State.Should().Be(CardState.Relearning);
         result.IsLapse.Should().BeTrue();
@@ -134,11 +205,11 @@ public class Sm2SchedulerTests
         options.LapseIntervalPercent = 50;
         var scheduler = Scheduler(options);
 
-        var lapse = scheduler.Schedule(Card(CardState.Review, interval: 30, ease: 2.5), ReviewGrade.Again, Now);
+        var lapse = scheduler.Schedule(Card(CardState.Review, interval: 30, ease: 2.5), ReviewGrade.Again, Now, false);
         lapse.IntervalDays.Should().Be(15);
 
-        var card = Card(CardState.Relearning, interval: lapse.IntervalDays, stepsCompleted: 2, ease: lapse.EaseFactor);
-        var graduated = scheduler.Schedule(card, ReviewGrade.Good, Now);
+        var card = Card(CardState.Relearning, interval: lapse.IntervalDays, stepsCompleted: 3, ease: lapse.EaseFactor);
+        var graduated = scheduler.Schedule(card, ReviewGrade.Good, Now, learningComplete: true);
 
         graduated.State.Should().Be(CardState.Review);
         graduated.IntervalDays.Should().Be(15);
@@ -147,7 +218,7 @@ public class Sm2SchedulerTests
     [Test]
     public void EaseNeverFallsBelowTheConfiguredFloor()
     {
-        var result = Scheduler().Schedule(Card(CardState.Review, interval: 5, ease: 1.3), ReviewGrade.Again, Now);
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 5, ease: 1.3), ReviewGrade.Again, Now, false);
 
         result.EaseFactor.Should().Be(1.3);
     }
@@ -155,7 +226,7 @@ public class Sm2SchedulerTests
     [Test]
     public void IntervalsAreCappedAtTheMaximum()
     {
-        var result = Scheduler().Schedule(Card(CardState.Review, interval: 300, ease: 2.5), ReviewGrade.Easy, Now);
+        var result = Scheduler().Schedule(Card(CardState.Review, interval: 300, ease: 2.5), ReviewGrade.Easy, Now, false);
 
         result.IntervalDays.Should().Be(365);
     }
@@ -167,7 +238,7 @@ public class Sm2SchedulerTests
         var scheduler = new Sm2Scheduler(options, new Random(42));
 
         var results = Enumerable.Range(0, 200)
-            .Select(_ => scheduler.Schedule(Card(CardState.Review, interval: 100, ease: 2.5), ReviewGrade.Good, Now))
+            .Select(_ => scheduler.Schedule(Card(CardState.Review, interval: 100, ease: 2.5), ReviewGrade.Good, Now, false))
             .Select(r => r.IntervalDays)
             .ToList();
 

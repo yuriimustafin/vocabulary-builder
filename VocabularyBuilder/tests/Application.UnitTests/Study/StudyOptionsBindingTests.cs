@@ -36,43 +36,23 @@ public class StudyOptionsBindingTests
     }
 
     [Test]
-    public void ConfiguredLadderRungsReplaceTheDefaults()
+    public void ConfiguredLevelsReplaceTheDefaults()
     {
-        // Regression: the six configured rungs landed on top of six defaults, leaving a
-        // twelve-rung ladder that ran through every exercise type twice.
-        var values = new Dictionary<string, string?>();
-        var types = new[]
-        {
-            nameof(ExerciseType.WordToMeaningReveal),
-            nameof(ExerciseType.WordToMeaningChoice),
-            nameof(ExerciseType.MeaningToWordChoice),
-            nameof(ExerciseType.ContextToWordRecall),
-            nameof(ExerciseType.MeaningToWordScramble),
-            nameof(ExerciseType.MeaningToWordRecall)
-        };
-
-        for (var i = 0; i < types.Length; i++)
-        {
-            values[$"Study:Ladder:{i}:Type"] = types[i];
-        }
-
-        var options = Bind(values);
-
-        options.EffectiveLadder.Should().HaveCount(6);
-        options.EffectiveLadder.Select(r => r.Type).Should().OnlyHaveUniqueItems();
-    }
-
-    [Test]
-    public void AShorterConfiguredLadderIsHonouredExactly()
-    {
+        // Regression: configured rungs landed on top of the defaults, leaving a ladder that
+        // ran through every level twice.
         var options = Bind(new Dictionary<string, string?>
         {
-            ["Study:Ladder:0:Type"] = nameof(ExerciseType.WordToMeaningReveal),
-            ["Study:Ladder:1:Type"] = nameof(ExerciseType.MeaningToWordRecall)
+            ["Study:Ladder:0:Exercises:0:Type"] = nameof(ExerciseType.WordToMeaningReveal),
+            ["Study:Ladder:1:PromoteAfter"] = "2",
+            ["Study:Ladder:1:Exercises:0:Type"] = nameof(ExerciseType.MeaningToWordChoice),
+            ["Study:Ladder:1:Exercises:1:Type"] = nameof(ExerciseType.WordToMeaningChoice),
+            ["Study:Ladder:2:Exercises:0:Type"] = nameof(ExerciseType.MeaningToWordRecall)
         });
 
-        options.EffectiveLadder.Select(r => r.Type).Should().Equal(
-            ExerciseType.WordToMeaningReveal, ExerciseType.MeaningToWordRecall);
+        options.EffectiveLadder.Should().HaveCount(3);
+        options.EffectiveLadder[1].PromoteAfter.Should().Be(2);
+        options.EffectiveLadder[1].Exercises.Select(e => e.Type).Should().Equal(
+            ExerciseType.MeaningToWordChoice, ExerciseType.WordToMeaningChoice);
     }
 
     [Test]
@@ -81,8 +61,8 @@ public class StudyOptionsBindingTests
         var options = Bind(new Dictionary<string, string?> { ["Study:NewCardsPerDay"] = "5" });
 
         options.NewCardsPerDay.Should().Be(5);
-        options.EffectiveLearningSteps.Should().Equal(1, 10);
-        options.EffectiveLadder.Should().HaveCount(6);
+        options.EffectiveLearningSteps.Should().Equal(1, 3, 5, 8);
+        options.EffectiveLadder.Should().HaveCount(4);
     }
 
     [Test]
@@ -91,43 +71,58 @@ public class StudyOptionsBindingTests
         var options = Bind(new Dictionary<string, string?>
         {
             ["Study:NewCardsPerDay"] = "7",
-            ["Study:TargetSuccessRate"] = "0.9",
+            ["Study:LearningExitSuccesses"] = "3",
             ["Study:FollowUpsByTier:Difficult"] = "3",
             ["Study:DifficultyTiers:DifficultMinLapses"] = "4"
         });
 
         options.NewCardsPerDay.Should().Be(7);
-        options.TargetSuccessRate.Should().Be(0.9);
+        options.LearningExitSuccesses.Should().Be(3);
         options.FollowUpsByTier.Difficult.Should().Be(3);
         options.DifficultyTiers.DifficultMinLapses.Should().Be(4);
     }
 
     [Test]
-    public void TheShippedConfigurationProducesTheIntendedLadder()
+    public void TheShippedConfigurationMatchesTheBuiltInDefaults()
     {
-        // The real appsettings values, so a change there that doubles a collection fails here.
-        var values = new Dictionary<string, string?>
+        // Read from the real appsettings.json, so a change there that doubles a collection -
+        // or drifts from what the code assumes when nothing is configured - fails here.
+        var configuration = new ConfigurationBuilder()
+            .AddJsonFile(ShippedSettingsPath(), optional: false)
+            .Build();
+
+        var shipped = configuration.GetSection(StudyOptions.SectionName).Get<StudyOptions>()!;
+        var defaults = new StudyOptions();
+
+        shipped.EffectiveLearningSteps.Should().Equal(defaults.EffectiveLearningSteps);
+        shipped.EffectiveLadder.Select(Describe).Should().Equal(defaults.EffectiveLadder.Select(Describe));
+        shipped.LongGapProbeType.Should().Be(defaults.LongGapProbeType);
+        shipped.FailureRungDrop.Should().Be(defaults.FailureRungDrop);
+        shipped.LearningExitSuccesses.Should().Be(defaults.LearningExitSuccesses);
+        shipped.LearningExitLevel.Should().Be(defaults.LearningExitLevel);
+        shipped.DayRolloverHourUtc.Should().Be(defaults.DayRolloverHourUtc);
+    }
+
+    private static string Describe(LadderRungOptions level) =>
+        $"{level.PromoteAfter}: {string.Join(", ", level.Exercises.Select(e =>
+            e.Type + (e.Tolerant ? " (tolerant)" : "") + (e.MinIntervalDays is { } days ? $" (from day {days})" : "")))}";
+
+    private static string ShippedSettingsPath()
+    {
+        var directory = new DirectoryInfo(TestContext.CurrentContext.TestDirectory);
+
+        while (directory is not null)
         {
-            ["Study:LearningStepsMinutes:0"] = "1",
-            ["Study:LearningStepsMinutes:1"] = "10",
-            ["Study:Ladder:0:Type"] = nameof(ExerciseType.WordToMeaningReveal),
-            ["Study:Ladder:1:Type"] = nameof(ExerciseType.WordToMeaningChoice),
-            ["Study:Ladder:2:Type"] = nameof(ExerciseType.MeaningToWordChoice),
-            ["Study:Ladder:3:Type"] = nameof(ExerciseType.ContextToWordRecall),
-            ["Study:Ladder:4:Type"] = nameof(ExerciseType.MeaningToWordScramble),
-            ["Study:Ladder:5:Type"] = nameof(ExerciseType.MeaningToWordRecall)
-        };
+            var candidate = Path.Combine(directory.FullName, "src", "Web", "appsettings.json");
 
-        var options = Bind(values);
+            if (File.Exists(candidate))
+            {
+                return candidate;
+            }
 
-        options.EffectiveLearningSteps.Should().HaveCount(2,
-            "three touches on day one depends on exactly two learning steps");
-        options.EffectiveLadder.Select(r => r.Type).Should().Equal(
-            ExerciseType.WordToMeaningReveal,
-            ExerciseType.WordToMeaningChoice,
-            ExerciseType.MeaningToWordChoice,
-            ExerciseType.ContextToWordRecall,
-            ExerciseType.MeaningToWordScramble,
-            ExerciseType.MeaningToWordRecall);
+            directory = directory.Parent;
+        }
+
+        throw new FileNotFoundException("Could not find src/Web/appsettings.json above the test directory.");
     }
 }

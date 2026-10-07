@@ -27,9 +27,7 @@ test.describe('Bulk Import', () => {
     await expect(page.locator('button:has-text("Import")')).toBeVisible();
   });
 
-  test.skip('should import words from text list', async ({ page }) => {
-    // Skipped: Import hangs with parseImmediately=true for these specific words
-    // Other import tests (custom list name) work fine
+  test('should import words from text list', async ({ page }) => {
     // Enter a list of words (using mock data we have)
     const wordList = `eloquent
 vocabulary
@@ -91,11 +89,8 @@ test`;
     expect(vocabularyWord.partOfSpeech).toBeTruthy();
   });
 
-  test.skip('should import words from URLs', async ({ page }) => {
-    // Skipped: Import hangs with parseImmediately=true for URL imports
-    // Mock data is in place (test_1.html, example_1.html) but backend processing needs investigation
-    // Now uses mock data from actual Oxford Dictionary pages
-    // URLs that match our mock files: test_1.html and example_1.html
+  test('should import words from URLs', async ({ page }) => {
+    // Recorded Oxford pages: test_1.html and example_1.html
     const urlList = `https://www.oxfordlearnersdictionaries.com/definition/english/test_1
 https://www.oxfordlearnersdictionaries.com/definition/english/example_1`;
     

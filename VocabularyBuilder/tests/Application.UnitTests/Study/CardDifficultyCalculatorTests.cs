@@ -57,8 +57,9 @@ public class CardDifficultyCalculatorTests
         calculator.NextSuccessRate(0.5, ReviewGrade.Easy).Should().BeApproximately(0.65, 1e-9);
         calculator.NextSuccessRate(0.5, ReviewGrade.Again).Should().BeApproximately(0.35, 1e-9);
 
-        // Hard counts as a miss: the word was not recalled cleanly.
-        calculator.NextSuccessRate(0.5, ReviewGrade.Hard).Should().BeApproximately(0.35, 1e-9);
+        // Hard counts as half a success: recalled, but not cleanly.
+        calculator.NextSuccessRate(0.5, ReviewGrade.Hard).Should().BeApproximately(0.5, 1e-9);
+        calculator.NextSuccessRate(1.0, ReviewGrade.Hard).Should().BeApproximately(0.85, 1e-9);
     }
 
     [Test]

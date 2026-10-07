@@ -97,7 +97,12 @@ public class ImportWordsFromDictionaryCommandHandler : IRequestHandler<ImportWor
                     DictionarySources = lookupResult.DictionarySources.Any() ? lookupResult.DictionarySources : null,
                     Forms = lookupResult.Forms.Any() ? lookupResult.Forms : null,
                     ImportId = importId,
-                    ImportSourceTerm = lookupResult.SearchedTerm
+                    ImportSourceTerm = lookupResult.SearchedTerm,
+                    // The dictionary files the word under its headword; the list may have
+                    // had it in another form. A pasted dictionary URL is not a form at all
+                    EncounterForm = Uri.IsWellFormedUriString(lookupResult.SearchedTerm, UriKind.Absolute)
+                        ? null
+                        : lookupResult.SearchedTerm
                 }, cancellationToken);
 
                 result.ImportedWords.Add(lookupResult.Word.Headword);

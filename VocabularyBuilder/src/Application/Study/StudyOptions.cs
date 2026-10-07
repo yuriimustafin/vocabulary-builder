@@ -46,25 +46,67 @@ public class StudyOptions
     /// </summary>
     public int LearnAheadMinutes { get; set; } = 20;
 
-    /// <summary>Hour (UTC) at which "today" rolls over, so a late-night session counts as one day.</summary>
-    public int DayRolloverHourUtc { get; set; } = 4;
+    /// <summary>
+    /// Hour (UTC) at which "today" rolls over, so a late-night session counts as one day.
+    /// Eight is four in the morning on the US east coast in summer (three in winter). It was
+    /// four - midnight there - which rolled the day over in the middle of an evening session
+    /// and queued a fresh batch of new words on top of an unfinished one.
+    /// </summary>
+    public int DayRolloverHourUtc { get; set; } = 8;
 
     // --- SM-2 --------------------------------------------------------------
 
     /// <summary>
-    /// Same-day steps before a card graduates. Two steps means three touches on day one,
-    /// which is what puts the first three exercise types in the first session.
+    /// Minutes until the next try while a word is being learned: the first entry after the
+    /// introduction or a miss, then one step further along per success. The last entry
+    /// repeats. The steps only set the pace - a word leaves learning when it meets its exit
+    /// criterion (<see cref="LearningExitSuccesses"/>), not when the steps run out.
     ///
     /// Left empty on purpose: configuration binding appends to a collection that already
     /// has contents rather than replacing it, so a populated default here would turn the
-    /// configured [1, 10] into [1, 10, 1, 10] and the card would never graduate. Read it
-    /// through <see cref="EffectiveLearningSteps"/>, which supplies the default.
+    /// configured [1, 3, 5, 8] into [1, 3, 5, 8, 1, 3, 5, 8]. Read it through
+    /// <see cref="EffectiveLearningSteps"/>, which supplies the default.
     /// </summary>
     public int[] LearningStepsMinutes { get; set; } = Array.Empty<int>();
 
     /// <summary>The configured steps, or the built-in default when none are configured.</summary>
     public int[] EffectiveLearningSteps =>
         LearningStepsMinutes.Length > 0 ? LearningStepsMinutes : StudyDefaults.LearningStepsMinutes;
+
+    /// <summary>
+    /// The level a new word has to reach before it can leave learning: 2, scaffolded, where it
+    /// is built from its pieces rather than picked from options. It keeps its level when it
+    /// leaves, so the rest of the climb - production - happens over the following days' reviews.
+    ///
+    /// It was the top level. Eight clean answers a word on its first day, times twelve new
+    /// words, was a session of an hour that nobody finished; the old ladder, two or three
+    /// answers a word, was three minutes. This is the balance between them.
+    /// </summary>
+    public int LearningExitLevel { get; set; } = 2;
+
+    /// <summary>
+    /// Clean successes on <see cref="LearningExitLevel"/> (or above) a new word needs before it
+    /// leaves learning. One: the word has been built once without help.
+    /// </summary>
+    public int LearningExitSuccesses { get; set; } = 1;
+
+    /// <summary>
+    /// Clean successes a word relearning after a lapse needs, on whatever level the lapse left it.
+    /// It was known once, so one is enough - it does not climb the ladder again first.
+    /// </summary>
+    public int RelearningExitSuccesses { get; set; } = 1;
+
+    /// <summary>
+    /// Minimum gap between the last two of those successes. Two correct answers a few
+    /// seconds apart show the word is still in working memory, not that it has been learned.
+    /// </summary>
+    public int LearningExitSpacingMinutes { get; set; } = 4;
+
+    /// <summary>
+    /// Graded tries after which a word leaves learning on its next success regardless, so a
+    /// stubborn word cannot take over the session. It comes back tomorrow either way.
+    /// </summary>
+    public int MaxLearningRetrievals { get; set; } = 10;
 
     public int GraduatingIntervalDays { get; set; } = 1;
     public int EasyIntervalDays { get; set; } = 4;
@@ -91,28 +133,38 @@ public class StudyOptions
     /// <summary>Gap as a multiple of the scheduled interval that also triggers escalation.</summary>
     public double OverdueRatio { get; set; } = 1.5;
 
-    /// <summary>Lowest rung that long-gap escalation applies to; below this the word is still being learned.</summary>
+    /// <summary>Lowest level that long-gap escalation applies to; below this the word is still being learned.</summary>
     public int LongGapEscalationMinRung { get; set; } = 3;
 
-    /// <summary>Probe used after a long gap. Falls back to the last rung when absent from the ladder.</summary>
+    /// <summary>Probe used after a long gap. Falls back to the top level's first exercise when absent from the ladder.</summary>
     public ExerciseType LongGapProbeType { get; set; } = ExerciseType.MeaningToWordRecall;
-
-    /// <summary>Success rate a card must hold to climb a rung - the "85% rule".</summary>
-    public double TargetSuccessRate { get; set; } = 0.85;
 
     /// <summary>Weight of the newest review in the success-rate moving average.</summary>
     public double SuccessEmaAlpha { get; set; } = 0.3;
 
-    /// <summary>Rungs a card falls when a probe is failed, so earlier exercises come back.</summary>
-    public int FailureRungDrop { get; set; } = 2;
+    /// <summary>
+    /// Levels a word falls when a probe is failed. One: the word meets the level below -
+    /// where it was last succeeding - rather than being sent back to the start.
+    /// </summary>
+    public int FailureRungDrop { get; set; } = 1;
 
     // --- automatic grading -------------------------------------------------
 
-    /// <summary>A correct answer at or under this is graded Easy.</summary>
+    /// <summary>
+    /// A correct answer at or under this is graded Easy - except multiple choice, which is
+    /// capped at Good because recognising a word is not the same as producing it.
+    /// </summary>
     public int FastAnswerMs { get; set; } = 3000;
 
     /// <summary>A correct answer at or over this is graded Hard.</summary>
     public int SlowAnswerMs { get; set; } = 10000;
+
+    /// <summary>
+    /// Allowance per letter where the learner builds the word piece by piece. A long word
+    /// takes longer to assemble however well it is known, so the slow threshold for those
+    /// exercises is the larger of <see cref="SlowAnswerMs"/> and this times its length.
+    /// </summary>
+    public int SlowAnswerMsPerLetter { get; set; } = 1500;
 
     // --- difficulty --------------------------------------------------------
 
@@ -143,14 +195,13 @@ public class StudyOptions
     /// </summary>
     public int ChoiceOptionCount { get; set; } = 4;
 
-    /// <summary>Extra letters mixed into the scramble tiles that do not belong to the word.</summary>
-    public int ScrambleDecoyLetters { get; set; }
-
     // --- the ladder --------------------------------------------------------
 
     /// <summary>
-    /// Ordered easiest to hardest. A card's CurrentRung indexes this list, so reordering
-    /// or inserting a rung is a configuration change.
+    /// Levels, easiest to hardest. A card's CurrentRung indexes this list. Each level has a
+    /// pool of exercises, easiest first: a word on that level is asked the exercise at its
+    /// streak, so the support fades as it succeeds, and never the same one twice running
+    /// when the pool has another.
     ///
     /// Empty by default for the same reason as the learning steps: a populated default
     /// would be appended to, not replaced, leaving a ladder with every rung twice. Read it
@@ -169,28 +220,87 @@ public class StudyOptions
 /// </summary>
 public static class StudyDefaults
 {
-    public static int[] LearningStepsMinutes => new[] { 1, 10 };
+    public static int[] LearningStepsMinutes => new[] { 1, 3, 5, 8 };
 
     public static IReadOnlyList<LadderRungOptions> Ladder => new List<LadderRungOptions>
     {
-        new() { Type = ExerciseType.WordToMeaningReveal },
-        new() { Type = ExerciseType.WordToMeaningChoice },
-        new() { Type = ExerciseType.MeaningToWordChoice },
-        new() { Type = ExerciseType.ContextToWordRecall },
-        new() { Type = ExerciseType.MeaningToWordScramble },
-        new() { Type = ExerciseType.MeaningToWordRecall }
+        // Met, not graded, the first time; a word dropped this far is graded here once.
+        Level("Introduction", 1, Ex(ExerciseType.WordToMeaningReveal)),
+
+        // Three: the word typed out while it is on screen - its spelling met by hand first -
+        // then picked from its meaning, then picked to fill a gap in a sentence. Picking the
+        // meaning is what a word with no sentence meets instead.
+        Level("Recognition", 3,
+            Ex(ExerciseType.WordToSpellingCopy),
+            Ex(ExerciseType.MeaningToWordChoice),
+            Ex(ExerciseType.ContextToWordChoice),
+            Ex(ExerciseType.WordToMeaningChoice)),
+
+        // Three, so the support can fade: the word looked at, covered and written - the first
+        // day's last step - then put together from its chunks, then one of its sentences
+        // rebuilt around it (from the second day: MinIntervalDays), then typed from its first
+        // letters. A slip on the first three costs the word nothing.
+        Level("Scaffolded", 3,
+            Ex(ExerciseType.WordToSpellingCover, tolerant: true),
+            Ex(ExerciseType.MeaningToWordScramble, tolerant: true),
+            Ex(ExerciseType.TranslationToSentenceScramble, tolerant: true, minIntervalDays: 1),
+            Ex(ExerciseType.MeaningToWordCuedType)),
+
+        // Where a word stays, taking these in turn. Typing the word (MeaningToWordType) can
+        // be added here when spelling is wanted.
+        Level("Production", 0,
+            Ex(ExerciseType.ContextToWordRecall),
+            Ex(ExerciseType.MeaningToWordRecall))
+    };
+
+    private static LadderRungOptions Level(string name, int promoteAfter, params LadderExerciseOptions[] exercises) => new()
+    {
+        Name = name,
+        PromoteAfter = promoteAfter,
+        Exercises = exercises.ToList()
+    };
+
+    private static LadderExerciseOptions Ex(ExerciseType type, bool tolerant = false, int? minIntervalDays = null) => new()
+    {
+        Type = type,
+        Tolerant = tolerant,
+        MinIntervalDays = minIntervalDays
     };
 }
 
+/// <summary>One level of the ladder.</summary>
 public class LadderRungOptions
+{
+    /// <summary>For people reading the configuration; nothing depends on it.</summary>
+    public string? Name { get; set; }
+
+    /// <summary>The exercises this level can ask, easiest first.</summary>
+    public List<LadderExerciseOptions> Exercises { get; set; } = new();
+
+    /// <summary>
+    /// Clean successes in a row that move a word up to the next level. Zero means never:
+    /// the top level is where a word stays, and the introduction is left by being met.
+    /// </summary>
+    public int PromoteAfter { get; set; }
+}
+
+public class LadderExerciseOptions
 {
     public ExerciseType Type { get; set; }
 
-    /// <summary>Withhold this rung until the card's interval reaches this many days.</summary>
+    /// <summary>Withhold this exercise until the card's interval reaches this many days.</summary>
     public int? MinIntervalDays { get; set; }
 
-    /// <summary>Restrict this rung to words whose part of speech contains one of these, case-insensitively.</summary>
+    /// <summary>Restrict this exercise to words whose part of speech contains one of these, case-insensitively.</summary>
     public List<string>? PartsOfSpeech { get; set; }
+
+    /// <summary>
+    /// Mistake-tolerant: a wrong answer costs the word nothing - not its level, its streak,
+    /// its interval or its ease - and it comes back shortly to be asked another way. A right
+    /// answer counts as usual. For exercises where a slip says more about the exercise than
+    /// about the word: ordering a sentence, judging which words go with it.
+    /// </summary>
+    public bool Tolerant { get; set; }
 }
 
 public class DifficultyTierOptions

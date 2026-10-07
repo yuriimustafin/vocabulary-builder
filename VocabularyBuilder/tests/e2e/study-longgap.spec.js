@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, cardFor
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, cardFor
 } = require('./helpers/study-helpers');
 
 /**
@@ -28,7 +28,7 @@ test.describe('Long-gap escalation', () => {
     const card = cardFor(await getQueue(request), 'lg00');
 
     expect(card.exercise.type).toBe(ExerciseType.MeaningToWordRecall);
-    expect(card.rung).toBe(5);
+    expect(card.rung).toBe(rungOf(ExerciseType.MeaningToWordRecall));
   });
 
   test('the escalated probe offers no hint', async ({ request }) => {
@@ -57,7 +57,7 @@ test.describe('Long-gap escalation', () => {
 
   test('a word seen on schedule keeps its own rung and its hint', async ({ request }) => {
     await seedCard(request, {
-      headword: 'lg03', rung: 3, state: 2, intervalDays: 10,
+      headword: 'lg03', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 10,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 
@@ -76,7 +76,7 @@ test.describe('Long-gap escalation', () => {
     const card = cardFor(await getQueue(request), 'lg04');
 
     expect(card.rung).toBe(1);
-    expect(card.exercise.type).toBe(ExerciseType.WordToMeaningChoice);
+    expect(card.exercise.type).toBe(ExerciseType.WordToSpellingCopy);
   });
 
   test('escalation does not move the rung the word has actually reached', async ({ request }) => {

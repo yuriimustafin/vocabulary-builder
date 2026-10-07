@@ -3,6 +3,8 @@ import { Button } from 'reactstrap';
 import { GradeBar } from './GradeBar';
 import { NounArticle } from '../NounArticle';
 import { BilingualText } from './BilingualText';
+import { WordConnections } from './WordConnections';
+import { ExerciseType } from './exerciseTypes';
 
 /**
  * Every self-graded exercise has the same shape: a prompt, an answer the learner asks to
@@ -50,7 +52,15 @@ export class RevealExercise extends Component {
 
         {exercise.hint && !revealed && (
           hintShown
-            ? <p className="text-muted fst-italic mt-3" data-testid="hint-text">{exercise.hint}</p>
+            ? (
+              <div className="text-muted fst-italic mt-3" data-testid="hint-text">
+                <div>{exercise.hint}</div>
+                {/* The sentence's translation too, where the prompt is a sentence */}
+                {exercise.type === ExerciseType.ContextToWordRecall && exercise.contextSentenceTranslation && (
+                  <div data-testid="hint-translation">{exercise.contextSentenceTranslation}</div>
+                )}
+              </div>
+            )
             : <Button color="link" className="ps-0 mt-2" data-testid="hint-button" onClick={this.showHint}>
                 Show a hint
               </Button>
@@ -78,6 +88,7 @@ export class RevealExercise extends Component {
               native={exercise.contextSentenceTranslation}
               learnedTestId="answer-context"
             />
+            <WordConnections connections={exercise.connections} showMnemonic={false} className="mt-2" />
             <p className="text-muted small mt-3 mb-2">How well did you recall it?</p>
             <GradeBar onGrade={onGrade} disabled={submitting} />
           </div>

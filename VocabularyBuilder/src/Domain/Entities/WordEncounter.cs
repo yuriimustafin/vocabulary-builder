@@ -37,4 +37,12 @@ public class WordEncounter : BaseAuditableEntity
     /// Optional notes associated with this encounter
     /// </summary>
     public string? Notes { get; set; }
+
+    /// <summary>
+    /// The word as it was actually met - "prend", "brighter" - when that differs from, or
+    /// may differ from, the headword it is stored under. Study makes sure there is an
+    /// example sentence with each form met, and asks about the forms met but not yet
+    /// practised first. Null where the source gives no form of its own.
+    /// </summary>
+    public string? Form { get; set; }
 }

@@ -105,9 +105,9 @@ test.describe('Study content enrichment', () => {
     await seedBareWords(request, ['clozeable']);
     await waitForContent(request, 1);
 
-    const { seedCard } = require('./helpers/study-helpers');
+    const { seedCard, rungOf, ExerciseType } = require('./helpers/study-helpers');
     await seedCard(request, {
-      headword: 'clozeable', rung: 3, state: 2, intervalDays: 2,
+      headword: 'clozeable', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 2,
       dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
 

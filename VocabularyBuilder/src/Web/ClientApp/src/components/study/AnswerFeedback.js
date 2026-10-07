@@ -2,6 +2,7 @@ import React from 'react';
 import { Alert, Button } from 'reactstrap';
 import { NounArticle } from '../NounArticle';
 import { BilingualText } from './BilingualText';
+import { WordConnections } from './WordConnections';
 
 /**
  * What happened after an automatically graded answer.
@@ -15,10 +16,12 @@ import { BilingualText } from './BilingualText';
  * Names what the chosen option actually was.
  *
  * When the option was a meaning, the useful thing is whose meaning it is. When it was a
- * word, the useful thing is what that word means instead.
+ * word - picked, or typed as another word in the collection - the useful thing is what that
+ * word means instead. A typed word is always a word, whatever case or article it was typed in.
  */
-function describeChoice(chosen) {
-  const choseAWord = chosen.headword && chosen.headword === chosen.text;
+function describeChoice(chosen, typed) {
+  const choseAWord = chosen.headword
+    && (typed || chosen.headword.toLowerCase() === chosen.text.trim().toLowerCase());
 
   if (choseAWord) {
     return chosen.meaning ? `which means: ${chosen.meaning}` : null;
@@ -27,17 +30,19 @@ function describeChoice(chosen) {
   return chosen.headword ? `That is the meaning of ${chosen.headword}` : null;
 }
 
-export function AnswerFeedback({ feedback, onContinue, continuing, language }) {
-  const { correct, chosen } = feedback;
+export function AnswerFeedback({ feedback, onContinue, continuing, language, typed = false }) {
+  const { correct, chosen, note } = feedback;
 
   return (
     <div data-testid="answer-feedback">
       <Alert
-        color={correct ? 'success' : 'danger'}
-        className="d-flex align-items-center gap-2"
+        color={correct ? (note ? 'warning' : 'success') : 'danger'}
+        className="d-flex align-items-center gap-2 flex-wrap"
         data-testid={correct ? 'feedback-correct' : 'feedback-incorrect'}
       >
-        <strong>{correct ? 'Correct' : 'Not quite'}</strong>
+        <strong>{correct ? (note ? 'Nearly' : 'Correct') : 'Not quite'}</strong>
+        {/* What was off, or - after a miss that costs nothing - that it costs nothing */}
+        {note && <span data-testid="feedback-note">{note}</span>}
       </Alert>
 
       <div className="fs-3 fw-bold">
@@ -66,9 +71,12 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language }) {
         learnedTestId="feedback-context"
       />
 
+      {/* The mnemonic is for a word that did not come back on its own */}
+      <WordConnections connections={feedback.connections} showMnemonic={!correct} />
+
       {chosen && (
         <div className="border-start border-3 border-danger ps-3 mt-4" data-testid="feedback-chosen">
-          <div className="text-muted small text-uppercase">You chose</div>
+          <div className="text-muted small text-uppercase">{typed ? 'You typed' : 'You chose'}</div>
           <div data-testid="feedback-chosen-text">{chosen.text}</div>
 
           {/*
@@ -76,9 +84,9 @@ export function AnswerFeedback({ feedback, onContinue, continuing, language }) {
             word; picking a word names its meaning. Either way the point is the same - the
             wrong option belongs to something, and saying what makes it worth having seen.
           */}
-          {describeChoice(chosen) && (
+          {describeChoice(chosen, typed) && (
             <div className="text-muted small mt-1" data-testid="feedback-chosen-owner">
-              {describeChoice(chosen)}
+              {describeChoice(chosen, typed)}
             </div>
           )}
         </div>

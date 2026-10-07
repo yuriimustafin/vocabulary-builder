@@ -419,7 +419,7 @@ already running.
 specs running side by side clear each other's data mid-test. Left parallel it failed about a
 dozen tests per run — *and a different dozen each time*, which is the symptom to recognise: if
 the failing set moves between runs on unchanged code, suspect the shared database before
-suspecting the tests. Serially the suite - 188 tests, 5 of them skipped in the source - passes
+suspecting the tests. Serially the suite - 226 tests, 3 of them skipped in the source - passes
 in five to seven minutes, depending on the machine's load more than on anything in the suite. CI had always set one worker, so only local runs were affected, which
 is why this went unnoticed.
 
@@ -459,6 +459,12 @@ The reset endpoint (`/api/e2e-testing/reset-database`, `E2ETestingEndpoints`) de
 **hardcoded list of tables**. A new table has to be added to it or its rows survive every
 reset and leak into later tests — `WordForms` did exactly that until it was noticed.
 
+**A recorded Oxford page has to be shaped like a real one.** `MockOxfordParser` hands the
+page in `MockData/oxford` to the real `OxfordParser`, which reads `h1`, `.webtop .pos`,
+`.phons_n_am .phon`, `li.sense .def` and `ul.examples li`. The plain-word pages were once
+hand-written in another shape, parsed to nothing, and the import quietly found no word - which
+two bulk-import specs were skipped for as a "hang".
+
 **The suite runs signed in as the E2E administrator** (`e2e@example.com`, from
 `appsettings.E2ETest.json`). The `setup` project (`auth.setup.js`) logs in once and saves the
 cookie to `playwright/.auth/`; the `chromium` project depends on it and starts every spec from
@@ -466,9 +472,135 @@ that state. The saved state reaches the `request` fixture as well as the page, s
 make signed-in API calls without knowing about it. The reset keeps that account - deleting it
 would leave the saved session pointing at nobody - and removes every other user.
 
+**Moving the test clock (`advance-clock`) moves it for the sign-in cookie too.** Identity checks
+the cookie's expiry against the same `TimeProvider`, so a spec that advances the clock past the
+cookie's lifetime - a review card answered a few times, each success pushing it weeks out -
+signs the suite out, and every later spec fails with `401`, reset included. Keep day-scale
+jumps short, or drive a card in learning, whose steps are minutes.
+
 `auth.spec.js` is the exception: it overrides `storageState` to start signed out, and does
 its resetting and seeding through a request context of its own built from the saved session.
 It registers from the allowlist in `appsettings.E2ETest.json` (`helpers/auth.js`).
+
+## Study (spaced repetition)
+
+**A "rung" is a level, not an exercise.** `Study:Ladder` has four levels - introduction,
+recognition, scaffolded, production - each a pool of exercises with a `PromoteAfter` quota.
+`ReviewCard.CurrentRung` is the level; which exercise is asked there comes from
+`RungStreak` (clean successes on the level, used as an index into the pool, so support fades)
+and `LastExerciseType` (never the same one twice running). A miss drops one level; Hard or a
+used hint holds both level and streak - except a hint the exercise offers for free
+(`IExerciseDefinition.HintIsFree`), which costs nothing, the seconds spent reading it included.
+`ReviewLog.HintUsed` still records every hint taken, free or not. `ConfiguredExerciseLadder` is
+the whole of it.
+
+The pools, easiest first: the introduction; then copying the word with it on screen
+(`WordToSpellingCopy`), picking it from its meaning, picking it for a sentence, picking its
+meaning; then writing it from memory (`WordToSpellingCover` - look, cover, write), putting it
+together from its pieces, rebuilding the words around it in a sentence, typing it from its first
+letters; then the cloze and recall. An entry can carry `MinIntervalDays`: the sentence rebuild
+has 1, so a word still learning (interval 0) is never asked it and the first day never meets
+it. `ExerciseCatalog.Retired` lists the types kept in the enum only so old review logs read -
+the syllable scramble and "what goes with it" - which no definition backs.
+
+**Learning ends on a criterion, not when the steps run out.** `LearningStepsMinutes` only
+paces the tries; `LearningExitCriterion` lets a new word go once it has been built cleanly on
+`LearningExitLevel` (scaffolded) - intro, a copy, two recognitions, one written from memory - and
+it keeps its level,
+so the climb to production carries on in the following days' reviews. A relearning word goes
+on its first clean success wherever the lapse left it, and any word on its next success once it
+has had `MaxLearningRetrievals`. Easy only earns the easy interval on the answer that completes
+learning - a fast multiple-choice pick is never Easy at all (`GradeResolver`), which is what
+used to send new words four days away after one click.
+
+**The first day is sized, and was once far too big.** Requiring two productions before a new
+word could leave meant at least eight clean answers each: a real session of twelve new words
+ran 26 minutes, half of it unscored follow-ups, and no word got out. The levers now: the exit
+level above; no re-exposure after a right answer while a word is still learning (it is back in
+minutes - `ScaffoldSequencer`, `learning`); a miss on a recognition exercise
+(`AsksToRecognise`) gets its connections card only, not the letter cues; and the study day
+rolls over at 08:00 UTC (`DayRolloverHourUtc`), four in the morning on the US east coast - at
+four UTC it rolled over mid-evening and queued a second batch of new words. **Words still New or
+Learning from an earlier day count against `NewCardsPerDay`** (`GetStudyQueue`): a session left
+unfinished used to carry its sixteen words into the next day *and* get twelve fresh ones.
+
+**Typed answers are marked leniently** (`TypedAnswer`): case, spacing, hyphens and a leading
+article are ignored; a missing accent, one slipped letter (words of five or more) or a French
+noun under the wrong gender's article is accepted as Hard with a note. `SubmitReview` turns a
+"slip" that spells another word in the collection back into a miss (poison/poisson), and the
+feedback names that word and its meaning. The lookup compares headwords tidied the way the
+answer is - case, ligatures, hyphens - so `vœu` is found for a typed "voeu".
+
+**A meaning that is the word itself gives it away** - a translation often is: "poison" for *le
+poison*, "information" for *l'information*. `StudyMaterial.CanAskFromMeaning` is false for
+those, and every exercise graded on the meaning (choice either way, scrambles, typing, recall)
+is then not offered; the word is asked from its sentence instead. The introduction and the
+unscored follow-ups still show the meaning.
+
+**Example sentences live in `StudyExample`**, one row per sentence, with the form of the word it
+uses (what a cloze blanks - "prend" in a sentence for "prendre") and how often it was answered
+correctly. The resolver asks from these before dictionary examples: first a form the word was
+met in (`WordEncounter.Form`) but not yet practised, then any not yet practised, then the least
+practised. The payload carries `ExampleId`, the page sends it back with the answer, and
+`SubmitReview` counts it only when it matches the sentence the material resolved to.
+
+**Every word is enriched once per `StudyContentPrompt.Version`**, not only words missing a
+definition: examples built around its collocations, plus usage, etymology, cognates and a
+mnemonic on `WordStudyContent`. The version is written only when a generation succeeds, so
+bumping it asks every word once more. Meeting a word in a form no example uses reopens its
+Ready content (`UpsertWord.CoverForm`); an import that keeps the sentence the word was read in
+(LingQ's phrase) stores that as the example instead. The mock writes three examples for any
+word and one per form the prompt asks for.
+
+**An exercise can be mistake-tolerant** (`Tolerant: true` on its ladder entry - writing from
+memory, the piece scramble and the sentence rebuild are; copying is not). A miss on one costs the word nothing: `SubmitReview`
+keeps its level and streak, `IReviewScheduler.Hold` keeps its state, interval and ease and
+brings it back after the first learning step, its success average is left alone, and only the
+connections card follows. A success counts as usual. Every other miss also opens with that
+card (`WordToConnectionsReveal`, follow-up only) before the diminishing cues ask again.
+
+**A word is scrambled in pieces, never letters** (`Syllabifier.Chunks`): three or four, syllables
+where they fall that way, merged or split to fit, avoiding a split through a digraph such as *ch* or
+*ou*. Only a word of three letters or fewer comes as letters. Writing from memory uses the same
+pieces for a word of more than five letters - look at one, cover it, write it, then the next -
+and the whole word below that. Both spelling exercises are typed answers, marked by
+`TypedAnswer`, so neither is ever a follow-up (`SubmitReview` skips typed exercises there).
+
+**A sentence rebuild gives most of the sentence** (`TranslationToSentenceScrambleExerciseDefinition.Gap`):
+only the word and two or three around it - its collocation's words first - are taken out, as
+three tiles, short words such as articles riding along with their neighbour. Punctuation at the
+gap's edges stays in the sentence. The answer is the tiles in order; the stored example it came
+from is credited as practised.
+
+**Every part an exercise shows has a free translation, except the headword itself.** The
+sentence rebuild's hint gives the sentence's translation and each tile's meaning; "pick the
+missing word" gives the missing word's meaning and the sentence's translation; the cloze gives
+the sentence's translation. Tile meanings come from `StudyExample.GlossWords` and
+`GlossTranslations` (paired by position), which the prompt asks for with each example and, for
+stored sentences that have none, as a separate `glosses` list - once per prompt version, since
+`StudyMaterialGaps.Glosses` is only raised alongside an outdated version.
+
+"What goes with it" is gone. A real model's wrong partners were not reliably wrong (*prendre
+une fourchette* offered as impossible), it missed one time in three, and the collocation still
+shapes the examples and the sentence gap.
+
+**The end-of-day review** (`GET /api/{lang}/study/day-review`) matches the day's new words to
+their gapped sentences, in the fewest groups of four to six (`DayReviewGroups`). It is practice
+only: nothing is sent back and no schedule moves.
+
+**A seeded e2e word is not enriched unless the spec says `enrich: true`** - the seed hook gives it
+a finished content row, so it is studied exactly as seeded. Without that the worker would add
+stored sentences partway through a test and change which exercise the word is asked; that is
+how a spec's expected sequence went flaky. A word seeded without a definition is always
+enriched. The mock glosses each word of a sentence as "en:" and the word, and translates a
+sentence as "Translated: " and the sentence - which is how `correctAnswer` and `tilesInOrder`
+find the words a sentence rebuild took out.
+
+In e2e specs, seed a card by exercise with `seedCardFor(type)`, not by rung number. It
+assumes the word has no generated content, so no sentence to rebuild, unless told
+`{ content: true }`; and it seeds a review a day out, which is what lets the sentence rebuild
+be asked at all. `StudyOptionsBindingTests` reads the real `appsettings.json` and fails if
+it drifts from `StudyDefaults`.
 
 ## French support
 

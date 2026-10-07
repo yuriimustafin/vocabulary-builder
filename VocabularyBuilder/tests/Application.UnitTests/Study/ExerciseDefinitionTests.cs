@@ -30,6 +30,46 @@ public class ExerciseDefinitionTests
         new[] { "wrong one", "wrong two", "wrong three" },
         new[] { "alpha", "beta", "gamma" });
 
+    // --- a meaning that is the word itself ----------------------------------
+
+    [TestCase("poison", "poison")]
+    [TestCase("information", "Information")]
+    [TestCase("hôtel", "a hotel")]
+    [TestCase("poison", "poison, venom")]
+    [TestCase("chat", "cat; chat (informal)")]
+    public void AMeaningThatIsTheWordItselfGivesItAway(string headword, string meaning)
+    {
+        Material(headword, meaning).MeaningGivesAwayWord.Should().BeTrue();
+    }
+
+    [TestCase("poisson", "fish")]
+    [TestCase("ubiquitous", "found everywhere")]
+    [TestCase("vivid", "the meaning of vivid", TestName = "AMeaningThatOnlyMentionsTheWordDoesNot")]
+    public void AnOrdinaryMeaningDoesNotGiveTheWordAway(string headword, string meaning)
+    {
+        Material(headword, meaning).MeaningGivesAwayWord.Should().BeFalse();
+    }
+
+    [Test]
+    public void NothingIsAskedFromOrForAMeaningThatIsTheWordItself()
+    {
+        // le poison, "poison": the question would show its own answer
+        var material = Material("poison", "poison", "Le poison de ce serpent est mortel.");
+        var distractors = Distractors();
+
+        new MeaningToWordChoiceExerciseDefinition(Options, Grades, Seeded).CanBuild(material, distractors).Should().BeFalse();
+        new WordToMeaningChoiceExerciseDefinition(Options, Grades, Seeded).CanBuild(material, distractors).Should().BeFalse();
+        new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded).CanBuild(material, null).Should().BeFalse();
+        new MeaningToWordTypeExerciseDefinition(Grades).CanBuild(material, null).Should().BeFalse();
+        new MeaningToWordCuedTypeExerciseDefinition(Grades).CanBuild(material, null).Should().BeFalse();
+        new MeaningToWordRecallExerciseDefinition().CanBuild(material, null).Should().BeFalse();
+
+        // A sentence still asks something, and meeting the word still shows what it means
+        new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded).CanBuild(material, distractors).Should().BeTrue();
+        new ContextToWordRecallExerciseDefinition().CanBuild(material, null).Should().BeTrue();
+        new WordToMeaningRevealExerciseDefinition().CanBuild(material, null).Should().BeTrue();
+    }
+
     // --- flashcard ---------------------------------------------------------
 
     [Test]
@@ -169,16 +209,30 @@ public class ExerciseDefinitionTests
         payload.Answer.Should().BeNull("the tiles are the exercise; spelling it out would defeat it");
     }
 
-    [Test]
-    public void DecoyLettersAreAddedWhenConfiguredAndNeverBelongToTheWord()
+    [TestCase("remember", new[] { "re", "mem", "ber" })]
+    [TestCase("information", new[] { "in", "for", "ma", "tion" })]
+    public void ALongerWordIsOfferedAsItsSyllablesWhenTheyMakeThreeOrFour(string headword, string[] chunks)
     {
-        var options = new StudyOptions { ScrambleDecoyLetters = 2 };
-        var definition = new MeaningToWordScrambleExerciseDefinition(options, Grades, new Random(11));
+        var payload = new MeaningToWordScrambleExerciseDefinition(Options, Grades, new Random(1))
+            .Build(Material(headword), new ExerciseBuildContext());
 
-        var tiles = definition.Build(Material("apt"), new ExerciseBuildContext()).Tiles!;
+        payload.Tiles.Should().BeEquivalentTo(chunks);
+        payload.Tiles.Should().NotEqual(chunks, "pieces already in order ask nothing");
+    }
 
-        tiles.Should().HaveCount(5);
-        tiles.Count(t => t is "a" or "p" or "t").Should().Be(3);
+    [TestCase("window")]
+    [TestCase("bright")]
+    [TestCase("ice cream")]
+    [TestCase("approfondissement")]
+    public void AnyWordOfMoreThanThreeLettersComesInThreeOrFourPiecesThatJoinBackIntoIt(string headword)
+    {
+        var tiles = new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded)
+            .Build(Material(headword), new ExerciseBuildContext()).Tiles!;
+
+        tiles.Count.Should().BeInRange(3, 4);
+        tiles.Should().OnlyContain(t => t.Length > 0);
+        string.Concat(Syllabifier.Chunks(headword, Domain.Enums.Language.English))
+            .Should().Be(headword.Replace(" ", string.Empty));
     }
 
     [Test]
@@ -212,8 +266,9 @@ public class ExerciseDefinitionTests
     {
         var definition = new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded);
 
+        // In pieces now, but an accent never comes apart from its letter
         definition.Build(Material("élève"), new ExerciseBuildContext()).Tiles
-            .Should().BeEquivalentTo(new[] { "é", "l", "è", "v", "e" });
+            .Should().BeEquivalentTo(new[] { "é", "lè", "ve" });
     }
 
     // --- free production ---------------------------------------------------
@@ -257,16 +312,152 @@ public class ExerciseDefinitionTests
         mask.Should().Be("i _ _ / _ _ _ _ _");
     }
 
+    // --- spelling it -----------------------------------------------------------
+
+    [Test]
+    public void CopyingShowsTheWordAndWhatItMeans()
+    {
+        var payload = new WordToSpellingCopyExerciseDefinition().Build(Material("remember"), new ExerciseBuildContext());
+
+        payload.Prompt.Should().Be("remember");
+        payload.Meaning.Should().Be("found everywhere");
+        payload.Tiles.Should().BeNull("it is copied whole, while it stays on screen");
+    }
+
+    [Test]
+    public void ALongWordIsCoveredAPieceAtATimeAndAShortOneWhole()
+    {
+        var cover = new WordToSpellingCoverExerciseDefinition();
+
+        cover.Build(Material("remember"), new ExerciseBuildContext()).Tiles.Should().Equal("re", "mem", "ber");
+        cover.Build(Material("apple"), new ExerciseBuildContext()).Tiles.Should().BeNull("five letters are taken in one look");
+    }
+
+    [Test]
+    public void SpellingIsMarkedLikeTypingButNeverOnSpeed()
+    {
+        var copy = new WordToSpellingCopyExerciseDefinition();
+
+        copy.Resolve(new ExerciseAnswer("remember", ElapsedMs: 60_000), Material("remember")).Should().Be(ReviewGrade.Good);
+        copy.Resolve(new ExerciseAnswer("rememebr", ElapsedMs: 5000), Material("remember")).Should().Be(ReviewGrade.Hard);
+        copy.Resolve(new ExerciseAnswer("forget", ElapsedMs: 5000), Material("remember")).Should().Be(ReviewGrade.Again);
+        copy.Resolve(new ExerciseAnswer(Abandoned: true), Material("remember")).Should().Be(ReviewGrade.Again);
+    }
+
+    [Test]
+    public void APhraseWrittenAPieceAtATimeGetsItsSpacesBack()
+    {
+        // The pieces drop the space, so "ice cream" comes back as "icecream"
+        new WordToSpellingCoverExerciseDefinition()
+            .Resolve(new ExerciseAnswer("icecream", ElapsedMs: 5000), Material("ice cream"))
+            .Should().Be(ReviewGrade.Good);
+    }
+
+    // --- typing ------------------------------------------------------------
+
+    [Test]
+    public void TypingShowsOnlyTheMeaningAndNeverTheWord()
+    {
+        var payload = new MeaningToWordTypeExerciseDefinition(Grades).Build(Material(), new ExerciseBuildContext());
+
+        payload.Prompt.Should().Be("found everywhere");
+        payload.Answer.Should().BeNull();
+        payload.LetterMask.Should().BeNull();
+        payload.ContextSentence.Should().BeNull("the sentence contains the word");
+        payload.GradingMode.Should().Be(GradingMode.Automatic);
+    }
+
+    [Test]
+    public void AnExactTypedAnswerIsGradedOnSpeedLikeAnyProduction()
+    {
+        var definition = new MeaningToWordTypeExerciseDefinition(Grades);
+
+        definition.Resolve(new ExerciseAnswer("Ubiquitous ", ElapsedMs: 2000), Material()).Should().Be(ReviewGrade.Easy);
+        definition.Resolve(new ExerciseAnswer("ubiquitous", ElapsedMs: 6000), Material()).Should().Be(ReviewGrade.Good);
+    }
+
+    [Test]
+    public void ANearMissTypedAnswerIsHardAndAWrongOneAgain()
+    {
+        var definition = new MeaningToWordTypeExerciseDefinition(Grades);
+
+        definition.Resolve(new ExerciseAnswer("ubiquitus", ElapsedMs: 4000), Material()).Should().Be(ReviewGrade.Hard);
+        definition.Resolve(new ExerciseAnswer("everywhere", ElapsedMs: 4000), Material()).Should().Be(ReviewGrade.Again);
+        definition.Resolve(new ExerciseAnswer("ubiquitous", ElapsedMs: 4000, Abandoned: true), Material())
+            .Should().Be(ReviewGrade.Again);
+    }
+
+    [Test]
+    public void TypingALongWordSlowlyIsNotMarkedDownForItsLength()
+    {
+        // Twelve seconds is slow for a click but fair for a fourteen-letter word.
+        var definition = new MeaningToWordTypeExerciseDefinition(Grades);
+
+        definition.Resolve(new ExerciseAnswer("extraterrestre", ElapsedMs: 12_000), Material("extraterrestre"))
+            .Should().Be(ReviewGrade.Good);
+    }
+
+    [Test]
+    public void TheCuedTypeShowsTheFirstLettersOfTheWord()
+    {
+        var payload = new MeaningToWordCuedTypeExerciseDefinition(Grades)
+            .Build(Material("ubiquitous"), new ExerciseBuildContext(CueLevel: 0));
+
+        payload.LetterMask.Should().Be("u b i q _ _ _ _ _ _");
+    }
+
+    [Test]
+    public void TheCuedTypeShowsOnlyTheFirstLetterOnceTheWordHasGotFurther()
+    {
+        var payload = new MeaningToWordCuedTypeExerciseDefinition(Grades)
+            .Build(Material("ubiquitous"), new ExerciseBuildContext(CueLevel: 3));
+
+        payload.LetterMask.Should().Be("u _ _ _ _ _ _ _ _ _");
+    }
+
+    [Test]
+    public void TheCueAlwaysLeavesSomethingToRecall()
+    {
+        MeaningToWordCuedTypeExerciseDefinition.RevealedLetters("chat", 0).Should().Be(2);
+        MeaningToWordCuedTypeExerciseDefinition.RevealedLetters("vie", 0).Should().Be(1);
+        MeaningToWordCuedTypeExerciseDefinition.RevealedLetters("ab", 0).Should().Be(1);
+    }
+
+    // --- cloze with options ------------------------------------------------
+
+    [Test]
+    public void TheClozeChoiceBlanksTheWordAndOffersWords()
+    {
+        var definition = new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded);
+
+        var payload = definition.Build(Material(), new ExerciseBuildContext(Distractors()));
+
+        payload.Prompt.Should().Be("Screens are _____ now.");
+        payload.Options.Should().BeEquivalentTo(new[] { "ubiquitous", "alpha", "beta", "gamma" });
+        payload.Transcription.Should().BeNull("the pronunciation belongs to the missing word");
+        definition.Resolve(new ExerciseAnswer("ubiquitous", ElapsedMs: 1000), Material()).Should().Be(ReviewGrade.Good);
+    }
+
+    [Test]
+    public void TheClozeChoiceNeedsASentence()
+    {
+        new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded)
+            .CanBuild(Material(sentence: null), Distractors()).Should().BeFalse();
+    }
+
     // --- catalogue ---------------------------------------------------------
 
     [Test]
-    public void EveryLadderRungHasARegisteredDefinition()
+    public void EveryExerciseOnTheLadderHasARegisteredDefinition()
     {
         var catalog = new ExerciseCatalog(AllDefinitions());
+        var onTheLadder = new StudyOptions().EffectiveLadder.SelectMany(level => level.Exercises).ToList();
 
-        foreach (var rung in new StudyOptions().Ladder)
+        onTheLadder.Should().NotBeEmpty();
+
+        foreach (var exercise in onTheLadder)
         {
-            catalog.Get(rung.Type).Should().NotBeNull();
+            catalog.Get(exercise.Type).Should().NotBeNull();
         }
     }
 
@@ -275,17 +466,17 @@ public class ExerciseDefinitionTests
     {
         var catalog = new ExerciseCatalog(AllDefinitions());
 
-        foreach (var type in Enum.GetValues<ExerciseType>())
+        foreach (var type in Enum.GetValues<ExerciseType>().Except(ExerciseCatalog.Retired))
         {
             catalog.Get(type).Type.Should().Be(type);
         }
     }
 
     [Test]
-    public void OnlyThePartialLetterExerciseIsExcludedFromBeingAProbe()
+    public void OnlyTheFollowUpExercisesAreExcludedFromBeingAProbe()
     {
         AllDefinitions().Where(d => !d.CanBeProbe).Select(d => d.Type)
-            .Should().Equal(ExerciseType.MeaningToWordPartialLetters);
+            .Should().Equal(ExerciseType.MeaningToWordPartialLetters, ExerciseType.WordToConnectionsReveal);
     }
 
     private static List<IExerciseDefinition> AllDefinitions() => new()
@@ -296,6 +487,13 @@ public class ExerciseDefinitionTests
         new ContextToWordRecallExerciseDefinition(),
         new MeaningToWordScrambleExerciseDefinition(Options, Grades, Seeded),
         new MeaningToWordRecallExerciseDefinition(),
-        new MeaningToWordPartialLettersExerciseDefinition()
+        new MeaningToWordPartialLettersExerciseDefinition(),
+        new MeaningToWordTypeExerciseDefinition(Grades),
+        new MeaningToWordCuedTypeExerciseDefinition(Grades),
+        new ContextToWordChoiceExerciseDefinition(Options, Grades, Seeded),
+        new TranslationToSentenceScrambleExerciseDefinition(Grades, Seeded),
+        new WordToConnectionsRevealExerciseDefinition(),
+        new WordToSpellingCopyExerciseDefinition(),
+        new WordToSpellingCoverExerciseDefinition()
     };
 }

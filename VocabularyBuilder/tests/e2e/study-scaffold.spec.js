@@ -1,7 +1,7 @@
 const { test, expect } = require('@playwright/test');
 const { setupCleanDatabase } = require('./helpers/db-fixtures');
 const {
-  ExerciseType, seedWords, seedCard, getQueue, submitReview, cardFor, getCard
+  ExerciseType, rungOf, seedWords, seedCard, getQueue, submitReview, cardFor, getCard
 } = require('./helpers/study-helpers');
 
 /**
@@ -19,7 +19,7 @@ test.describe('Diminishing cues after a failure', () => {
     await seedWords(request, Array.from({ length: 8 }, (_, i) => `sc${String(i).padStart(2, '0')}`));
   });
 
-  async function failAProbe(request, headword = 'sc00', rung = 3) {
+  async function failAProbe(request, headword = 'sc00', rung = rungOf(ExerciseType.ContextToWordRecall)) {
     await seedCard(request, {
       headword, rung, state: 2, intervalDays: 5, dueInDays: -0.1, lastReviewedDaysAgo: 1
     });
@@ -55,13 +55,14 @@ test.describe('Diminishing cues after a failure', () => {
     expect(masks[1]).toContain('_');
   });
 
-  test('the tiles step offers exactly the letters of the word', async ({ request }) => {
+  test('the tiles step offers the word in pieces', async ({ request }) => {
     const result = await failAProbe(request);
 
     const tiles = result.followUps.find(f => f.exercise.type === ExerciseType.MeaningToWordScramble)
       .exercise.tiles;
 
-    expect(tiles.slice().sort().join('')).toBe('sc00'.split('').sort().join(''));
+    expect(tiles.length).toBeGreaterThanOrEqual(3);
+    expect(tiles.join('').split('').sort().join('')).toBe('sc00'.split('').sort().join(''));
   });
 
   test('the sequence ends by showing the word outright', async ({ request }) => {
@@ -119,7 +120,7 @@ test.describe('Diminishing cues after a failure', () => {
 
   test('a word recalled cleanly gets no follow-ups at all', async ({ request }) => {
     await seedCard(request, {
-      headword: 'sc03', rung: 3, state: 2, intervalDays: 5,
+      headword: 'sc03', rung: rungOf(ExerciseType.ContextToWordRecall), state: 2, intervalDays: 5,
       dueInDays: -0.1, lastReviewedDaysAgo: 1, recentSuccessRate: 1.0, easeFactor: 2.5
     });
 

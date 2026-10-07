@@ -1,4 +1,6 @@
 using VocabularyBuilder.Application.ImportWords.Commands;
+using VocabularyBuilder.Application.Words.Commands;
+using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
@@ -144,6 +146,60 @@ public class ImportLingQWordsTests : BaseTestFixture
         result.Skipped.Should().HaveCount(2);
 
         (await CountAsync<Word>()).Should().Be(1);
+    }
+
+    [Test]
+    public async Task ShouldKeepTheFormOnTheEncounterWithoutItsArticle()
+    {
+        await SendAsync(Command("les randonnées,,preply,,,,en,hikes,,\n"));
+
+        (await ListAsync<WordEncounter>()).Single().Form.Should().Be("randonnées");
+    }
+
+    [Test]
+    public async Task ShouldKeepTheSentenceTheWordWasReadInAsAnExampleForItsForm()
+    {
+        await SendAsync(Command("une conférence,J'écoute une conférence.,,,,,en,conference,,\n"));
+
+        var example = (await ListAsync<StudyExample>()).Single();
+
+        example.Sentence.Should().Be("J'écoute une conférence.");
+        example.Form.Should().Be("conférence");
+    }
+
+    [Test]
+    public async Task ShouldAskForAnExampleWhenANewFormIsMetOfAWordAlreadyFilledIn()
+    {
+        await SendAsync(Command("une randonnée,,preply,,,,en,a hike,,\n", listName: "first"));
+
+        var word = (await ListAsync<Word>()).Single();
+        await AddAsync(new WordStudyContent { WordId = word.Id, Status = StudyContentStatus.Ready, PromptVersion = "v3" });
+
+        // The same word met again in a form it has no example for
+        await SendAsync(new UpsertWordCommand
+        {
+            Headword = "randonnée",
+            Language = Language.French,
+            Source = WordEncounterSource.LingQ,
+            SourceIdentifier = "second:randonnées",
+            EncounterForm = "randonnées"
+        });
+
+        (await ListAsync<WordStudyContent>()).Single().Status.Should().Be(
+            StudyContentStatus.Pending, "the form met the second time has no example yet");
+    }
+
+    [Test]
+    public async Task ShouldNotReopenContentForAFormThatAlreadyHasAnExample()
+    {
+        await SendAsync(Command("une randonnée,Une randonnée en montagne.,preply,,,,en,a hike,,\n", listName: "first"));
+
+        var word = (await ListAsync<Word>()).Single();
+        await AddAsync(new WordStudyContent { WordId = word.Id, Status = StudyContentStatus.Ready, PromptVersion = "v3" });
+
+        await SendAsync(Command("la randonnée,,preply,,,,en,hiking,,\n", listName: "second"));
+
+        (await ListAsync<WordStudyContent>()).Single().Status.Should().Be(StudyContentStatus.Ready);
     }
 
     [Test]
