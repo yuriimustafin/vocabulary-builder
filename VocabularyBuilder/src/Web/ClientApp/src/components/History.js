@@ -5,8 +5,14 @@ import { currentLanguage, formatDateTime, humanize } from './historyFormat';
 
 const PAGE_SIZE = 50;
 
-const CATEGORIES = ['Words', 'Dictionary', 'Imports', 'Study', 'Lists'];
-const CATEGORY_COLORS = { Words: 'primary', Dictionary: 'info', Imports: 'success', Study: 'warning', Lists: 'secondary' };
+const CATEGORIES = ['Words', 'Dictionary', 'Imports', 'Study', 'StudyContent', 'Lists'];
+const CATEGORY_COLORS = {
+  Words: 'primary', Dictionary: 'info', Imports: 'success', Study: 'warning', StudyContent: 'dark', Lists: 'secondary'
+};
+
+const TABS = ['activity', 'reviews', 'calls', 'usage'];
+
+const GRADE_COLORS = { Again: 'danger', Hard: 'warning', Good: 'success', Easy: 'primary' };
 
 const PROVIDERS = ['Gpt', 'WordReference', 'Oxford'];
 const PURPOSES = ['DictionaryEntry', 'Conjugation', 'StudyContent', 'NotesExtraction', 'LemmaResolution', 'ListGeneration', 'AudioText', 'Other'];
@@ -16,18 +22,19 @@ function queryParams() {
   const number = (key) => (params.get(key) ? parseInt(params.get(key), 10) : null);
 
   return {
-    tab: params.get('tab') === 'calls' ? 'calls' : 'activity',
+    tab: TABS.includes(params.get('tab')) ? params.get('tab') : 'activity',
     wordId: number('wordId'),
     importId: number('importId')
   };
 }
 
 /**
- * The history of the signed-in user's data: what was done to it, and every request made to
- * a model or a dictionary site on their behalf.
+ * The history of the signed-in user's data: what was done to it, every answer given in study,
+ * and every request made to a model or a dictionary site on their behalf - with what those
+ * requests added up to.
  *
- * ?tab=calls, ?wordId= and ?importId= narrow it, which is how the word details and the import
- * popup link here.
+ * ?tab=activity|reviews|calls|usage, ?wordId= and ?importId= narrow it, which is how the word
+ * details and the import popup link here.
  */
 export class History extends Component {
   static displayName = History.name;
@@ -44,6 +51,8 @@ export class History extends Component {
       provider: '',
       purpose: '',
       failedOnly: false,
+      includeFollowUps: false,
+      usageDays: '30',
       rows: [],
       pageNumber: 1,
       totalPages: 0,
@@ -74,30 +83,41 @@ export class History extends Component {
   }
 
   async load(pageNumber) {
-    const { tab, category, provider, purpose, failedOnly, wordId, importId } = this.state;
+    const { tab, category, provider, purpose, failedOnly, includeFollowUps, usageDays, wordId, importId } = this.state;
     const params = new URLSearchParams({ pageNumber, pageSize: PAGE_SIZE });
 
     if (wordId) params.set('wordId', wordId);
-    if (importId) params.set('importId', importId);
+    if (importId && tab !== 'reviews') params.set('importId', importId);
 
     if (tab === 'activity') {
       if (category) params.set('category', category);
-    } else {
+    } else if (tab === 'calls') {
       if (provider) params.set('provider', provider);
       if (purpose) params.set('purpose', purpose);
       if (failedOnly) params.set('failedOnly', 'true');
+    } else if (tab === 'reviews') {
+      if (includeFollowUps) params.set('includeFollowUps', 'true');
     }
 
     this.setState({ loading: true, error: null });
 
     try {
-      const response = await fetch(`/api/${currentLanguage()}/history/${tab === 'activity' ? 'activity' : 'calls'}?${params}`);
+      const url = tab === 'usage'
+        ? `/api/${currentLanguage()}/history/usage${usageDays ? `?days=${usageDays}` : ''}`
+        : `/api/${currentLanguage()}/history/${tab}?${params}`;
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`Could not load the history (${response.status})`);
       }
 
       const data = await response.json();
+
+      if (tab === 'usage') {
+        this.setState({ rows: data, pageNumber: 1, totalPages: 0, totalCount: data.length, loading: false });
+        return;
+      }
+
       this.setState({
         rows: data.items || [],
         pageNumber: data.pageNumber || 1,
@@ -122,11 +142,30 @@ export class History extends Component {
   }
 
   renderFilters() {
-    const { tab, category, provider, purpose, failedOnly, wordId, importId } = this.state;
+    const { tab, category, provider, purpose, failedOnly, includeFollowUps, usageDays, wordId, importId } = this.state;
 
     return (
       <div className="d-flex flex-wrap gap-3 align-items-end mb-3">
-        {tab === 'activity' ? (
+        {tab === 'reviews' && (
+          <FormGroup check className="mb-1">
+            <Input id="history-follow-ups" type="checkbox" checked={includeFollowUps}
+              onChange={e => this.setFilter({ includeFollowUps: e.target.checked })} />
+            <Label for="history-follow-ups" check className="small">Include unscored follow-ups</Label>
+          </FormGroup>
+        )}
+        {tab === 'usage' && (
+          <FormGroup className="mb-0">
+            <Label for="history-days" className="small mb-1">Period</Label>
+            <Input id="history-days" type="select" bsSize="sm" value={usageDays}
+              onChange={e => this.setFilter({ usageDays: e.target.value })} data-testid="usage-days">
+              <option value="1">Last day</option>
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="">All time</option>
+            </Input>
+          </FormGroup>
+        )}
+        {(tab === 'reviews' || tab === 'usage') ? null : tab === 'activity' ? (
           <FormGroup className="mb-0">
             <Label for="history-category" className="small mb-1">Category</Label>
             <Input id="history-category" type="select" bsSize="sm" value={category}
@@ -161,7 +200,7 @@ export class History extends Component {
           </>
         )}
 
-        {(wordId || importId) && (
+        {tab !== 'usage' && (wordId || (importId && tab !== 'reviews')) && (
           <div className="mb-1">
             <Badge color="dark" className="me-2">
               {wordId ? `Word #${wordId}` : `Import #${importId}`}
@@ -233,6 +272,125 @@ export class History extends Component {
         </tbody>
       </Table>
     );
+  }
+
+  renderReviews() {
+    const { rows } = this.state;
+
+    if (rows.length === 0) {
+      return <Alert color="info">No answers recorded yet.</Alert>;
+    }
+
+    return (
+      <Table striped hover responsive size="sm" data-testid="reviews-table">
+        <thead>
+          <tr>
+            <th>When</th>
+            <th>Word</th>
+            <th>Exercise</th>
+            <th>Answer</th>
+            <th>Grade</th>
+            <th className="text-end">Level</th>
+            <th className="text-end">Interval</th>
+            <th className="text-end">Time</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(row => (
+            <tr key={row.id} data-testid="review-row" className={row.voidedAtUtc ? 'text-muted' : ''}>
+              <td><small>{formatDateTime(row.reviewedAtUtc)}</small></td>
+              <td><Link to={`/words?details=${row.wordId}`}>{row.headword}</Link></td>
+              <td>
+                {humanize(row.exerciseType)}
+                {row.isScaffold && <Badge color="light" className="text-dark border ms-1">follow-up</Badge>}
+                {row.exampleSentence && <div><small className="text-muted">{row.exampleSentence}</small></div>}
+              </td>
+              <td>
+                {row.answer && <span style={{ fontFamily: 'monospace' }}>{row.answer}</span>}
+                {row.answerMatch && row.answerMatch !== 'Exact' && (
+                  <Badge color="light" className="text-dark border ms-1">{humanize(row.answerMatch)}</Badge>
+                )}
+              </td>
+              <td>
+                <Badge color={GRADE_COLORS[row.grade] || 'secondary'}>{row.grade}</Badge>
+                {row.hintUsed && <Badge color="info" className="ms-1">hint</Badge>}
+                {row.tolerated && <Badge color="light" className="text-dark border ms-1" title="A miss that cost the word nothing">tolerated</Badge>}
+                {row.voidedAtUtc && (
+                  <Badge color="secondary" className="ms-1" title={`Voided ${formatDateTime(row.voidedAtUtc)}`}>
+                    {humanize(row.voidReason || 'Voided')}
+                  </Badge>
+                )}
+              </td>
+              <td className="text-end"><small>{row.rungBefore} → {row.rungAfter}</small></td>
+              <td className="text-end"><small>{row.intervalBeforeDays} → {row.intervalAfterDays} d</small></td>
+              <td className="text-end"><small>{(row.elapsedMs / 1000).toFixed(1)} s</small></td>
+            </tr>
+          ))}
+        </tbody>
+      </Table>
+    );
+  }
+
+  renderUsage() {
+    const { rows } = this.state;
+
+    if (rows.length === 0) {
+      return <Alert color="info">No calls in this period.</Alert>;
+    }
+
+    const total = (field) => rows.reduce((sum, row) => sum + row[field], 0);
+
+    return (
+      <Table striped hover responsive size="sm" data-testid="usage-table">
+        <thead>
+          <tr>
+            <th>Service</th>
+            <th>Purpose</th>
+            <th>Prompt version</th>
+            <th className="text-end">Calls</th>
+            <th className="text-end">Failed</th>
+            <th className="text-end">Prompt tokens</th>
+            <th className="text-end">Completion tokens</th>
+            <th className="text-end">Avg time</th>
+            <th>Period</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(row => (
+            <tr key={`${row.provider}-${row.purpose}-${row.promptVersion}`} data-testid="usage-row">
+              <td><Badge color="secondary">{row.provider}</Badge></td>
+              <td>{humanize(row.purpose)}</td>
+              <td>{row.promptVersion || ''}</td>
+              <td className="text-end">{row.calls}</td>
+              <td className="text-end">{row.failed || ''}</td>
+              <td className="text-end">{row.promptTokens.toLocaleString()}</td>
+              <td className="text-end">{row.completionTokens.toLocaleString()}</td>
+              <td className="text-end"><small>{Math.round(row.totalDurationMs / row.calls)} ms</small></td>
+              <td><small>{formatDateTime(row.firstAtUtc)} – {formatDateTime(row.lastAtUtc)}</small></td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="fw-bold">
+            <td colSpan={3}>Total</td>
+            <td className="text-end">{total('calls')}</td>
+            <td className="text-end">{total('failed') || ''}</td>
+            <td className="text-end">{total('promptTokens').toLocaleString()}</td>
+            <td className="text-end">{total('completionTokens').toLocaleString()}</td>
+            <td colSpan={2}></td>
+          </tr>
+        </tfoot>
+      </Table>
+    );
+  }
+
+  renderTab() {
+    switch (this.state.tab) {
+      case 'reviews': return this.renderReviews();
+      case 'calls': return this.renderCalls();
+      case 'usage': return this.renderUsage();
+      default: return this.renderActivity();
+    }
   }
 
   renderCalls() {
@@ -361,9 +519,21 @@ export class History extends Component {
             </NavLink>
           </NavItem>
           <NavItem>
+            <NavLink href="#" active={tab === 'reviews'} onClick={e => { e.preventDefault(); this.setTab('reviews'); }}
+              data-testid="tab-reviews">
+              Study answers
+            </NavLink>
+          </NavItem>
+          <NavItem>
             <NavLink href="#" active={tab === 'calls'} onClick={e => { e.preventDefault(); this.setTab('calls'); }}
               data-testid="tab-calls">
               Model &amp; dictionary calls
+            </NavLink>
+          </NavItem>
+          <NavItem>
+            <NavLink href="#" active={tab === 'usage'} onClick={e => { e.preventDefault(); this.setTab('usage'); }}
+              data-testid="tab-usage">
+              Usage
             </NavLink>
           </NavItem>
         </Nav>
@@ -371,7 +541,7 @@ export class History extends Component {
         {this.renderFilters()}
 
         {error && <Alert color="danger">{error}</Alert>}
-        {loading ? <p><em>Loading...</em></p> : (tab === 'activity' ? this.renderActivity() : this.renderCalls())}
+        {loading ? <p><em>Loading...</em></p> : this.renderTab()}
         {this.renderPagination()}
 
         <Modal isOpen={callOpen} toggle={() => this.setState({ callOpen: false })} size="xl">

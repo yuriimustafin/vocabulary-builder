@@ -569,6 +569,105 @@ export class HistoryClient {
         }
         return Promise.resolve<void>(null as any);
     }
+
+    getApiHistoryReviews(lang: string, wordId: number | null | undefined, includeFollowUps: boolean | undefined, pageNumber: number | undefined, pageSize: number | undefined): Promise<PaginatedListOfReviewLogEntryDto> {
+        let url_ = this.baseUrl + "/api/{lang}/history/reviews?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (wordId !== undefined && wordId !== null)
+            url_ += "wordId=" + encodeURIComponent("" + wordId) + "&";
+        if (includeFollowUps === null)
+            throw new Error("The parameter 'includeFollowUps' cannot be null.");
+        else if (includeFollowUps !== undefined)
+            url_ += "includeFollowUps=" + encodeURIComponent("" + includeFollowUps) + "&";
+        if (pageNumber === null)
+            throw new Error("The parameter 'pageNumber' cannot be null.");
+        else if (pageNumber !== undefined)
+            url_ += "pageNumber=" + encodeURIComponent("" + pageNumber) + "&";
+        if (pageSize === null)
+            throw new Error("The parameter 'pageSize' cannot be null.");
+        else if (pageSize !== undefined)
+            url_ += "pageSize=" + encodeURIComponent("" + pageSize) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiHistoryReviews(_response);
+        });
+    }
+
+    protected processGetApiHistoryReviews(response: Response): Promise<PaginatedListOfReviewLogEntryDto> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            result200 = PaginatedListOfReviewLogEntryDto.fromJS(resultData200);
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<PaginatedListOfReviewLogEntryDto>(null as any);
+    }
+
+    getApiHistoryUsage(lang: string, days: number | null | undefined): Promise<CallUsageDto[]> {
+        let url_ = this.baseUrl + "/api/{lang}/history/usage?";
+        if (lang === undefined || lang === null)
+            throw new Error("The parameter 'lang' must be defined.");
+        url_ = url_.replace("{lang}", encodeURIComponent("" + lang));
+        if (days !== undefined && days !== null)
+            url_ += "days=" + encodeURIComponent("" + days) + "&";
+        url_ = url_.replace(/[?&]$/, "");
+
+        let options_: RequestInit = {
+            method: "GET",
+            headers: {
+                "Accept": "application/json"
+            }
+        };
+
+        return this.http.fetch(url_, options_).then((_response: Response) => {
+            return this.processGetApiHistoryUsage(_response);
+        });
+    }
+
+    protected processGetApiHistoryUsage(response: Response): Promise<CallUsageDto[]> {
+        followIfLoginRedirect(response);
+        const status = response.status;
+        let _headers: any = {}; if (response.headers && response.headers.forEach) { response.headers.forEach((v: any, k: any) => _headers[k] = v); };
+        if (status === 200) {
+            return response.text().then((_responseText) => {
+            let result200: any = null;
+            let resultData200 = _responseText === "" ? null : JSON.parse(_responseText, this.jsonParseReviver);
+            if (Array.isArray(resultData200)) {
+                result200 = [] as any;
+                for (let item of resultData200)
+                    result200!.push(CallUsageDto.fromJS(item));
+            }
+            else {
+                result200 = <any>null;
+            }
+            return result200;
+            });
+        } else if (status !== 200 && status !== 204) {
+            return response.text().then((_responseText) => {
+            return throwException("An unexpected server error occurred.", status, _responseText, _headers);
+            });
+        }
+        return Promise.resolve<CallUsageDto[]>(null as any);
+    }
 }
 
 export class ImportsClient {
@@ -3507,6 +3606,258 @@ export enum ExternalCallPurpose {
     LemmaResolution = 5,
     ListGeneration = 6,
     AudioText = 7,
+}
+
+export class PaginatedListOfReviewLogEntryDto implements IPaginatedListOfReviewLogEntryDto {
+    items?: ReviewLogEntryDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+
+    constructor(data?: IPaginatedListOfReviewLogEntryDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            if (Array.isArray(_data["items"])) {
+                this.items = [] as any;
+                for (let item of _data["items"])
+                    this.items!.push(ReviewLogEntryDto.fromJS(item));
+            }
+            this.pageNumber = _data["pageNumber"];
+            this.totalPages = _data["totalPages"];
+            this.totalCount = _data["totalCount"];
+            this.hasPreviousPage = _data["hasPreviousPage"];
+            this.hasNextPage = _data["hasNextPage"];
+        }
+    }
+
+    static fromJS(data: any): PaginatedListOfReviewLogEntryDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new PaginatedListOfReviewLogEntryDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        if (Array.isArray(this.items)) {
+            data["items"] = [];
+            for (let item of this.items)
+                data["items"].push(item ? item.toJSON() : <any>undefined);
+        }
+        data["pageNumber"] = this.pageNumber;
+        data["totalPages"] = this.totalPages;
+        data["totalCount"] = this.totalCount;
+        data["hasPreviousPage"] = this.hasPreviousPage;
+        data["hasNextPage"] = this.hasNextPage;
+        return data;
+    }
+}
+
+export interface IPaginatedListOfReviewLogEntryDto {
+    items?: ReviewLogEntryDto[];
+    pageNumber?: number;
+    totalPages?: number;
+    totalCount?: number;
+    hasPreviousPage?: boolean;
+    hasNextPage?: boolean;
+}
+
+export class ReviewLogEntryDto implements IReviewLogEntryDto {
+    id?: number;
+    reviewedAtUtc?: Date;
+    wordId?: number;
+    headword?: string;
+    exerciseType?: string;
+    grade?: string;
+    isScaffold?: boolean;
+    hintUsed?: boolean;
+    tolerated?: boolean;
+    answer?: string | undefined;
+    answerMatch?: string | undefined;
+    studyExampleId?: number | undefined;
+    exampleSentence?: string | undefined;
+    elapsedMs?: number;
+    stateBefore?: string;
+    rungBefore?: number;
+    rungAfter?: number;
+    intervalBeforeDays?: number;
+    intervalAfterDays?: number;
+    voidedAtUtc?: Date | undefined;
+    voidReason?: string | undefined;
+
+    constructor(data?: IReviewLogEntryDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.id = _data["id"];
+            this.reviewedAtUtc = _data["reviewedAtUtc"] ? new Date(_data["reviewedAtUtc"].toString()) : <any>undefined;
+            this.wordId = _data["wordId"];
+            this.headword = _data["headword"];
+            this.exerciseType = _data["exerciseType"];
+            this.grade = _data["grade"];
+            this.isScaffold = _data["isScaffold"];
+            this.hintUsed = _data["hintUsed"];
+            this.tolerated = _data["tolerated"];
+            this.answer = _data["answer"];
+            this.answerMatch = _data["answerMatch"];
+            this.studyExampleId = _data["studyExampleId"];
+            this.exampleSentence = _data["exampleSentence"];
+            this.elapsedMs = _data["elapsedMs"];
+            this.stateBefore = _data["stateBefore"];
+            this.rungBefore = _data["rungBefore"];
+            this.rungAfter = _data["rungAfter"];
+            this.intervalBeforeDays = _data["intervalBeforeDays"];
+            this.intervalAfterDays = _data["intervalAfterDays"];
+            this.voidedAtUtc = _data["voidedAtUtc"] ? new Date(_data["voidedAtUtc"].toString()) : <any>undefined;
+            this.voidReason = _data["voidReason"];
+        }
+    }
+
+    static fromJS(data: any): ReviewLogEntryDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new ReviewLogEntryDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["id"] = this.id;
+        data["reviewedAtUtc"] = this.reviewedAtUtc ? this.reviewedAtUtc.toISOString() : <any>undefined;
+        data["wordId"] = this.wordId;
+        data["headword"] = this.headword;
+        data["exerciseType"] = this.exerciseType;
+        data["grade"] = this.grade;
+        data["isScaffold"] = this.isScaffold;
+        data["hintUsed"] = this.hintUsed;
+        data["tolerated"] = this.tolerated;
+        data["answer"] = this.answer;
+        data["answerMatch"] = this.answerMatch;
+        data["studyExampleId"] = this.studyExampleId;
+        data["exampleSentence"] = this.exampleSentence;
+        data["elapsedMs"] = this.elapsedMs;
+        data["stateBefore"] = this.stateBefore;
+        data["rungBefore"] = this.rungBefore;
+        data["rungAfter"] = this.rungAfter;
+        data["intervalBeforeDays"] = this.intervalBeforeDays;
+        data["intervalAfterDays"] = this.intervalAfterDays;
+        data["voidedAtUtc"] = this.voidedAtUtc ? this.voidedAtUtc.toISOString() : <any>undefined;
+        data["voidReason"] = this.voidReason;
+        return data;
+    }
+}
+
+export interface IReviewLogEntryDto {
+    id?: number;
+    reviewedAtUtc?: Date;
+    wordId?: number;
+    headword?: string;
+    exerciseType?: string;
+    grade?: string;
+    isScaffold?: boolean;
+    hintUsed?: boolean;
+    tolerated?: boolean;
+    answer?: string | undefined;
+    answerMatch?: string | undefined;
+    studyExampleId?: number | undefined;
+    exampleSentence?: string | undefined;
+    elapsedMs?: number;
+    stateBefore?: string;
+    rungBefore?: number;
+    rungAfter?: number;
+    intervalBeforeDays?: number;
+    intervalAfterDays?: number;
+    voidedAtUtc?: Date | undefined;
+    voidReason?: string | undefined;
+}
+
+export class CallUsageDto implements ICallUsageDto {
+    provider?: string;
+    purpose?: string;
+    promptVersion?: string | undefined;
+    calls?: number;
+    failed?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalDurationMs?: number;
+    firstAtUtc?: Date;
+    lastAtUtc?: Date;
+
+    constructor(data?: ICallUsageDto) {
+        if (data) {
+            for (var property in data) {
+                if (data.hasOwnProperty(property))
+                    (<any>this)[property] = (<any>data)[property];
+            }
+        }
+    }
+
+    init(_data?: any) {
+        if (_data) {
+            this.provider = _data["provider"];
+            this.purpose = _data["purpose"];
+            this.promptVersion = _data["promptVersion"];
+            this.calls = _data["calls"];
+            this.failed = _data["failed"];
+            this.promptTokens = _data["promptTokens"];
+            this.completionTokens = _data["completionTokens"];
+            this.totalDurationMs = _data["totalDurationMs"];
+            this.firstAtUtc = _data["firstAtUtc"] ? new Date(_data["firstAtUtc"].toString()) : <any>undefined;
+            this.lastAtUtc = _data["lastAtUtc"] ? new Date(_data["lastAtUtc"].toString()) : <any>undefined;
+        }
+    }
+
+    static fromJS(data: any): CallUsageDto {
+        data = typeof data === 'object' ? data : {};
+        let result = new CallUsageDto();
+        result.init(data);
+        return result;
+    }
+
+    toJSON(data?: any) {
+        data = typeof data === 'object' ? data : {};
+        data["provider"] = this.provider;
+        data["purpose"] = this.purpose;
+        data["promptVersion"] = this.promptVersion;
+        data["calls"] = this.calls;
+        data["failed"] = this.failed;
+        data["promptTokens"] = this.promptTokens;
+        data["completionTokens"] = this.completionTokens;
+        data["totalDurationMs"] = this.totalDurationMs;
+        data["firstAtUtc"] = this.firstAtUtc ? this.firstAtUtc.toISOString() : <any>undefined;
+        data["lastAtUtc"] = this.lastAtUtc ? this.lastAtUtc.toISOString() : <any>undefined;
+        return data;
+    }
+}
+
+export interface ICallUsageDto {
+    provider?: string;
+    purpose?: string;
+    promptVersion?: string | undefined;
+    calls?: number;
+    failed?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalDurationMs?: number;
+    firstAtUtc?: Date;
+    lastAtUtc?: Date;
 }
 
 export class PaginatedListOfImportDto implements IPaginatedListOfImportDto {

@@ -47,6 +47,7 @@ public class ExternalCallLogConfiguration : IEntityTypeConfiguration<ExternalCal
             .HasMaxLength(32);
 
         builder.Property(e => e.Model).HasMaxLength(64);
+        builder.Property(e => e.PromptVersion).HasMaxLength(20);
         builder.Property(e => e.Target).HasMaxLength(200);
         builder.Property(e => e.Url).HasMaxLength(1000);
         builder.Property(e => e.Error).HasMaxLength(2000);

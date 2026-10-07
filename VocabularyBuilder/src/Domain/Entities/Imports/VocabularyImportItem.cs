@@ -32,4 +32,16 @@ public class VocabularyImportItem : BaseEntity
 
     /// <summary>Why a skipped term was set aside: "Sentence", "Question", "Expression".</summary>
     public string? Reason { get; set; }
+
+    /// <summary>The form of the word the term was met in: "allons" for "aller".</summary>
+    public string? Form { get; set; }
+
+    /// <summary>The sentence the term was met in was kept as a practice example.</summary>
+    public bool ExampleAdded { get; set; }
+
+    /// <summary>
+    /// The form was new to the word's examples, so its finished study content was reopened -
+    /// which costs a model call the next time the word is studied.
+    /// </summary>
+    public bool ContentReopened { get; set; }
 }

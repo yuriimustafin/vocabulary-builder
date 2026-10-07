@@ -239,6 +239,23 @@ export class Imports extends Component {
           )}
         </p>
 
+        {(details.examplesAdded > 0 || details.contentReopened > 0) && (
+          <p className="text-muted" data-testid="import-study-effects">
+            {details.examplesAdded > 0 && (
+              <>{details.examplesAdded} sentence{details.examplesAdded === 1 ? '' : 's'} kept as practice examples. </>
+            )}
+            {details.contentReopened > 0 && (
+              <>
+                {details.contentReopened} word{details.contentReopened === 1 ? ' was' : 's were'} met in a new form, so
+                {details.contentReopened === 1 ? ' its' : ' their'} study content will be generated again
+                {details.externalCalls.laterStudyContentCalls > 0 && (
+                  <> - {details.externalCalls.laterStudyContentCalls} of those calls made so far</>
+                )}.
+              </>
+            )}
+          </p>
+        )}
+
         <div className="d-flex justify-content-between align-items-center mb-2">
           <h5 className="mb-0">Words ({words.length})</h5>
           <ButtonGroup size="sm">
@@ -254,6 +271,7 @@ export class Imports extends Component {
               <tr>
                 <th>Word</th>
                 <th>As written</th>
+                <th>Form</th>
                 <th></th>
                 <th>Encounter</th>
               </tr>
@@ -267,10 +285,13 @@ export class Imports extends Component {
                       : <span className="text-muted text-decoration-line-through" title="Deleted since">{item.headword}</span>}
                   </td>
                   <td className="text-muted">{item.sourceTerm !== item.headword ? item.sourceTerm : ''}</td>
+                  <td className="text-muted">{item.form && item.form !== item.headword ? item.form : ''}</td>
                   <td>
                     {item.outcome === 'Created'
                       ? <Badge color="success">New</Badge>
                       : <Badge color="secondary">Already known</Badge>}
+                    {item.exampleAdded && <Badge color="info" className="ms-1" title="The sentence it was met in became a practice example">example</Badge>}
+                    {item.contentReopened && <Badge color="warning" className="ms-1" title="A new form - study content will be generated again">new form</Badge>}
                   </td>
                   <td>{item.encounterAdded ? 'added' : <span className="text-muted">already recorded</span>}</td>
                 </tr>

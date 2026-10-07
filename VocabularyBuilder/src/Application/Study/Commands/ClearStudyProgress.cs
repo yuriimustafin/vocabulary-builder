@@ -57,15 +57,18 @@ public class ClearStudyProgressCommandHandler
             .Where(c => c.Word.Language == request.Language)
             .ToListAsync(cancellationToken);
 
-        var cardIds = cards.Select(c => c.Id).ToList();
-
+        // Every answer still in play for the language, including those of words whose card is
+        // already gone. They are voided rather than deleted: the progress is what is being
+        // thrown away, not the record that the answers were given
         var logs = await _context.ReviewLogs
-            .Where(l => cardIds.Contains(l.ReviewCardId))
+            .Where(l => l.Word.Language == request.Language && l.VoidedAtUtc == null)
             .ToListAsync(cancellationToken);
+
+        var now = _timeProvider.GetUtcNow().UtcDateTime;
 
         if (request.Scope == ClearStudyScope.All)
         {
-            _context.ReviewLogs.RemoveRange(logs);
+            Void(logs, now, "ClearedAll");
             _context.ReviewCards.RemoveRange(cards);
             _context.RecordActivity(
                 ActivityAction.StudyProgressCleared,
@@ -81,7 +84,7 @@ public class ClearStudyProgressCommandHandler
             };
         }
 
-        var dayStart = StudyDay.StartOf(_timeProvider.GetUtcNow().UtcDateTime, _options.DayRolloverHourUtc);
+        var dayStart = StudyDay.StartOf(now, _options.DayRolloverHourUtc);
 
         // A word first met today goes back to never having been studied.
         var introducedToday = cards.Where(c => c.IntroducedAtUtc >= dayStart).ToList();
@@ -93,12 +96,13 @@ public class ClearStudyProgressCommandHandler
         // it would take an ease and a success average that are not recorded per review, and
         // a plausible guess at them would be worse than saying so.
         var olderCardsTouchedToday = todaysLogs
-            .Select(l => l.ReviewCardId)
+            .Where(l => l.ReviewCardId != null)
+            .Select(l => l.ReviewCardId!.Value)
             .Where(id => !introducedTodayIds.Contains(id))
             .Distinct()
             .Count();
 
-        _context.ReviewLogs.RemoveRange(todaysLogs);
+        Void(todaysLogs, now, "ClearedToday");
         _context.ReviewCards.RemoveRange(introducedToday);
         _context.RecordActivity(
             ActivityAction.StudyProgressCleared,
@@ -113,5 +117,14 @@ public class ClearStudyProgressCommandHandler
             ReviewsRemoved = todaysLogs.Count,
             CardsLeftAdvanced = olderCardsTouchedToday
         };
+    }
+
+    private static void Void(IEnumerable<Domain.Entities.Study.ReviewLog> logs, DateTime now, string reason)
+    {
+        foreach (var log in logs)
+        {
+            log.VoidedAtUtc = now;
+            log.VoidReason = reason;
+        }
     }
 }

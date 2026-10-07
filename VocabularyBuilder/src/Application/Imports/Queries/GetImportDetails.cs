@@ -16,6 +16,15 @@ public class ImportItemDto
     public bool EncounterAdded { get; set; }
     public string? Reason { get; set; }
 
+    /// <summary>The form the word was met in, when the source gave one.</summary>
+    public string? Form { get; set; }
+
+    /// <summary>The sentence it was met in became a practice example.</summary>
+    public bool ExampleAdded { get; set; }
+
+    /// <summary>The form was new, so the word's study content will be generated again.</summary>
+    public bool ContentReopened { get; set; }
+
     /// <summary>The word's status now, not at the time of the import.</summary>
     public WordStatus? CurrentStatus { get; set; }
 }
@@ -23,6 +32,13 @@ public class ImportItemDto
 public class ImportCallsSummaryDto
 {
     public int Calls { get; set; }
+
+    /// <summary>
+    /// Of those, the study-content calls made later for words this import reopened - the
+    /// cost of the new forms it brought in, paid in a study session after it finished.
+    /// </summary>
+    public int LaterStudyContentCalls { get; set; }
+
     public int Failed { get; set; }
     public int PromptTokens { get; set; }
     public int CompletionTokens { get; set; }
@@ -31,6 +47,10 @@ public class ImportCallsSummaryDto
 public class ImportDetailsDto : ImportDto
 {
     public List<ImportItemDto> Items { get; set; } = new();
+
+    public int ExamplesAdded { get; set; }
+
+    public int ContentReopened { get; set; }
 
     /// <summary>The model and dictionary requests made while the import ran.</summary>
     public ImportCallsSummaryDto ExternalCalls { get; set; } = new();
@@ -72,6 +92,9 @@ public class GetImportDetailsQueryHandler : IRequestHandler<GetImportDetailsQuer
                 Outcome = i.Outcome.ToString(),
                 EncounterAdded = i.EncounterAdded,
                 Reason = i.Reason,
+                Form = i.Form,
+                ExampleAdded = i.ExampleAdded,
+                ContentReopened = i.ContentReopened,
                 CurrentStatus = i.Word != null ? i.Word.Status : null
             })
             .ToListAsync(cancellationToken);
@@ -79,15 +102,20 @@ public class GetImportDetailsQueryHandler : IRequestHandler<GetImportDetailsQuer
         var calls = await _context.ExternalCallLog
             .AsNoTracking()
             .Where(c => c.ImportId == import.Id)
-            .Select(c => new { c.Succeeded, c.PromptTokens, c.CompletionTokens })
+            .Select(c => new { c.Succeeded, c.PromptTokens, c.CompletionTokens, c.Purpose, c.StartedAtUtc })
             .ToListAsync(cancellationToken);
 
         var details = GetImportsQueryHandler.Fill(new ImportDetailsDto(), import);
 
         details.Items = items;
+        details.ExamplesAdded = items.Count(i => i.ExampleAdded);
+        details.ContentReopened = items.Count(i => i.ContentReopened);
         details.ExternalCalls = new ImportCallsSummaryDto
         {
             Calls = calls.Count,
+            LaterStudyContentCalls = calls.Count(c =>
+                c.Purpose == ExternalCallPurpose.StudyContent
+                && (import.CompletedAtUtc is null || c.StartedAtUtc > import.CompletedAtUtc)),
             Failed = calls.Count(c => !c.Succeeded),
             PromptTokens = calls.Sum(c => c.PromptTokens ?? 0),
             CompletionTokens = calls.Sum(c => c.CompletionTokens ?? 0)

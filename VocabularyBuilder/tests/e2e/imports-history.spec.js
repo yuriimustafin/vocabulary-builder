@@ -98,5 +98,12 @@ test.describe('Imports and history', () => {
 
     await calls.filter({ hasText: 'Dictionary entry' }).first().locator('[data-testid="view-call"]').click();
     await expect(page.locator('[data-testid="call-details"]')).toContainText('"maison"');
+
+    await page.locator('.modal.show .btn-secondary', { hasText: 'Close' }).click();
+    await expect(page.locator('.modal.show')).toHaveCount(0);
+
+    // What the calls added up to, by purpose
+    await page.click('[data-testid="tab-usage"]');
+    await expect(page.locator('[data-testid="usage-row"]').filter({ hasText: 'Dictionary entry' })).toHaveCount(1);
   });
 });

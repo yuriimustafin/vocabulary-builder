@@ -41,19 +41,19 @@ public class MarkWordAsKnownCommandHandler : IRequestHandler<MarkWordAsKnownComm
         card.Word.Status = WordStatus.Known;
         card.Word.IsMarkedForStudy = false;
 
-        var logs = await _context.ReviewLogs
-            .Where(l => l.ReviewCardId == card.Id)
-            .ToListAsync(cancellationToken);
+        var reviews = await _context.ReviewLogs
+            .CountAsync(l => l.ReviewCardId == card.Id && !l.IsScaffold, cancellationToken);
 
-        _context.ReviewLogs.RemoveRange(logs);
+        // The card goes - the word is no longer scheduled - but the answers stay with the word,
+        // their card link cleared, so the history of how it came to be known is still there
         _context.ReviewCards.Remove(card);
 
-        // The card and its answers go, so this is the only record of how far it had got
+        // The card's own state is not in any review, so this is the record of where it was left
         _context.RecordActivity(
             ActivityAction.WordMarkedKnown,
             card.Word,
-            summary: $"Known after {logs.Count} reviews",
-            details: new { reviewsRemoved = logs.Count, card.State, card.CurrentRung, card.IntervalDays, card.Lapses });
+            summary: $"Known after {reviews} reviews",
+            details: new { reviews, card.State, card.CurrentRung, card.IntervalDays, card.Lapses });
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;

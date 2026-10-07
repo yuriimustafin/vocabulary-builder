@@ -11,7 +11,7 @@ public class ActivityLogEntryDto
     public DateTime OccurredAtUtc { get; set; }
     public string Action { get; set; } = string.Empty;
 
-    /// <summary>Words, Dictionary, Imports, Study or Lists - what the page filters by.</summary>
+    /// <summary>Words, Dictionary, Imports, Study, StudyContent or Lists - what the page filters by.</summary>
     public string Category { get; set; } = string.Empty;
 
     public Language? Language { get; set; }
@@ -46,6 +46,7 @@ public static class ActivityCategories
     public const string Imports = "Imports";
     public const string Study = "Study";
     public const string Lists = "Lists";
+    public const string StudyContent = "StudyContent";
 
     public static string Of(ActivityAction action) => action switch
     {
@@ -59,6 +60,9 @@ public static class ActivityCategories
         ActivityAction.CardSuspended or ActivityAction.CardResumed or ActivityAction.CardReset
             or ActivityAction.StudyProgressCleared or ActivityAction.WordMarkedForStudy
             or ActivityAction.WordUnmarkedForStudy or ActivityAction.WordMarkedKnown => Study,
+
+        ActivityAction.StudyContentGenerated or ActivityAction.StudyContentFailed
+            or ActivityAction.StudyContentReopened => StudyContent,
 
         ActivityAction.ListCreated or ActivityAction.ListUpdated or ActivityAction.ListDeleted
             or ActivityAction.ListItemAdded or ActivityAction.ListItemUpdated

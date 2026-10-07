@@ -44,6 +44,7 @@ public class RecordFollowUpCommandHandler : IRequestHandler<RecordFollowUpComman
 
         _context.ReviewLogs.Add(new Domain.Entities.Study.ReviewLog
         {
+            WordId = card.WordId,
             ReviewCardId = card.Id,
             AttemptId = request.AttemptId,
             ReviewedAtUtc = _timeProvider.GetUtcNow().UtcDateTime,
@@ -55,7 +56,8 @@ public class RecordFollowUpCommandHandler : IRequestHandler<RecordFollowUpComman
             RungBefore = card.CurrentRung,
             IntervalBeforeDays = card.IntervalDays,
             IntervalAfterDays = card.IntervalDays,
-            EaseFactorAfter = card.EaseFactor
+            EaseFactorAfter = card.EaseFactor,
+            RungAfter = card.CurrentRung
         });
 
         await _context.SaveChangesAsync(cancellationToken);

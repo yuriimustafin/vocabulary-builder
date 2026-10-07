@@ -31,7 +31,8 @@ public static class ExternalCallScope
         ExternalCallPurpose? purpose = null,
         string? target = null,
         int? wordId = null,
-        int? importId = null)
+        int? importId = null,
+        string? promptVersion = null)
     {
         var outer = CurrentFrame.Value;
 
@@ -39,12 +40,14 @@ public static class ExternalCallScope
             purpose ?? outer?.Purpose,
             target ?? outer?.Target,
             wordId ?? outer?.WordId,
-            importId ?? outer?.ImportId);
+            importId ?? outer?.ImportId,
+            promptVersion ?? outer?.PromptVersion);
 
         return new Restore(outer);
     }
 
-    public sealed record Frame(ExternalCallPurpose? Purpose, string? Target, int? WordId, int? ImportId);
+    public sealed record Frame(
+        ExternalCallPurpose? Purpose, string? Target, int? WordId, int? ImportId, string? PromptVersion = null);
 
     private sealed class Restore : IDisposable
     {

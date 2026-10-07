@@ -12,6 +12,83 @@ namespace VocabularyBuilder.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_ReviewLogs_ReviewCards_ReviewCardId",
+                table: "ReviewLogs");
+
+            migrationBuilder.AddColumn<int>(
+                name: "ReopenedByImportId",
+                table: "WordStudyContents",
+                type: "INTEGER",
+                nullable: true);
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ReviewCardId",
+                table: "ReviewLogs",
+                type: "INTEGER",
+                nullable: true,
+                oldClrType: typeof(int),
+                oldType: "INTEGER");
+
+            migrationBuilder.AddColumn<string>(
+                name: "Answer",
+                table: "ReviewLogs",
+                type: "TEXT",
+                maxLength: 500,
+                nullable: true);
+
+            migrationBuilder.AddColumn<string>(
+                name: "AnswerMatch",
+                table: "ReviewLogs",
+                type: "TEXT",
+                maxLength: 32,
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "RungAfter",
+                table: "ReviewLogs",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: 0);
+
+            migrationBuilder.AddColumn<int>(
+                name: "StudyExampleId",
+                table: "ReviewLogs",
+                type: "INTEGER",
+                nullable: true);
+
+            migrationBuilder.AddColumn<bool>(
+                name: "Tolerated",
+                table: "ReviewLogs",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: false);
+
+            migrationBuilder.AddColumn<string>(
+                name: "VoidReason",
+                table: "ReviewLogs",
+                type: "TEXT",
+                maxLength: 32,
+                nullable: true);
+
+            migrationBuilder.AddColumn<DateTime>(
+                name: "VoidedAtUtc",
+                table: "ReviewLogs",
+                type: "TEXT",
+                nullable: true);
+
+            migrationBuilder.AddColumn<int>(
+                name: "WordId",
+                table: "ReviewLogs",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: 0);
+
+            // An answer now belongs to its word rather than its card, so that the card can go
+            // without it. Every existing answer still has its card, which names the word
+            migrationBuilder.Sql(
+                "UPDATE ReviewLogs SET WordId = (SELECT WordId FROM ReviewCards WHERE ReviewCards.Id = ReviewLogs.ReviewCardId);");
+
             migrationBuilder.CreateTable(
                 name: "ActivityLog",
                 columns: table => new
@@ -52,6 +129,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     Provider = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
                     Purpose = table.Column<string>(type: "TEXT", maxLength: 32, nullable: false),
                     Model = table.Column<string>(type: "TEXT", maxLength: 64, nullable: true),
+                    PromptVersion = table.Column<string>(type: "TEXT", maxLength: 20, nullable: true),
                     Target = table.Column<string>(type: "TEXT", maxLength: 200, nullable: true),
                     Url = table.Column<string>(type: "TEXT", maxLength: 1000, nullable: true),
                     Request = table.Column<string>(type: "TEXT", nullable: true),
@@ -128,7 +206,10 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     SourceTerm = table.Column<string>(type: "TEXT", maxLength: 500, nullable: false),
                     Outcome = table.Column<int>(type: "INTEGER", nullable: false),
                     EncounterAdded = table.Column<bool>(type: "INTEGER", nullable: false),
-                    Reason = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true)
+                    Reason = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    Form = table.Column<string>(type: "TEXT", maxLength: 100, nullable: true),
+                    ExampleAdded = table.Column<bool>(type: "INTEGER", nullable: false),
+                    ContentReopened = table.Column<bool>(type: "INTEGER", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -146,6 +227,11 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReviewLogs_WordId_ReviewedAtUtc",
+                table: "ReviewLogs",
+                columns: new[] { "WordId", "ReviewedAtUtc" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_ActivityLog_ImportId",
@@ -192,6 +278,22 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                 table: "VocabularyImports",
                 columns: new[] { "OwnerId", "StartedAtUtc" });
 
+            migrationBuilder.AddForeignKey(
+                name: "FK_ReviewLogs_ReviewCards_ReviewCardId",
+                table: "ReviewLogs",
+                column: "ReviewCardId",
+                principalTable: "ReviewCards",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.SetNull);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_ReviewLogs_Words_WordId",
+                table: "ReviewLogs",
+                column: "WordId",
+                principalTable: "Words",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
+
             // Imports made before there was anything to record them: put back together from
             // their encounters, and marked as reconstructed
             migrationBuilder.Sql(ImportBackfill.Sql);
@@ -200,6 +302,14 @@ namespace VocabularyBuilder.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropForeignKey(
+                name: "FK_ReviewLogs_ReviewCards_ReviewCardId",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropForeignKey(
+                name: "FK_ReviewLogs_Words_WordId",
+                table: "ReviewLogs");
+
             migrationBuilder.DropTable(
                 name: "ActivityLog");
 
@@ -211,6 +321,64 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "VocabularyImports");
+
+            migrationBuilder.DropIndex(
+                name: "IX_ReviewLogs_WordId_ReviewedAtUtc",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "ReopenedByImportId",
+                table: "WordStudyContents");
+
+            migrationBuilder.DropColumn(
+                name: "Answer",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "AnswerMatch",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "RungAfter",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "StudyExampleId",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "Tolerated",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "VoidReason",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "VoidedAtUtc",
+                table: "ReviewLogs");
+
+            migrationBuilder.DropColumn(
+                name: "WordId",
+                table: "ReviewLogs");
+
+            migrationBuilder.AlterColumn<int>(
+                name: "ReviewCardId",
+                table: "ReviewLogs",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: 0,
+                oldClrType: typeof(int),
+                oldType: "INTEGER",
+                oldNullable: true);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_ReviewLogs_ReviewCards_ReviewCardId",
+                table: "ReviewLogs",
+                column: "ReviewCardId",
+                principalTable: "ReviewCards",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Cascade);
         }
     }
 }

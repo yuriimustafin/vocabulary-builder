@@ -559,6 +559,121 @@
         }
       }
     },
+    "/api/{lang}/history/reviews": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "operationId": "GetApiHistoryReviews",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "wordId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "nullable": true
+            },
+            "x-position": 2
+          },
+          {
+            "name": "includeFollowUps",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "x-position": 3
+          },
+          {
+            "name": "pageNumber",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            },
+            "x-position": 4
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            },
+            "x-position": 5
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedListOfReviewLogEntryDto"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/{lang}/history/usage": {
+      "get": {
+        "tags": [
+          "History"
+        ],
+        "operationId": "GetApiHistoryUsage",
+        "parameters": [
+          {
+            "name": "lang",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "x-position": 1
+          },
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 30,
+              "nullable": true
+            },
+            "x-position": 2
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CallUsageDto"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/{lang}/imports": {
       "get": {
         "tags": [
@@ -2922,6 +3037,165 @@
           6,
           7
         ]
+      },
+      "PaginatedListOfReviewLogEntryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ReviewLogEntryDto"
+            }
+          },
+          "pageNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalPages": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "hasPreviousPage": {
+            "type": "boolean"
+          },
+          "hasNextPage": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ReviewLogEntryDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "reviewedAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "wordId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "headword": {
+            "type": "string"
+          },
+          "exerciseType": {
+            "type": "string"
+          },
+          "grade": {
+            "type": "string"
+          },
+          "isScaffold": {
+            "type": "boolean"
+          },
+          "hintUsed": {
+            "type": "boolean"
+          },
+          "tolerated": {
+            "type": "boolean"
+          },
+          "answer": {
+            "type": "string",
+            "nullable": true
+          },
+          "answerMatch": {
+            "type": "string",
+            "nullable": true
+          },
+          "studyExampleId": {
+            "type": "integer",
+            "format": "int32",
+            "nullable": true
+          },
+          "exampleSentence": {
+            "type": "string",
+            "nullable": true
+          },
+          "elapsedMs": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "stateBefore": {
+            "type": "string"
+          },
+          "rungBefore": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "rungAfter": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "intervalBeforeDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "intervalAfterDays": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "voidedAtUtc": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "voidReason": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "CallUsageDto": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "purpose": {
+            "type": "string"
+          },
+          "promptVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "calls": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "promptTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "completionTokens": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalDurationMs": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "firstAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastAtUtc": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
       },
       "PaginatedListOfImportDto": {
         "type": "object",

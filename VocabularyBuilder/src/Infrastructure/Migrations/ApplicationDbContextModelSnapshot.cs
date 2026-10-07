@@ -271,6 +271,10 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<int?>("PromptTokens")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("PromptVersion")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Provider")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -408,8 +412,18 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("ContentReopened")
+                        .HasColumnType("INTEGER");
+
                     b.Property<bool>("EncounterAdded")
                         .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ExampleAdded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Form")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Headword")
                         .IsRequired()
@@ -527,6 +541,14 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Answer")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AnswerMatch")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("AttemptId")
                         .HasColumnType("TEXT");
 
@@ -557,16 +579,35 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<bool>("IsScaffold")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("ReviewCardId")
+                    b.Property<int?>("ReviewCardId")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("ReviewedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("RungAfter")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("RungBefore")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("StateBefore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("StudyExampleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Tolerated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("VoidedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WordId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -575,6 +616,8 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("ReviewCardId", "ReviewedAtUtc");
+
+                    b.HasIndex("WordId", "ReviewedAtUtc");
 
                     b.ToTable("ReviewLogs");
                 });
@@ -683,6 +726,9 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("ReopenedByImportId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -1417,10 +1463,17 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.HasOne("VocabularyBuilder.Domain.Entities.Study.ReviewCard", "ReviewCard")
                         .WithMany()
                         .HasForeignKey("ReviewCardId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("ReviewCard");
+
+                    b.Navigation("Word");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.StudyExample", b =>

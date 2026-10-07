@@ -22,6 +22,8 @@ public class History : EndpointGroupBase
         group.MapGet("/calls", GetCalls);
         group.MapGet("/calls/{id}", GetCall);
         group.MapGet("/words/{wordId}", GetWordHistory);
+        group.MapGet("/reviews", GetReviews);
+        group.MapGet("/usage", GetUsage);
     }
 
     public async Task<PaginatedList<ActivityLogEntryDto>> GetActivity(
@@ -71,6 +73,29 @@ public class History : EndpointGroupBase
     {
         var call = await sender.Send(new GetExternalCallQuery(id));
         return call != null ? Results.Ok(call) : Results.NotFound();
+    }
+
+    public async Task<PaginatedList<ReviewLogEntryDto>> GetReviews(
+        ISender sender,
+        string lang,
+        int? wordId = null,
+        bool includeFollowUps = false,
+        int pageNumber = 1,
+        int pageSize = 50)
+    {
+        return await sender.Send(new GetReviewLogQuery
+        {
+            Language = ParseLanguage(lang),
+            WordId = wordId,
+            IncludeFollowUps = includeFollowUps,
+            PageNumber = pageNumber,
+            PageSize = pageSize
+        });
+    }
+
+    public async Task<List<CallUsageDto>> GetUsage(ISender sender, string lang, int? days = 30)
+    {
+        return await sender.Send(new GetCallUsageQuery(days));
     }
 
     public async Task<IResult> GetWordHistory(ISender sender, string lang, int wordId)

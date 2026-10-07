@@ -54,6 +54,7 @@ public class ExternalCallRecorder : IExternalCallRecorder
         call.Target ??= frame?.Target;
         call.WordId ??= frame?.WordId;
         call.ImportId ??= frame?.ImportId;
+        call.PromptVersion ??= frame?.PromptVersion;
 
         if (call.Target is { Length: > 200 })
         {

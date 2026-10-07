@@ -199,6 +199,45 @@ public class LearningSessionTests
         (await Card()).CurrentRung.Should().Be(3, "the third clean answer on the level moves it up");
     }
 
+    /// <summary>
+    /// The review history keeps the answer as typed and how it was marked - what a slip was,
+    /// which nothing else records once the card has moved on.
+    /// </summary>
+    [Test]
+    public async Task TheReviewLogKeepsWhatWasTypedAndHowItWasMarked()
+    {
+        await SeedTypingCard();
+
+        await Submit(await Next(), answer: "remembr");
+
+        var card = await Card();
+        var log = await _db.Context.ReviewLogs.AsNoTracking().OrderBy(l => l.Id).LastAsync();
+
+        log.Answer.Should().Be("remembr");
+        log.AnswerMatch.Should().Be("Typo");
+        log.Grade.Should().Be(ReviewGrade.Hard);
+        log.WordId.Should().Be(card.WordId);
+        log.RungAfter.Should().Be(card.CurrentRung);
+        log.Tolerated.Should().BeFalse();
+    }
+
+    [Test]
+    public async Task TheReviewLogNamesTheSentenceItWasAskedOn()
+    {
+        var first = await AddExample(Word, "I remember her name.", "remember");
+        await AddExample(Word, "Remember to call me.", "Remember");
+        await SeedCard(rung: 3, streak: 0, CardState.Review, interval: 3, last: ExerciseType.MeaningToWordRecall);
+
+        var card = await Next();
+        card.Exercise.ExampleId.Should().Be(first.Id);
+
+        await Submit(card, selfGrade: ReviewGrade.Good);
+
+        var log = await _db.Context.ReviewLogs.AsNoTracking().OrderBy(l => l.Id).LastAsync();
+        log.StudyExampleId.Should().Be(first.Id);
+        log.Answer.Should().BeNull("a self-graded recall has no answer to keep");
+    }
+
     [Test]
     public async Task TheLastExerciseAskedIsRememberedOnTheCard()
     {

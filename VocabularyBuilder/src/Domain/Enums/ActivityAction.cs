@@ -29,6 +29,10 @@ public enum ActivityAction
     ImportFailed,
     FrequencyDataImported,
 
+    StudyContentGenerated,
+    StudyContentFailed,
+    StudyContentReopened,
+
     CardSuspended,
     CardResumed,
     CardReset,

@@ -29,6 +29,7 @@ public class VocabularyImportItemConfiguration : IEntityTypeConfiguration<Vocabu
         builder.Property(i => i.Headword).HasMaxLength(200);
         builder.Property(i => i.SourceTerm).HasMaxLength(500);
         builder.Property(i => i.Reason).HasMaxLength(100);
+        builder.Property(i => i.Form).HasMaxLength(100);
 
         // The import brought the word in whether or not it is still here
         builder.HasOne(i => i.Word)

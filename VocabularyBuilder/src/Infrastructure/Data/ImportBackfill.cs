@@ -40,6 +40,7 @@ public static class ImportBackfill
             e.Context,
             e.SourceIdentifier,
             e.Created,
+            e.Form,
             CASE
                 WHEN e.Context IS NOT NULL AND e.Context <> ''
                      AND substr(e.SourceIdentifier, 1, length(e.Context) + 1) = e.Context || ':'
@@ -94,7 +95,8 @@ public static class ImportBackfill
         FROM ImportBackfillGroups
         ORDER BY StartedAtUtc;
 
-        INSERT INTO VocabularyImportItems (ImportId, WordId, Headword, SourceTerm, Outcome, EncounterAdded, Reason)
+        INSERT INTO VocabularyImportItems (
+            ImportId, WordId, Headword, SourceTerm, Outcome, EncounterAdded, Reason, Form, ExampleAdded, ContentReopened)
         SELECT
             i.Id,
             b.WordId,
@@ -109,7 +111,10 @@ public static class ImportBackfill
                   AND f.Prefix = b.Prefix AND f.Day = b.Day)
             THEN 0 ELSE 1 END,
             1,
-            NULL
+            NULL,
+            b.Form,
+            0,
+            0
         FROM ImportBackfillEncounters b
         JOIN ImportBackfillGroups g
             ON g.OwnerId = b.OwnerId AND g.Language = b.Language AND g.Source = b.Source

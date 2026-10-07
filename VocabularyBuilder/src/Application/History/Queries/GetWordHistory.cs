@@ -24,6 +24,9 @@ public class WordHistoryDto
     public List<WordImportDto> Imports { get; set; } = new();
     public List<ActivityLogEntryDto> Activity { get; set; } = new();
     public List<ExternalCallDto> Calls { get; set; } = new();
+
+    /// <summary>Its graded answers, newest first - voided ones included, and marked.</summary>
+    public List<ReviewLogEntryDto> Reviews { get; set; } = new();
 }
 
 /// <summary>
@@ -109,11 +112,20 @@ public class GetWordHistoryQueryHandler : IRequestHandler<GetWordHistoryQuery, W
             .Take(Limit)
             .ToListAsync(cancellationToken);
 
+        var reviews = await _context.ReviewLogs
+            .AsNoTracking()
+            .Where(l => l.WordId == word.Id && !l.IsScaffold)
+            .OrderByDescending(l => l.Id)
+            .Take(Limit)
+            .ToListAsync(cancellationToken);
+
         return new WordHistoryDto
         {
             Imports = imports,
             Activity = activity.Select(ActivityLogEntryDto.From).ToList(),
-            Calls = calls.Select(c => ExternalCallDto.Fill(new ExternalCallDto(), c)).ToList()
+            Calls = calls.Select(c => ExternalCallDto.Fill(new ExternalCallDto(), c)).ToList(),
+            Reviews = await new GetReviewLogQueryHandler(_context).WithSentences(
+                reviews.Select(r => (r, word.Headword)).ToList(), cancellationToken)
         };
     }
 }

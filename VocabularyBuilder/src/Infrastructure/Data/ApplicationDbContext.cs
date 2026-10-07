@@ -180,7 +180,7 @@ public class ApplicationDbContext : IdentityDbContext<ApplicationUser>, IApplica
         builder.Entity<WordStudyContent>().HasQueryFilter(c => c.Word.OwnerId == CurrentUserId);
         builder.Entity<StudyExample>().HasQueryFilter(e => e.Word.OwnerId == CurrentUserId);
         builder.Entity<ReviewCard>().HasQueryFilter(c => c.Word.OwnerId == CurrentUserId);
-        builder.Entity<ReviewLog>().HasQueryFilter(l => l.ReviewCard.Word.OwnerId == CurrentUserId);
+        builder.Entity<ReviewLog>().HasQueryFilter(l => l.Word.OwnerId == CurrentUserId);
         builder.Entity<VocabularyListItem>().HasQueryFilter(i => i.List.OwnerId == CurrentUserId);
         builder.Entity<TodoItem>().HasQueryFilter(i => i.List.OwnerId == CurrentUserId);
         builder.Entity<VocabularyImportItem>().HasQueryFilter(i => i.Import.OwnerId == CurrentUserId);

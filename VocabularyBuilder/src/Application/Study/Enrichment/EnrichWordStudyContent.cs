@@ -251,7 +251,14 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         {
             string? response;
 
-            using (ExternalCallScope.Begin(ExternalCallPurpose.StudyContent, target: word.Headword, wordId: word.Id))
+            // Filed under the import that reopened the content, when one did: this call is
+            // the cost of the new form it brought in
+            using (ExternalCallScope.Begin(
+                ExternalCallPurpose.StudyContent,
+                target: word.Headword,
+                wordId: word.Id,
+                importId: content.ReopenedByImportId,
+                promptVersion: StudyContentPrompt.Version))
             {
                 response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps, forms, meaning, toGloss.Select(e => e.Sentence).ToList()));
             }
@@ -259,13 +266,16 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         }
         catch (Exception ex)
         {
-            return await RecordFailure(content, ex.Message, cancellationToken);
+            return await RecordFailure(word, content, ex.Message, cancellationToken);
         }
 
         if (generated is null)
         {
-            return await RecordFailure(content, "The model returned nothing usable.", cancellationToken);
+            return await RecordFailure(word, content, "The model returned nothing usable.", cancellationToken);
         }
+
+        // What a regeneration overwrites is otherwise gone; the activity log keeps it
+        var before = Snapshot(content);
 
         if (gaps.HasFlag(StudyMaterialGaps.Meaning) && !string.IsNullOrWhiteSpace(generated.Definition))
         {
@@ -296,7 +306,7 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         if (remaining.HasFlag(StudyMaterialGaps.Meaning))
         {
-            return await RecordFailure(content, "No usable definition was produced.", cancellationToken);
+            return await RecordFailure(word, content, "No usable definition was produced.", cancellationToken);
         }
 
         // Only now, so a failed generation is asked for everything again on its retry
@@ -308,9 +318,55 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         content.Status = StudyContentStatus.Ready;
         content.ClaimedAtUtc = null;
         content.LastError = null;
+
+        var glossed = Math.Min(toGloss.Count, generated.Glosses?.Count ?? 0);
+        var changes = ActivityRecording.Changes(before, Snapshot(content));
+
+        _context.RecordActivity(
+            ActivityAction.StudyContentGenerated,
+            word,
+            summary: DescribeGeneration(gaps, added.Count, glossed, changes),
+            details: new
+            {
+                promptVersion = StudyContentPrompt.Version,
+                gaps = gaps.ToString(),
+                examplesAdded = added.Select(e => new { e.Form, e.Sentence }).ToList(),
+                glossed,
+                changes
+            },
+            importId: content.ReopenedByImportId);
+
+        content.ReopenedByImportId = null;
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return EnrichmentOutcome.Generated;
+    }
+
+    private static Dictionary<string, object?> Snapshot(WordStudyContent content) => new()
+    {
+        [nameof(WordStudyContent.GeneratedDefinition)] = content.GeneratedDefinition,
+        [nameof(WordStudyContent.Usage)] = content.Usage,
+        [nameof(WordStudyContent.Etymology)] = content.Etymology,
+        [nameof(WordStudyContent.Cognates)] = content.Cognates,
+        [nameof(WordStudyContent.Mnemonic)] = content.Mnemonic,
+        [nameof(WordStudyContent.PromptVersion)] = content.PromptVersion
+    };
+
+    private static string DescribeGeneration(
+        StudyMaterialGaps gaps, int examples, int glossed, Dictionary<string, object?>? changes)
+    {
+        var parts = new List<string>();
+
+        if (examples > 0) parts.Add($"{examples} example{(examples == 1 ? "" : "s")}");
+        if (glossed > 0) parts.Add($"{glossed} glossed");
+
+        var fields = changes?.Keys.Where(k => k != nameof(WordStudyContent.PromptVersion)).ToList() ?? new List<string>();
+        if (fields.Count > 0) parts.Add(string.Join(", ", fields.Select(f => f.Replace("Generated", "").ToLowerInvariant())));
+
+        var version = gaps.HasFlag(StudyMaterialGaps.Connections) ? $"{StudyContentPrompt.Version}: " : "";
+
+        return version + (parts.Count > 0 ? string.Join("; ", parts) : "nothing new");
     }
 
     /// <summary>
@@ -391,7 +447,7 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
     }
 
     private async Task<EnrichmentOutcome> RecordFailure(
-        WordStudyContent content, string error, CancellationToken cancellationToken)
+        Word word, WordStudyContent content, string error, CancellationToken cancellationToken)
     {
         content.GenerationAttempts++;
         content.LastError = error;
@@ -399,6 +455,13 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         var givenUp = content.GenerationAttempts >= _options.EnrichmentMaxAttempts;
         content.Status = givenUp ? StudyContentStatus.Failed : StudyContentStatus.Pending;
+
+        _context.RecordActivity(
+            ActivityAction.StudyContentFailed,
+            word,
+            summary: $"Attempt {content.GenerationAttempts}{(givenUp ? ", given up" : "")}: {error}",
+            details: new { attempt = content.GenerationAttempts, givenUp, error, promptVersion = StudyContentPrompt.Version },
+            importId: content.ReopenedByImportId);
 
         await _context.SaveChangesAsync(cancellationToken);
 

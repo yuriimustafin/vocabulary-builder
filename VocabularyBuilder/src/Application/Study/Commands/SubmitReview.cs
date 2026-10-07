@@ -258,6 +258,7 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
 
         _context.ReviewLogs.Add(new ReviewLog
         {
+            WordId = card.WordId,
             ReviewCardId = card.Id,
             AttemptId = request.AttemptId,
             ReviewedAtUtc = now,
@@ -272,7 +273,12 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
             RungBefore = before.Rung,
             IntervalBeforeDays = before.IntervalDays,
             IntervalAfterDays = card.IntervalDays,
-            EaseFactorAfter = card.EaseFactor
+            EaseFactorAfter = card.EaseFactor,
+            RungAfter = card.CurrentRung,
+            Answer = AnswerAsGiven(request),
+            AnswerMatch = typed?.Kind.ToString(),
+            StudyExampleId = material.ExampleId,
+            Tolerated = tolerated
         });
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -328,6 +334,19 @@ public class SubmitReviewCommandHandler : IRequestHandler<SubmitReviewCommand, R
     /// correctly goes to the back of the queue, so the word is next asked on one it has not
     /// yet practised; one that was missed stays at the front.
     /// </summary>
+    /// <summary>
+    /// The answer as the learner gave it, for the review history: the typed or chosen text, or
+    /// the tiles of a scramble in the order they were put.
+    /// </summary>
+    private static string? AnswerAsGiven(SubmitReviewCommand request)
+    {
+        var answer = !string.IsNullOrWhiteSpace(request.Answer)
+            ? request.Answer.Trim()
+            : request.Selections is { Count: > 0 } ? string.Join(" | ", request.Selections) : null;
+
+        return answer is { Length: > 500 } ? answer[..500] : answer;
+    }
+
     private static void RecordExampleUse(
         List<StudyExample> examples, StudyMaterial material, SubmitReviewCommand request, ReviewGrade grade, DateTime now)
     {

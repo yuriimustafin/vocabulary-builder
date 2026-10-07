@@ -29,6 +29,12 @@ public class ExternalCallLog : BaseEntity, IOwnedEntity
     /// <summary>The model name, for a model call.</summary>
     public string? Model { get; set; }
 
+    /// <summary>
+    /// The version of the prompt, where it has one. Bumping the study-content version asks
+    /// every word again, and this is what makes that cost visible.
+    /// </summary>
+    public string? PromptVersion { get; set; }
+
     /// <summary>What the call was about - usually the word looked up.</summary>
     public string? Target { get; set; }
 

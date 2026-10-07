@@ -279,18 +279,21 @@ settings and fail all of it in `OneTimeSetUp`.
 
 ## History
 
-Three records, each written by the thing it describes, and shown on two pages: **Imports**
-(`/imports`, `Web/Endpoints/Imports.cs`) and **History** (`/history`, `Web/Endpoints/History.cs`).
-Word details show a word's own slice of both.
+Four records, each written by the thing it describes, and shown on two pages: **Imports**
+(`/imports`, `Web/Endpoints/Imports.cs`) and **History** (`/history`, `Web/Endpoints/History.cs`),
+whose tabs are activity, study answers, calls, and usage - the calls totalled by service, purpose
+and prompt version. Word details show a word's own slice of all of them.
 
 | Table | Holds | Written |
 | --- | --- | --- |
 | `VocabularyImports`, `VocabularyImportItems` | One row per import run, one item per term it was given - the word it became, or why it became none | By the import, as it runs |
 | `ActivityLog` | What was done to a user's data: edits, status changes, deletes, fills, exports, list changes, card resets | In the same `SaveChanges` as the change |
 | `ExternalCallLog` | Every request to GPT, WordReference or Oxford: prompt and answer in full for the model, URL/status/size for pages | On a context of its own, at once |
+| `ReviewLogs` | Every study answer: exercise, grade, level before and after, the answer as given and how a typed one was marked, the example sentence asked | By the study commands, as before |
 
-None of them has a foreign key to a word, except an import item's `WordId`, which is **set
-null** on delete. History that cascaded away with its subject would not be history: a deleted
+None of the first three has a foreign key to a word, except an import item's `WordId`, which is
+**set null** on delete. (Review logs do cascade with their word: deleting a word is deleting its
+study record, and the `WordDeleted` entry says so.) History that cascaded away with its subject would not be history: a deleted
 word keeps its `WordDeleted` entry, by id and by a copy of its headword. Enums in the two log
 tables are stored **by name**, so a member inserted mid-enum does not relabel old rows.
 
@@ -313,6 +316,37 @@ work around it succeeds - a model call made during an import that then fails was
 and because most calls happen inside queries, which never save. It copies the owner from the
 calling scope's `IUser`, which is what keeps the enrichment worker's calls filed under the word's
 owner. It never throws; a row it cannot write is logged and dropped.
+
+### Study content and study answers
+
+**A generation logs what it wrote.** `EnrichWordStudyContent` records `StudyContentGenerated`
+with the prompt version, the examples added and a from/to of every field it replaced - a version
+bump overwrites etymology and mnemonic, and that entry is where the old ones survive - and
+`StudyContentFailed` with the attempt and error. Its call carries `PromptVersion` too
+(`ExternalCallScope.Begin(promptVersion: ...)`), which is what the usage tab totals by: bumping
+`StudyContentPrompt.Version` asks every word again, and shows up there as a new row.
+
+**An import is charged for the generation its new forms cause.** When `UpsertWord.CoverForm`
+reopens Ready content because a form has no example, it logs `StudyContentReopened` against the
+import and stamps `WordStudyContent.ReopenedByImportId`. The enrichment that follows - in a study
+session, possibly days later - opens its call scope with that import, so the call is filed under
+it, and clears the stamp once the content is Ready. The import popup counts those as "later"
+calls. Import items also record the `Form` the term was met in, and whether its sentence became an
+example (`ExampleAdded`) or the content was reopened (`ContentReopened`).
+
+**Study answers are not copied into the activity log** - a session would flood it - but the review
+log is shown alongside it. It now **belongs to the word**: `ReviewLog.WordId` is the owner link
+(and the query filter), and `ReviewCardId` is nullable with `SetNull`, so a card can go without its
+answers. Marking a word known deletes the card and keeps the answers, still counting. Clearing study
+progress deletes cards as before but **voids** the answers (`VoidedAtUtc`, `VoidReason`) instead of
+deleting them; `GetStudyStats` ignores voided ones, so a cleared day still starts from zero. Anything
+new that counts answers should skip voided ones too.
+
+The migration that moved answers onto the word fills `WordId` from each answer's card before the
+table is rebuilt with its new foreign keys. EF warns that an SQL operation runs "while a rebuild
+of table 'ReviewLogs' is pending" - it does, and the order is right: the column is added in place,
+filled, and then copied by the rebuild. Checked on copies of Test (22 answers, all on the right
+word) and Prod.
 
 **The call log is also the only copy of a forced refill's answer.** `UpsertWord` keeps a word's
 first cached source of each type and ignores later ones, so `fill-dictionary?force=true` parses the

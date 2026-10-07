@@ -26,7 +26,7 @@ export function WordHistory({ wordId }) {
     return null;
   }
 
-  const { imports, activity, calls } = history;
+  const { imports, activity, calls, reviews } = history;
 
   return (
     <>
@@ -47,6 +47,33 @@ export function WordHistory({ wordId }) {
               </li>
             ))}
           </ul>
+        </>
+      )}
+
+      {reviews.length > 0 && (
+        <>
+          <h5 className="mt-4">Study answers ({reviews.length})</h5>
+          <div className="table-responsive">
+            <table className="table table-sm" data-testid="word-reviews">
+              <tbody>
+                {reviews.slice(0, 10).map(review => (
+                  <tr key={review.id} className={review.voidedAtUtc ? 'text-muted' : ''}>
+                    <td><small>{formatDateTime(review.reviewedAtUtc)}</small></td>
+                    <td>{humanize(review.exerciseType)}</td>
+                    <td>{review.answer && <span style={{ fontFamily: 'monospace' }}>{review.answer}</span>}</td>
+                    <td>
+                      {review.grade}
+                      {review.voidedAtUtc && <Badge color="secondary" className="ms-1">voided</Badge>}
+                    </td>
+                    <td><small>level {review.rungBefore} → {review.rungAfter}</small></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {reviews.length > 10 && (
+            <p><Link to={`/history?tab=reviews&wordId=${wordId}`}>All {reviews.length} answers</Link></p>
+          )}
         </>
       )}
 
