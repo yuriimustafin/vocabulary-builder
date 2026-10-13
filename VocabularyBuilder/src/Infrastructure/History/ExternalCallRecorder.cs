@@ -52,7 +52,7 @@ public class ExternalCallRecorder : IExternalCallRecorder
         }
 
         call.Target ??= frame?.Target;
-        call.WordId ??= frame?.WordId;
+        call.WordId ??= frame?.WordIdFor(call.Target);
         call.ImportId ??= frame?.ImportId;
         call.PromptVersion ??= frame?.PromptVersion;
 

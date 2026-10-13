@@ -77,6 +77,40 @@ public class ExternalCallLogTests : BaseTestFixture
         details!.ExternalCalls.Calls.Should().Be(calls.Count(c => c.ImportId == result.ImportId));
     }
 
+    /// <summary>
+    /// Export looks unfilled words up in one batch, so no scope knows the word of each call -
+    /// they are matched by headword instead, and so reach the word's history.
+    /// </summary>
+    [Test]
+    public async Task ShouldFileAnExportsLookupsUnderTheirWords()
+    {
+        var word = new Word { Headword = "maison", Language = Language.French };
+        await AddAsync(word);
+
+        await SendAsync(new ExportWordsCommand(new List<int> { word.Id }));
+
+        var call = (await ListAsync<ExternalCallLog>()).Single(c => c.Purpose == ExternalCallPurpose.DictionaryEntry);
+        call.WordId.Should().Be(word.Id);
+    }
+
+    /// <summary>A WordReference conjugation page is about the verb whose table it is.</summary>
+    [Test]
+    public async Task ShouldNameTheVerbAWordReferenceConjugationWasFetchedFor()
+    {
+        await SendAsync(new ImportWordsFromDictionaryCommand
+        {
+            Words = new List<string> { "prendre" },
+            Language = Language.French,
+            SourceType = DictionarySourceType.WordReference,
+            ParseImmediately = true
+        });
+
+        var calls = (await ListAsync<ExternalCallLog>()).Where(c => c.Provider == ExternalCallProvider.WordReference).ToList();
+
+        calls.Should().Contain(c => c.Purpose == ExternalCallPurpose.Conjugation && c.Target == "prendre");
+        calls.Should().Contain(c => c.Purpose == ExternalCallPurpose.DictionaryEntry && c.Target == "prendre");
+    }
+
     [Test]
     public async Task ShouldListCallsWithoutTheirBodiesAndOpenOneWithThem()
     {

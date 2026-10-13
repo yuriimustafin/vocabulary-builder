@@ -309,7 +309,9 @@ registered, the mocks included. Oxford fetches through AngleSharp, so `OxfordPar
 own. What a call was *for* - the purpose, the word, the import - comes from
 `ExternalCallScope`, an ambient scope the code that knows opens around the call
 (`using (ExternalCallScope.Begin(ExternalCallPurpose.Conjugation, target: headword))`). A new
-call site that opens none is still logged, as `Other` and about nothing in particular.
+call site that opens none is still logged, as `Other` and about nothing in particular. Work
+that looks several existing words up in one batch - export - cannot open a scope per word, and
+passes `wordIdsByTarget` instead, so each call is matched to its word by what it was about.
 
 The recorder saves on a context of its own because a call is worth keeping whether or not the
 work around it succeeds - a model call made during an import that then fails was still paid for -
@@ -342,11 +344,22 @@ progress deletes cards as before but **voids** the answers (`VoidedAtUtc`, `Void
 deleting them; `GetStudyStats` ignores voided ones, so a cleared day still starts from zero. Anything
 new that counts answers should skip voided ones too.
 
+`RungAfter` is null for every answer logged before it was recorded - the level an answer left the
+word on was never kept - and the pages show only the level before for those.
+
 The migration that moved answers onto the word fills `WordId` from each answer's card before the
 table is rebuilt with its new foreign keys. EF warns that an SQL operation runs "while a rebuild
 of table 'ReviewLogs' is pending" - it does, and the order is right: the column is added in place,
 filled, and then copied by the rebuild. Checked on copies of Test (22 answers, all on the right
 word) and Prod.
+
+**Tested end to end against the real services** on a migrated copy of Test.db: every import page,
+GPT, WordReference and Oxford lookups, study-content generation, a study session, word, list and
+card actions, export and the sweeps. Token counts come back from OpenAI's `usage` and are stored;
+WordReference answered 200 from a development machine. The call log's `Succeeded` is the
+transport's answer, not the parser's: a call can succeed while the generation it fed fails, as
+`c'est` did when the model sent `cognates` as a list - the `StudyContentFailed` entry is where that
+shows, and the call's stored answer is how to see why.
 
 **The call log is also the only copy of a forced refill's answer.** `UpsertWord` keeps a word's
 first cached source of each type and ignores later ones, so `fill-dictionary?force=true` parses the

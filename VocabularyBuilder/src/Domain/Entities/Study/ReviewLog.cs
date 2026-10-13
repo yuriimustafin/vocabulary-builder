@@ -58,8 +58,8 @@ public class ReviewLog : BaseEntity
 
     public double EaseFactorAfter { get; set; }
 
-    /// <summary>The level the word was left on.</summary>
-    public int RungAfter { get; set; }
+    /// <summary>The level the word was left on. Null for answers logged before it was recorded.</summary>
+    public int? RungAfter { get; set; }
 
     /// <summary>
     /// What was answered, as given: the typed word, the option picked, or the tiles in the

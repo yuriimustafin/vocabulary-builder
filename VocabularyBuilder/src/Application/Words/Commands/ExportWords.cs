@@ -57,12 +57,22 @@ public class ExportWordsCommandHandler : IRequestHandler<ExportWordsCommand, Exp
             {
                 var language = languageGroup.Key;
                 var headwordsToLookup = languageGroup.Select(w => w.Headword).ToList();
-                var lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
+                List<WordLookupResult> lookupResults;
+
+                // Looked up as a batch, so each call is matched to its word by headword
+                var wordIds = languageGroup
+                    .GroupBy(w => w.Headword, StringComparer.OrdinalIgnoreCase)
+                    .ToDictionary(g => g.Key, g => g.First().Id, StringComparer.OrdinalIgnoreCase);
+
+                using (ExternalCallScope.Begin(wordIdsByTarget: wordIds))
                 {
-                    Words = headwordsToLookup,
-                    Language = language,
-                    SourceType = language.GetDefaultSourceType()
-                }, cancellationToken);
+                    lookupResults = await _sender.Send(new LookupWordsFromDictionaryQuery
+                    {
+                        Words = headwordsToLookup,
+                        Language = language,
+                        SourceType = language.GetDefaultSourceType()
+                    }, cancellationToken);
+                }
                 
                 // Update words with parsed data using UpsertWordCommand
                 foreach (var lookupResult in lookupResults)

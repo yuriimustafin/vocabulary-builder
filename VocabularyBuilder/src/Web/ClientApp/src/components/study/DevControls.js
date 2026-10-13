@@ -77,8 +77,8 @@ export class DevControls extends Component {
 
         {result && (
           <div className="text-muted small mt-2" data-testid="dev-clear-result">
-            Removed {result.cardsRemoved} {result.cardsRemoved === 1 ? 'card' : 'cards'} and{' '}
-            {result.reviewsRemoved} {result.reviewsRemoved === 1 ? 'review' : 'reviews'}.
+            Removed {result.cardsRemoved} {result.cardsRemoved === 1 ? 'card' : 'cards'} and set aside{' '}
+            {result.reviewsRemoved} {result.reviewsRemoved === 1 ? 'review' : 'reviews'} - still in the history, no longer counted.
             {result.cardsLeftAdvanced > 0 && (
               <>
                 {' '}

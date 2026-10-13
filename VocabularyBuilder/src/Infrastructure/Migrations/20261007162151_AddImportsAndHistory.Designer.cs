@@ -588,7 +588,7 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<DateTime>("ReviewedAtUtc")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("RungAfter")
+                    b.Property<int?>("RungAfter")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("RungBefore")

@@ -32,7 +32,8 @@ public static class ExternalCallScope
         string? target = null,
         int? wordId = null,
         int? importId = null,
-        string? promptVersion = null)
+        string? promptVersion = null,
+        IReadOnlyDictionary<string, int>? wordIdsByTarget = null)
     {
         var outer = CurrentFrame.Value;
 
@@ -41,13 +42,28 @@ public static class ExternalCallScope
             target ?? outer?.Target,
             wordId ?? outer?.WordId,
             importId ?? outer?.ImportId,
-            promptVersion ?? outer?.PromptVersion);
+            promptVersion ?? outer?.PromptVersion,
+            wordIdsByTarget ?? outer?.WordIdsByTarget);
 
         return new Restore(outer);
     }
 
+    /// <param name="WordIdsByTarget">
+    /// For work that looks up several existing words in one batch - an export - and so cannot
+    /// open a scope per word: each call is matched to its word by what it was about.
+    /// </param>
     public sealed record Frame(
-        ExternalCallPurpose? Purpose, string? Target, int? WordId, int? ImportId, string? PromptVersion = null);
+        ExternalCallPurpose? Purpose,
+        string? Target,
+        int? WordId,
+        int? ImportId,
+        string? PromptVersion = null,
+        IReadOnlyDictionary<string, int>? WordIdsByTarget = null)
+    {
+        /// <summary>The word a call about <paramref name="target"/> was for, as far as this scope knows.</summary>
+        public int? WordIdFor(string? target) =>
+            WordId ?? (target is not null && WordIdsByTarget?.TryGetValue(target, out var id) == true ? id : null);
+    }
 
     private sealed class Restore : IDisposable
     {

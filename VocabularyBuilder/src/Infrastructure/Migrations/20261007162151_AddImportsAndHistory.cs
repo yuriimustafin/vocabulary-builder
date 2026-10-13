@@ -44,12 +44,12 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                 maxLength: 32,
                 nullable: true);
 
+            // Null for every answer already logged: the level it left the word on was never recorded
             migrationBuilder.AddColumn<int>(
                 name: "RungAfter",
                 table: "ReviewLogs",
                 type: "INTEGER",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "StudyExampleId",

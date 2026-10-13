@@ -30,7 +30,8 @@ public class ReviewLogEntryDto
     public int ElapsedMs { get; set; }
     public string StateBefore { get; set; } = string.Empty;
     public int RungBefore { get; set; }
-    public int RungAfter { get; set; }
+    /// <summary>Null for answers logged before the level after was recorded.</summary>
+    public int? RungAfter { get; set; }
     public int IntervalBeforeDays { get; set; }
     public int IntervalAfterDays { get; set; }
     public DateTime? VoidedAtUtc { get; set; }

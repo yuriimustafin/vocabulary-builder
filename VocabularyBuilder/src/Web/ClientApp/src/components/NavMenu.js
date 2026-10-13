@@ -49,10 +49,11 @@ export class NavMenu extends Component {
         return (
             <header>
                 <Navbar className="navbar-expand-sm navbar-toggleable-sm ng-white border-bottom box-shadow mb-3" container light>
-                    <NavbarBrand tag={Link} to="/">VocabularyBuilder.Web</NavbarBrand>
+                    {/* Kept whole: with this many links the brand was the first thing squeezed, down to a letter a line */}
+                    <NavbarBrand tag={Link} to="/" className="text-nowrap flex-shrink-0">VocabularyBuilder.Web</NavbarBrand>
                     <NavbarToggler onClick={this.toggleNavbar} className="mr-2" />
                     <Collapse className="d-sm-inline-flex flex-sm-row-reverse" isOpen={!this.state.collapsed} navbar>
-                        <ul className="navbar-nav flex-grow">
+                        <ul className="navbar-nav flex-grow flex-wrap justify-content-end">
                             <UncontrolledDropdown nav inNavbar>
                                 <DropdownToggle nav caret>
                                     {languageDisplay}

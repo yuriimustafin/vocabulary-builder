@@ -65,7 +65,7 @@ export function WordHistory({ wordId }) {
                       {review.grade}
                       {review.voidedAtUtc && <Badge color="secondary" className="ms-1">voided</Badge>}
                     </td>
-                    <td><small>level {review.rungBefore} → {review.rungAfter}</small></td>
+                    <td><small>level {review.rungAfter == null ? review.rungBefore : `${review.rungBefore} → ${review.rungAfter}`}</small></td>
                   </tr>
                 ))}
               </tbody>

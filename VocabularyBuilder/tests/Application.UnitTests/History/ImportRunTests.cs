@@ -89,6 +89,25 @@ public class ExternalCallScopeTests
         ExternalCallScope.Current.Should().BeNull();
     }
 
+    /// <summary>A batch over existing words - an export - names each call's word by what it was about.</summary>
+    [Test]
+    public void ShouldMatchACallToItsWordByWhatItWasAbout()
+    {
+        var words = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase) { ["gare"] = 4, ["migrer"] = 7 };
+
+        using (ExternalCallScope.Begin(wordIdsByTarget: words))
+        {
+            ExternalCallScope.Current!.WordIdFor("Migrer").Should().Be(7);
+            ExternalCallScope.Current.WordIdFor("maison").Should().BeNull();
+
+            // A scope that knows its one word outranks the batch
+            using (ExternalCallScope.Begin(wordId: 9))
+            {
+                ExternalCallScope.Current.WordIdFor("gare").Should().Be(9);
+            }
+        }
+    }
+
     [Test]
     public async Task ShouldNotLeakIntoWorkRunningAlongside()
     {

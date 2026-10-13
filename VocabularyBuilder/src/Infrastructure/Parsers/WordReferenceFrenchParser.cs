@@ -154,7 +154,12 @@ public class WordReferenceFrenchParser : IWordReferenceParser
 
         try
         {
-            var conjugationHtml = await _pageLoader.GetPageAsync(conjugationUrl);
+            string? conjugationHtml;
+
+            using (ExternalCallScope.Begin(target: result.Word.Headword))
+            {
+                conjugationHtml = await _pageLoader.GetPageAsync(conjugationUrl);
+            }
             if (string.IsNullOrEmpty(conjugationHtml))
             {
                 return;

@@ -171,7 +171,7 @@ export class History extends Component {
             <Input id="history-category" type="select" bsSize="sm" value={category}
               onChange={e => this.setFilter({ category: e.target.value })} data-testid="history-category">
               <option value="">All</option>
-              {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              {CATEGORIES.map(c => <option key={c} value={c}>{humanize(c)}</option>)}
             </Input>
           </FormGroup>
         ) : (
@@ -236,7 +236,7 @@ export class History extends Component {
             <React.Fragment key={row.id}>
               <tr data-testid="activity-row">
                 <td><small>{formatDateTime(row.occurredAtUtc)}</small></td>
-                <td><Badge color={CATEGORY_COLORS[row.category] || 'secondary'}>{row.category}</Badge></td>
+                <td><Badge color={CATEGORY_COLORS[row.category] || 'secondary'}>{humanize(row.category)}</Badge></td>
                 <td data-testid="activity-action">{humanize(row.action)}</td>
                 <td>
                   {row.wordId && row.action !== 'WordDeleted'
@@ -321,7 +321,7 @@ export class History extends Component {
                   </Badge>
                 )}
               </td>
-              <td className="text-end"><small>{row.rungBefore} → {row.rungAfter}</small></td>
+              <td className="text-end"><small>{row.rungAfter == null ? row.rungBefore : `${row.rungBefore} → ${row.rungAfter}`}</small></td>
               <td className="text-end"><small>{row.intervalBeforeDays} → {row.intervalAfterDays} d</small></td>
               <td className="text-end"><small>{(row.elapsedMs / 1000).toFixed(1)} s</small></td>
             </tr>
