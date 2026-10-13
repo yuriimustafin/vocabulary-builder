@@ -1,5 +1,6 @@
 ﻿using VocabularyBuilder.Application.History;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Study.Exercises;
@@ -502,14 +503,67 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         return start >= 0 && end > start ? response[start..(end + 1)] : null;
     }
 
+    /// <remarks>
+    /// The free-text fields are read leniently. A model asked for "words sharing its origin"
+    /// will now and then answer with a list of them rather than one line - gpt-4o did for
+    /// "c'est" - and read strictly, that one field threw away the whole answer, examples and all,
+    /// and counted it as a failed attempt.
+    /// </remarks>
     private record GeneratedStudyContent(
-        string? Definition,
-        string? Usage,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Definition,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Usage,
         List<GeneratedExample>? Examples,
-        string? Etymology,
-        string? Cognates,
-        string? Mnemonic,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Etymology,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Cognates,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Mnemonic,
         List<List<GeneratedGloss?>?>? Glosses);
+
+    /// <summary>
+    /// Reads a field meant to be one line of text from whatever shape the model gave it: a
+    /// string as it is, a list of strings joined with "; ", a number or flag as written. Any
+    /// other shape - an object - reads as nothing, losing that field rather than the answer.
+    /// </summary>
+    private sealed class LenientTextConverter : JsonConverter<string?>
+    {
+        public override bool HandleNull => true;
+
+        public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.String:
+                    return reader.GetString();
+
+                case JsonTokenType.Number:
+                case JsonTokenType.True:
+                case JsonTokenType.False:
+                    using (var scalar = JsonDocument.ParseValue(ref reader))
+                    {
+                        return scalar.RootElement.GetRawText();
+                    }
+
+                case JsonTokenType.StartArray:
+                    using (var list = JsonDocument.ParseValue(ref reader))
+                    {
+                        var items = list.RootElement.EnumerateArray()
+                            .Where(e => e.ValueKind == JsonValueKind.String)
+                            .Select(e => e.GetString()!.Trim())
+                            .Where(s => s.Length > 0)
+                            .ToList();
+
+                        return items.Count > 0 ? string.Join("; ", items) : null;
+                    }
+
+                default:
+                    // Null, or an object: skipped whole, so the reader is left after it
+                    reader.Skip();
+                    return null;
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options) =>
+            writer.WriteStringValue(value);
+    }
 
     private record GeneratedExample(
         string? Sentence, string? Translation, string? Form, string? Collocation, List<GeneratedGloss?>? Glosses);

@@ -357,9 +357,12 @@ word) and Prod.
 GPT, WordReference and Oxford lookups, study-content generation, a study session, word, list and
 card actions, export and the sweeps. Token counts come back from OpenAI's `usage` and are stored;
 WordReference answered 200 from a development machine. The call log's `Succeeded` is the
-transport's answer, not the parser's: a call can succeed while the generation it fed fails, as
-`c'est` did when the model sent `cognates` as a list - the `StudyContentFailed` entry is where that
-shows, and the call's stored answer is how to see why.
+transport's answer, not the parser's: a call can succeed while the generation it fed fails - the
+`StudyContentFailed` entry is where that shows, and the call's stored answer is how to see why.
+That is how the run found gpt-4o answering `cognates` for `c'est` as a list of strings, which
+threw the whole generation away; the free-text fields are now read leniently (`LenientTextConverter`
+in `EnrichWordStudyContent` - a list is joined with "; ", an object is dropped) and the prompt asks
+for one string.
 
 **The call log is also the only copy of a forced refill's answer.** `UpsertWord` keeps a word's
 first cached source of each type and ignores later ones, so `fill-dictionary?force=true` parses the

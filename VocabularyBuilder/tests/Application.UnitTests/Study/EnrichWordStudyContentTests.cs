@@ -432,6 +432,42 @@ public class EnrichWordStudyContentTests
         (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Failed);
     }
 
+    /// <summary>
+    /// What gpt-4o answered for "c'est": cognates as a list of strings. Read strictly, that one
+    /// field threw the whole answer away - three good examples included - as a failed attempt.
+    /// </summary>
+    [Test]
+    public async Task ATextFieldAnsweredAsAListIsJoinedRatherThanLosingTheAnswer()
+    {
+        _gpt = new RecordingGptClient(prompt => UsableReply(prompt)!
+            .Replace("\"cognates\": null", "\"cognates\": [\"ubiquité (French, the noun)\", \" \", \"обіцяти? no\"]")
+            .Replace("\"usage\": \"said of things found everywhere\"", "\"usage\": [\"screens\", \"adverts\"]"));
+        var word = await AddWord();
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
+
+        var content = await Content(word.Id);
+        content!.Cognates.Should().Be("ubiquité (French, the noun); обіцяти? no");
+        content.Usage.Should().Be("screens; adverts");
+        (await Examples(word.Id)).Should().HaveCount(3, "the examples are what was being lost");
+    }
+
+    /// <summary>A field in a shape that cannot be read as text is dropped; the answer is kept.</summary>
+    [Test]
+    public async Task ATextFieldAnsweredAsAnObjectIsDroppedRatherThanLosingTheAnswer()
+    {
+        _gpt = new RecordingGptClient(prompt => UsableReply(prompt)!
+            .Replace("\"cognates\": null", "\"cognates\": {\"french\": \"ubiquité\"}"));
+        var word = await AddWord();
+
+        (await Enrich(word.Id)).Should().Be(EnrichmentOutcome.Generated);
+
+        var content = await Content(word.Id);
+        content!.Cognates.Should().BeNull();
+        content.Etymology.Should().Be("From Latin ubique, everywhere.");
+        content.Mnemonic.Should().NotBeNull();
+    }
+
     [Test]
     public async Task AModelWrappingItsJsonInProseIsStillUnderstood()
     {
@@ -515,6 +551,7 @@ public class EnrichWordStudyContentTests
         prompt.Should().Contain("\"collocation\" is the French phrase");
         prompt.Should().Contain("grammatically complete French - articles included");
         prompt.Should().Contain("including any the etymology names");
+        prompt.Should().Contain("One string, the words separated by semicolons - not a list");
     }
 
     [Test]
