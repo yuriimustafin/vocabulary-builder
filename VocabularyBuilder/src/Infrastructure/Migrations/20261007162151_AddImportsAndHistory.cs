@@ -86,6 +86,12 @@ namespace VocabularyBuilder.Infrastructure.Migrations
 
             // An answer now belongs to its word rather than its card, so that the card can go
             // without it. Every existing answer still has its card, which names the word
+            // An answer whose card is already gone - possible only if foreign keys were ever off -
+            // names no word, and would leave a null in a column that must have one. The deploy
+            // migrates on startup, so that would be a container restarting for ever; the answer
+            // cannot be attributed anyway
+            migrationBuilder.Sql(
+                "DELETE FROM ReviewLogs WHERE ReviewCardId NOT IN (SELECT Id FROM ReviewCards);");
             migrationBuilder.Sql(
                 "UPDATE ReviewLogs SET WordId = (SELECT WordId FROM ReviewCards WHERE ReviewCards.Id = ReviewLogs.ReviewCardId);");
 

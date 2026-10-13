@@ -23,6 +23,11 @@ namespace VocabularyBuilder.Infrastructure.Data;
 ///
 /// A term counts as creating its word when the word's first encounter of all belongs to the
 /// same reconstructed import. Nothing about skipped terms survived, so there are none.
+///
+/// Every lookup goes through an indexed temp table. The first version answered "which group
+/// does this word's first encounter belong to" with a correlated subquery per row, which on the
+/// 3,661 encounters of a Prod snapshot took five minutes - and production migrates on startup,
+/// so that was five minutes of a site that would not answer.
 /// </remarks>
 public static class ImportBackfill
 {
@@ -71,6 +76,30 @@ public static class ImportBackfill
         FROM ImportBackfillEncounters
         GROUP BY OwnerId, Language, Source, Prefix, Day;
 
+        -- Each group numbered, and each encounter told its group, so that everything after joins
+        -- on one integer rather than five columns
+        ALTER TABLE ImportBackfillGroups ADD COLUMN GroupId INTEGER;
+        UPDATE ImportBackfillGroups SET GroupId = rowid;
+        CREATE INDEX temp.IX_ImportBackfillGroups_Key ON ImportBackfillGroups (OwnerId, Language, Source, Prefix, Day);
+
+        ALTER TABLE ImportBackfillEncounters ADD COLUMN GroupId INTEGER;
+        UPDATE ImportBackfillEncounters SET GroupId = (
+            SELECT g.GroupId FROM ImportBackfillGroups g
+            WHERE g.OwnerId = ImportBackfillEncounters.OwnerId AND g.Language = ImportBackfillEncounters.Language
+              AND g.Source = ImportBackfillEncounters.Source AND g.Prefix = ImportBackfillEncounters.Prefix
+              AND g.Day = ImportBackfillEncounters.Day);
+        CREATE INDEX temp.IX_ImportBackfillEncounters_EncounterId ON ImportBackfillEncounters (EncounterId);
+
+        -- The group each word was first met in: the import that created it
+        DROP TABLE IF EXISTS temp.ImportBackfillCreators;
+
+        CREATE TEMP TABLE ImportBackfillCreators AS
+        SELECT b.WordId, b.GroupId
+        FROM (SELECT WordId, MIN(Id) AS EncounterId FROM WordEncounters GROUP BY WordId) first
+        JOIN ImportBackfillEncounters b ON b.EncounterId = first.EncounterId;
+
+        CREATE INDEX temp.IX_ImportBackfillCreators ON ImportBackfillCreators (WordId, GroupId);
+
         -- A DateTimeOffset column is stored with its offset and a DateTime column without,
         -- and every timestamp the app writes is UTC
         ALTER TABLE ImportBackfillGroups ADD COLUMN StartedAtUtc TEXT;
@@ -95,20 +124,27 @@ public static class ImportBackfill
         FROM ImportBackfillGroups
         ORDER BY StartedAtUtc;
 
+        DROP TABLE IF EXISTS temp.ImportBackfillMap;
+
+        CREATE TEMP TABLE ImportBackfillMap AS
+        SELECT g.GroupId, i.Id AS ImportId
+        FROM ImportBackfillGroups g
+        JOIN VocabularyImports i
+            ON i.IsReconstructed = 1 AND i.OwnerId = g.OwnerId AND i.Language = g.Language
+           AND i.Kind = g.Kind AND i.SourceIdentifierBase = g.Prefix AND i.StartedAtUtc = g.StartedAtUtc;
+
+        CREATE INDEX temp.IX_ImportBackfillMap ON ImportBackfillMap (GroupId);
+
         INSERT INTO VocabularyImportItems (
             ImportId, WordId, Headword, SourceTerm, Outcome, EncounterAdded, Reason, Form, ExampleAdded, ContentReopened)
         SELECT
-            i.Id,
+            m.ImportId,
             b.WordId,
             b.Headword,
             -- A Kindle identifier ends in the page number, which is not part of the term
             CASE WHEN b.Source = 1 THEN b.Headword ELSE substr(b.SourceIdentifier, length(b.Prefix) + 2) END,
             CASE WHEN EXISTS (
-                SELECT 1
-                FROM ImportBackfillEncounters f
-                WHERE f.EncounterId = (SELECT MIN(e2.Id) FROM WordEncounters e2 WHERE e2.WordId = b.WordId)
-                  AND f.OwnerId = b.OwnerId AND f.Language = b.Language AND f.Source = b.Source
-                  AND f.Prefix = b.Prefix AND f.Day = b.Day)
+                SELECT 1 FROM ImportBackfillCreators c WHERE c.WordId = b.WordId AND c.GroupId = b.GroupId)
             THEN 0 ELSE 1 END,
             1,
             NULL,
@@ -116,12 +152,7 @@ public static class ImportBackfill
             0,
             0
         FROM ImportBackfillEncounters b
-        JOIN ImportBackfillGroups g
-            ON g.OwnerId = b.OwnerId AND g.Language = b.Language AND g.Source = b.Source
-           AND g.Prefix = b.Prefix AND g.Day = b.Day
-        JOIN VocabularyImports i
-            ON i.IsReconstructed = 1 AND i.OwnerId = g.OwnerId AND i.Language = g.Language
-           AND i.Kind = g.Kind AND i.SourceIdentifierBase = g.Prefix AND i.StartedAtUtc = g.StartedAtUtc
+        JOIN ImportBackfillMap m ON m.GroupId = b.GroupId
         ORDER BY b.EncounterId;
 
         UPDATE VocabularyImports SET WordsCreated = (
@@ -130,6 +161,8 @@ public static class ImportBackfill
             WHERE it.ImportId = VocabularyImports.Id AND it.Outcome = 0)
         WHERE IsReconstructed = 1;
 
+        DROP TABLE temp.ImportBackfillMap;
+        DROP TABLE temp.ImportBackfillCreators;
         DROP TABLE temp.ImportBackfillGroups;
         DROP TABLE temp.ImportBackfillEncounters;
         """;

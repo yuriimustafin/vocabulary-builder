@@ -79,11 +79,11 @@ SQLite throughout. Three of them, chosen by environment:
 | Production | `src/Web/VocabularyBuilder.Prod.db` |
 | E2ETest | in-memory and shared-cache, built with `EnsureCreated` - see End-to-end |
 
-**Migrations only run automatically in E2ETest.** `Program.cs` calls
-`InitialiseDatabaseSchemaOnlyAsync()` inside an `EnvironmentName == "E2ETest"` branch, so
-Development and Production never migrate on startup. A file database that has fallen behind
-fails at query time with a missing table or column rather than at startup. Apply migrations
-by hand, naming the environment so the right file is targeted:
+**Migrations run on startup in E2ETest, and wherever `ApplyMigrationsOnStartup` is true** -
+which `docker-compose.prod.yml` sets, so **the deployed container migrates its volume every time
+it starts**. A developer machine does not: Development migrates nothing, and a file database
+that has fallen behind fails at query time with a missing table or column rather than at
+startup. Apply migrations by hand there, naming the environment so the right file is targeted:
 
 ```bash
 ASPNETCORE_ENVIRONMENT=Development dotnet ef database update --project VocabularyBuilder/src/Infrastructure --startup-project VocabularyBuilder/src/Web
@@ -351,7 +351,16 @@ The migration that moved answers onto the word fills `WordId` from each answer's
 table is rebuilt with its new foreign keys. EF warns that an SQL operation runs "while a rebuild
 of table 'ReviewLogs' is pending" - it does, and the order is right: the column is added in place,
 filled, and then copied by the rebuild. Checked on copies of Test (22 answers, all on the right
-word) and Prod.
+word) and Prod. An answer whose card is already gone is deleted first: it names no word, and
+would put a null where the column cannot take one - a migration failing at startup is a container
+restarting for ever. None exist in either copy; foreign keys should have prevented them.
+
+**This migration is one-way for the code.** Once applied, a build from before it cannot record a
+study answer (the log needs a `WordId` it does not set), so rolling a deploy back means restoring
+the database backup taken before it, not just checking out the old commit. On the Prod snapshot
+the whole chain from `AddStudyCards` takes about ten seconds; the import backfill alone took five
+minutes before its lookups were moved into indexed temp tables, which is worth remembering for
+any backfill written the same way.
 
 **Tested end to end against the real services** on a migrated copy of Test.db: every import page,
 GPT, WordReference and Oxford lookups, study-content generation, a study session, word, list and
