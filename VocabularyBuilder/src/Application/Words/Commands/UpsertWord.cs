@@ -1,6 +1,8 @@
 ﻿using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Study.Exercises;
 using VocabularyBuilder.Application.Words.Queries;
+using VocabularyBuilder.Domain.Entities.Imports;
 using VocabularyBuilder.Domain.Entities.Study;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Helpers;
@@ -51,6 +53,18 @@ public record UpsertWordCommand : IRequest<int>
     /// with the word, and must not count as one.
     /// </summary>
     public bool RecordEncounter { get; init; } = true;
+
+    /// <summary>
+    /// The import this upsert is part of, if any. The word is filed under it - new or not,
+    /// and whether or not the encounter was - so the import can show everything it touched.
+    /// </summary>
+    public int? ImportId { get; init; }
+
+    /// <summary>
+    /// The term as the import source wrote it, when that differs from the headword:
+    /// "Vous allez" for "aller". Defaults to the headword.
+    /// </summary>
+    public string? ImportSourceTerm { get; init; }
 
     // Dictionary sources for caching (optional)
     public List<WordDictionarySource>? DictionarySources { get; init; }
@@ -118,7 +132,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             await SaveWordForms(newWord.Id, request, cancellationToken);
             
             // Create the encounter record
-            await CreateWordEncounter(newWord.Id, request, cancellationToken);
+            var encounter = await CreateWordEncounter(newWord, request, cancellationToken);
+            await FileUnderImport(newWord, created: true, encounter, request, cancellationToken);
             await _context.SaveChangesAsync(cancellationToken);
             
             return newWord.Id;
@@ -198,7 +213,8 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             await SaveWordForms(existingWord.Id, request, cancellationToken);
             
             // Create new encounter record (idempotency check based on SourceIdentifier)
-            await CreateWordEncounter(existingWord.Id, request, cancellationToken);
+            var encounter = await CreateWordEncounter(existingWord, request, cancellationToken);
+            await FileUnderImport(existingWord, created: false, encounter, request, cancellationToken);
             
             await _context.SaveChangesAsync(cancellationToken);
             
@@ -240,11 +256,66 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
         }
     }
 
-    private async Task CreateWordEncounter(int wordId, UpsertWordCommand request, CancellationToken cancellationToken)
+    /// <summary>
+    /// Records that the import brought this term in, and onto which word.
+    /// </summary>
+    /// <remarks>
+    /// A word an earlier term of the same import created counts as created for this term too.
+    /// Otherwise "une randonnée" would show as new and "la randonnée", two lines further down
+    /// the same file, as already known - known only since a moment ago, and only because of
+    /// this very import.
+    /// </remarks>
+    private async Task FileUnderImport(
+        Word word, bool created, EncounterOutcome encounter, UpsertWordCommand request, CancellationToken cancellationToken)
     {
-        if (!request.RecordEncounter)
+        if (request.ImportId is not > 0)
         {
             return;
+        }
+
+        var importId = request.ImportId.Value;
+
+        var createdHere = created || await _context.VocabularyImportItems.AnyAsync(
+            i => i.ImportId == importId && i.WordId == word.Id && i.Outcome == ImportItemOutcome.Created,
+            cancellationToken);
+
+        _context.VocabularyImportItems.Add(new VocabularyImportItem
+        {
+            ImportId = importId,
+            WordId = word.Id,
+            Headword = word.Headword,
+            SourceTerm = request.ImportSourceTerm ?? request.Headword,
+            Outcome = createdHere ? ImportItemOutcome.Created : ImportItemOutcome.Existing,
+            EncounterAdded = encounter.Added,
+            Form = encounter.Form,
+            ExampleAdded = encounter.Coverage == FormCoverage.ExampleAdded,
+            ContentReopened = encounter.Coverage == FormCoverage.ContentReopened
+        });
+    }
+
+    /// <summary>What recording an encounter did, for the import to file.</summary>
+    /// <param name="Added">False when it was already recorded, or not asked for.</param>
+    /// <param name="Form">The form it was met in, if one was given.</param>
+    private sealed record EncounterOutcome(bool Added, string? Form = null, FormCoverage Coverage = FormCoverage.None);
+
+    private enum FormCoverage
+    {
+        None,
+
+        /// <summary>The sentence the form was met in became an example of it.</summary>
+        ExampleAdded,
+
+        /// <summary>No example used the form, so the word's finished content was opened again.</summary>
+        ContentReopened
+    }
+
+    private async Task<EncounterOutcome> CreateWordEncounter(Word word, UpsertWordCommand request, CancellationToken cancellationToken)
+    {
+        var wordId = word.Id;
+
+        if (!request.RecordEncounter)
+        {
+            return new EncounterOutcome(false);
         }
 
         // Generate SourceIdentifier from today's date if not provided (for manual entries)
@@ -261,7 +332,7 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
         if (existingEncounter != null)
         {
             // Encounter already exists, don't create duplicate
-            return;
+            return new EncounterOutcome(false);
         }
 
         var form = NormaliseForm(request.EncounterForm);
@@ -278,10 +349,11 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
 
         _context.WordEncounters.Add(encounter);
 
-        if (form is not null)
-        {
-            await CoverForm(wordId, form, request.EncounterSentence, cancellationToken);
-        }
+        var coverage = form is null
+            ? FormCoverage.None
+            : await CoverForm(word, form, request, cancellationToken);
+
+        return new EncounterOutcome(true, form, coverage);
     }
 
     /// <summary>
@@ -289,8 +361,11 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
     /// sentence it was met in when that contains it, and otherwise a request for one the
     /// next time the word's study content is filled in.
     /// </summary>
-    private async Task CoverForm(int wordId, string form, string? sentence, CancellationToken cancellationToken)
+    private async Task<FormCoverage> CoverForm(Word word, string form, UpsertWordCommand request, CancellationToken cancellationToken)
     {
+        var wordId = word.Id;
+        var sentence = request.EncounterSentence;
+
         var examples = await _context.StudyExamples
             .Where(e => e.WordId == wordId)
             .ToListAsync(cancellationToken);
@@ -302,12 +377,12 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
             && !examples.Any(e => string.Equals(e.Sentence, trimmed, StringComparison.OrdinalIgnoreCase)))
         {
             _context.StudyExamples.Add(new StudyExample { WordId = wordId, Sentence = trimmed, Form = form });
-            return;
+            return FormCoverage.ExampleAdded;
         }
 
         if (examples.Any(e => string.Equals(e.Form, form, StringComparison.OrdinalIgnoreCase)))
         {
-            return;
+            return FormCoverage.None;
         }
 
         // Content already filled in is opened again, so the missing form is asked for. A
@@ -316,11 +391,26 @@ public class UpsertWordCommandHandler : IRequestHandler<UpsertWordCommand, int>
         var content = await _context.WordStudyContents
             .FirstOrDefaultAsync(c => c.WordId == wordId, cancellationToken);
 
-        if (content is { Status: StudyContentStatus.Ready })
+        if (content is not { Status: StudyContentStatus.Ready })
         {
-            content.Status = StudyContentStatus.Pending;
-            content.ClaimedAtUtc = null;
+            return FormCoverage.None;
         }
+
+        content.Status = StudyContentStatus.Pending;
+        content.ClaimedAtUtc = null;
+
+        // The model call this costs happens later, in a study session - remembering the import
+        // here is what lets that call be filed under it
+        content.ReopenedByImportId = request.ImportId is > 0 ? request.ImportId : null;
+
+        _context.RecordActivity(
+            ActivityAction.StudyContentReopened,
+            word,
+            summary: $"Met as \"{form}\", which no example uses - study content will be generated again",
+            details: new { form, request.Source, request.SourceIdentifier },
+            importId: content.ReopenedByImportId);
+
+        return FormCoverage.ContentReopened;
     }
 
     private static string? NormaliseForm(string? form)

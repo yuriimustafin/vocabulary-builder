@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+﻿using VocabularyBuilder.Application.History;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Study.Exercises;
@@ -248,18 +250,33 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         try
         {
-            var response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps, forms, meaning, toGloss.Select(e => e.Sentence).ToList()));
+            string? response;
+
+            // Filed under the import that reopened the content, when one did: this call is
+            // the cost of the new form it brought in
+            using (ExternalCallScope.Begin(
+                ExternalCallPurpose.StudyContent,
+                target: word.Headword,
+                wordId: word.Id,
+                importId: content.ReopenedByImportId,
+                promptVersion: StudyContentPrompt.Version))
+            {
+                response = await _gptClient.SendMessageAsync(StudyContentPrompt.For(word, gaps, forms, meaning, toGloss.Select(e => e.Sentence).ToList()));
+            }
             generated = Parse(response);
         }
         catch (Exception ex)
         {
-            return await RecordFailure(content, ex.Message, cancellationToken);
+            return await RecordFailure(word, content, ex.Message, cancellationToken);
         }
 
         if (generated is null)
         {
-            return await RecordFailure(content, "The model returned nothing usable.", cancellationToken);
+            return await RecordFailure(word, content, "The model returned nothing usable.", cancellationToken);
         }
+
+        // What a regeneration overwrites is otherwise gone; the activity log keeps it
+        var before = Snapshot(content);
 
         if (gaps.HasFlag(StudyMaterialGaps.Meaning) && !string.IsNullOrWhiteSpace(generated.Definition))
         {
@@ -290,7 +307,7 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         if (remaining.HasFlag(StudyMaterialGaps.Meaning))
         {
-            return await RecordFailure(content, "No usable definition was produced.", cancellationToken);
+            return await RecordFailure(word, content, "No usable definition was produced.", cancellationToken);
         }
 
         // Only now, so a failed generation is asked for everything again on its retry
@@ -302,9 +319,55 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         content.Status = StudyContentStatus.Ready;
         content.ClaimedAtUtc = null;
         content.LastError = null;
+
+        var glossed = Math.Min(toGloss.Count, generated.Glosses?.Count ?? 0);
+        var changes = ActivityRecording.Changes(before, Snapshot(content));
+
+        _context.RecordActivity(
+            ActivityAction.StudyContentGenerated,
+            word,
+            summary: DescribeGeneration(gaps, added.Count, glossed, changes),
+            details: new
+            {
+                promptVersion = StudyContentPrompt.Version,
+                gaps = gaps.ToString(),
+                examplesAdded = added.Select(e => new { e.Form, e.Sentence }).ToList(),
+                glossed,
+                changes
+            },
+            importId: content.ReopenedByImportId);
+
+        content.ReopenedByImportId = null;
+
         await _context.SaveChangesAsync(cancellationToken);
 
         return EnrichmentOutcome.Generated;
+    }
+
+    private static Dictionary<string, object?> Snapshot(WordStudyContent content) => new()
+    {
+        [nameof(WordStudyContent.GeneratedDefinition)] = content.GeneratedDefinition,
+        [nameof(WordStudyContent.Usage)] = content.Usage,
+        [nameof(WordStudyContent.Etymology)] = content.Etymology,
+        [nameof(WordStudyContent.Cognates)] = content.Cognates,
+        [nameof(WordStudyContent.Mnemonic)] = content.Mnemonic,
+        [nameof(WordStudyContent.PromptVersion)] = content.PromptVersion
+    };
+
+    private static string DescribeGeneration(
+        StudyMaterialGaps gaps, int examples, int glossed, Dictionary<string, object?>? changes)
+    {
+        var parts = new List<string>();
+
+        if (examples > 0) parts.Add($"{examples} example{(examples == 1 ? "" : "s")}");
+        if (glossed > 0) parts.Add($"{glossed} glossed");
+
+        var fields = changes?.Keys.Where(k => k != nameof(WordStudyContent.PromptVersion)).ToList() ?? new List<string>();
+        if (fields.Count > 0) parts.Add(string.Join(", ", fields.Select(f => f.Replace("Generated", "").ToLowerInvariant())));
+
+        var version = gaps.HasFlag(StudyMaterialGaps.Connections) ? $"{StudyContentPrompt.Version}: " : "";
+
+        return version + (parts.Count > 0 ? string.Join("; ", parts) : "nothing new");
     }
 
     /// <summary>
@@ -385,7 +448,7 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
     }
 
     private async Task<EnrichmentOutcome> RecordFailure(
-        WordStudyContent content, string error, CancellationToken cancellationToken)
+        Word word, WordStudyContent content, string error, CancellationToken cancellationToken)
     {
         content.GenerationAttempts++;
         content.LastError = error;
@@ -393,6 +456,13 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
 
         var givenUp = content.GenerationAttempts >= _options.EnrichmentMaxAttempts;
         content.Status = givenUp ? StudyContentStatus.Failed : StudyContentStatus.Pending;
+
+        _context.RecordActivity(
+            ActivityAction.StudyContentFailed,
+            word,
+            summary: $"Attempt {content.GenerationAttempts}{(givenUp ? ", given up" : "")}: {error}",
+            details: new { attempt = content.GenerationAttempts, givenUp, error, promptVersion = StudyContentPrompt.Version },
+            importId: content.ReopenedByImportId);
 
         await _context.SaveChangesAsync(cancellationToken);
 
@@ -433,14 +503,67 @@ public class EnrichWordStudyContentCommandHandler : IRequestHandler<EnrichWordSt
         return start >= 0 && end > start ? response[start..(end + 1)] : null;
     }
 
+    /// <remarks>
+    /// The free-text fields are read leniently. A model asked for "words sharing its origin"
+    /// will now and then answer with a list of them rather than one line - gpt-4o did for
+    /// "c'est" - and read strictly, that one field threw away the whole answer, examples and all,
+    /// and counted it as a failed attempt.
+    /// </remarks>
     private record GeneratedStudyContent(
-        string? Definition,
-        string? Usage,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Definition,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Usage,
         List<GeneratedExample>? Examples,
-        string? Etymology,
-        string? Cognates,
-        string? Mnemonic,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Etymology,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Cognates,
+        [property: JsonConverter(typeof(LenientTextConverter))] string? Mnemonic,
         List<List<GeneratedGloss?>?>? Glosses);
+
+    /// <summary>
+    /// Reads a field meant to be one line of text from whatever shape the model gave it: a
+    /// string as it is, a list of strings joined with "; ", a number or flag as written. Any
+    /// other shape - an object - reads as nothing, losing that field rather than the answer.
+    /// </summary>
+    private sealed class LenientTextConverter : JsonConverter<string?>
+    {
+        public override bool HandleNull => true;
+
+        public override string? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            switch (reader.TokenType)
+            {
+                case JsonTokenType.String:
+                    return reader.GetString();
+
+                case JsonTokenType.Number:
+                case JsonTokenType.True:
+                case JsonTokenType.False:
+                    using (var scalar = JsonDocument.ParseValue(ref reader))
+                    {
+                        return scalar.RootElement.GetRawText();
+                    }
+
+                case JsonTokenType.StartArray:
+                    using (var list = JsonDocument.ParseValue(ref reader))
+                    {
+                        var items = list.RootElement.EnumerateArray()
+                            .Where(e => e.ValueKind == JsonValueKind.String)
+                            .Select(e => e.GetString()!.Trim())
+                            .Where(s => s.Length > 0)
+                            .ToList();
+
+                        return items.Count > 0 ? string.Join("; ", items) : null;
+                    }
+
+                default:
+                    // Null, or an object: skipped whole, so the reader is left after it
+                    reader.Skip();
+                    return null;
+            }
+        }
+
+        public override void Write(Utf8JsonWriter writer, string? value, JsonSerializerOptions options) =>
+            writer.WriteStringValue(value);
+    }
 
     private record GeneratedExample(
         string? Sentence, string? Translation, string? Form, string? Collocation, List<GeneratedGloss?>? Glosses);

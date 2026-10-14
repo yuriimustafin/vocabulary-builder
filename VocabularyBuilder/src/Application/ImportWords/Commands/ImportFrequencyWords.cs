@@ -1,4 +1,5 @@
-﻿using System;
+﻿using VocabularyBuilder.Application.History;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -89,6 +90,13 @@ public class ImportFrequencyWords : IRequestHandler<ImportFrequencyWordsCommand,
         {
             _context.ChangeTracker!.AutoDetectChangesEnabled = true;
         }
+
+        _context.RecordActivity(
+            ActivityAction.FrequencyDataImported,
+            language: request.Language,
+            summary: $"{importedCount} lemmas from {Path.GetFileName(request.FilePath)}",
+            details: new { request.FilePath, lemmas = importedCount });
+        await _context.SaveChangesAsync(cancellationToken);
 
         return importedCount;
     }

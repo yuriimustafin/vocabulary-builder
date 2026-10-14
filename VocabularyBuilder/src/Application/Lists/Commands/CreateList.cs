@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
@@ -44,6 +45,13 @@ public class CreateListCommandHandler : IRequestHandler<CreateListCommand, int>
         }
 
         _context.VocabularyLists.Add(entity);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _context.RecordActivity(
+            ActivityAction.ListCreated,
+            language: entity.Language,
+            listId: entity.Id,
+            summary: $"\"{entity.Title}\" with {entity.Items.Count} items");
         await _context.SaveChangesAsync(cancellationToken);
 
         return entity.Id;

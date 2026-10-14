@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Parsers;
 using VocabularyBuilder.Domain.Enums;
@@ -89,6 +90,12 @@ public class ReparseCachedSensesCommandHandler
             result.Reparsed++;
             result.ReparsedWords.Add(word.Headword);
         }
+
+        _context.RecordActivity(
+            ActivityAction.CachedSensesReparsed,
+            language: request.Language,
+            summary: $"{result.Reparsed} reparsed, {result.Unreadable} unreadable, of {result.Considered}",
+            details: result);
 
         await _context.SaveChangesAsync(cancellationToken);
 

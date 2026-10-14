@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using VocabularyBuilder.Application.History;
+using System.Text.Json;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Lists.Queries;
@@ -47,7 +48,12 @@ public class GenerateListWithAiCommandHandler : IRequestHandler<GenerateListWith
         var gptPrompt = BuildGptPrompt(request.Prompt, minItems, maxItems, request.Language);
         
         // Call GPT to generate items
-        var gptResponse = await _gptClient.SendMessageAsync(gptPrompt);
+        string? gptResponse;
+
+        using (ExternalCallScope.Begin(ExternalCallPurpose.ListGeneration, target: request.Prompt))
+        {
+            gptResponse = await _gptClient.SendMessageAsync(gptPrompt);
+        }
         
         if (string.IsNullOrWhiteSpace(gptResponse))
         {

@@ -186,6 +186,277 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.ToTable("FrequencyWords");
                 });
 
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.History.ActivityLogEntry", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Action")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Details")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Headword")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ImportId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("Language")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("ListId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("OccurredAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Summary")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportId");
+
+                    b.HasIndex("WordId");
+
+                    b.HasIndex("OwnerId", "Id");
+
+                    b.ToTable("ActivityLog", (string)null);
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.History.ExternalCallLog", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("CompletionTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DurationMs")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ImportId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsMock")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Model")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("PromptTokens")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("PromptVersion")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Provider")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Purpose")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Request")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Response")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ResponseLength")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("StatusCode")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Succeeded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Target")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Url")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportId");
+
+                    b.HasIndex("WordId");
+
+                    b.HasIndex("OwnerId", "Id");
+
+                    b.ToTable("ExternalCallLog", (string)null);
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Imports.VocabularyImport", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("CompletedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTimeOffset>("Created")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("EncountersCreated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsReconstructed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Language")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTimeOffset>("LastModified")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("OwnerId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceIdentifierBase")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("StartedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.PrimitiveCollection<string>("Tags")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TermsRead")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TermsSkipped")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("WordsCreated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("WordsTouched")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OwnerId", "StartedAtUtc");
+
+                    b.ToTable("VocabularyImports");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Imports.VocabularyImportItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ContentReopened")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("EncounterAdded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("ExampleAdded")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Form")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Headword")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ImportId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Reason")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceTerm")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("WordId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ImportId");
+
+                    b.HasIndex("WordId");
+
+                    b.ToTable("VocabularyImportItems");
+                });
+
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewCard", b =>
                 {
                     b.Property<int>("Id")
@@ -270,6 +541,14 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Answer")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AnswerMatch")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("AttemptId")
                         .HasColumnType("TEXT");
 
@@ -300,16 +579,35 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Property<bool>("IsScaffold")
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("ReviewCardId")
+                    b.Property<int?>("ReviewCardId")
                         .HasColumnType("INTEGER");
 
                     b.Property<DateTime>("ReviewedAtUtc")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("RungAfter")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("RungBefore")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("StateBefore")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("StudyExampleId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("Tolerated")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(32)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("VoidedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("WordId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
@@ -318,6 +616,8 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsUnique();
 
                     b.HasIndex("ReviewCardId", "ReviewedAtUtc");
+
+                    b.HasIndex("WordId", "ReviewedAtUtc");
 
                     b.ToTable("ReviewLogs");
                 });
@@ -426,6 +726,9 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
+
+                    b.Property<int?>("ReopenedByImportId")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -1099,6 +1402,51 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.Navigation("BaseForm");
                 });
 
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.History.ActivityLogEntry", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.History.ExternalCallLog", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Imports.VocabularyImport", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Infrastructure.Identity.ApplicationUser", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Imports.VocabularyImportItem", b =>
+                {
+                    b.HasOne("VocabularyBuilder.Domain.Entities.Imports.VocabularyImport", "Import")
+                        .WithMany("Items")
+                        .HasForeignKey("ImportId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Import");
+
+                    b.Navigation("Word");
+                });
+
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.ReviewCard", b =>
                 {
                     b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
@@ -1115,10 +1463,17 @@ namespace VocabularyBuilder.Infrastructure.Migrations
                     b.HasOne("VocabularyBuilder.Domain.Entities.Study.ReviewCard", "ReviewCard")
                         .WithMany()
                         .HasForeignKey("ReviewCardId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("VocabularyBuilder.Domain.Samples.Entities.Word", "Word")
+                        .WithMany()
+                        .HasForeignKey("WordId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("ReviewCard");
+
+                    b.Navigation("Word");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Study.StudyExample", b =>
@@ -1282,6 +1637,11 @@ namespace VocabularyBuilder.Infrastructure.Migrations
             modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Frequency.FrequencyWord", b =>
                 {
                     b.Navigation("DerivedForms");
+                });
+
+            modelBuilder.Entity("VocabularyBuilder.Domain.Entities.Imports.VocabularyImport", b =>
+                {
+                    b.Navigation("Items");
                 });
 
             modelBuilder.Entity("VocabularyBuilder.Domain.Samples.Entities.TodoList", b =>

@@ -1,4 +1,4 @@
-using System.Data.Common;
+﻿using System.Data.Common;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Application.Parsers;
@@ -109,5 +109,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             services.Remove(oxford);
             services.AddScoped<IWordReferenceParser>(_ => new MockOxfordParser());
         }
+
+        // The replacements above dropped the recording wrappers along with the real clients,
+        // and without them the call log could not be tested at all
+        services.AddOutboundCallRecording();
     }
 }

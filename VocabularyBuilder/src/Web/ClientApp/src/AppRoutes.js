@@ -10,6 +10,8 @@ import { KindleImport } from "./components/KindleImport";
 import { LingQImport } from "./components/LingQImport";
 import { NotesImport } from "./components/NotesImport";
 import { ExportWords } from "./components/ExportWords";
+import { Imports } from "./components/Imports";
+import { History } from "./components/History";
 
 const AppRoutes = [
   {
@@ -59,6 +61,14 @@ const AppRoutes = [
   {
     path: '/export-words',
     element: <ExportWords />
+  },
+  {
+    path: '/imports',
+    element: <Imports />
+  },
+  {
+    path: '/history',
+    element: <History />
   }
 ];
 

@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 
@@ -29,7 +30,7 @@ public class RecordFollowUpCommandHandler : IRequestHandler<RecordFollowUpComman
 
     public async Task<bool> Handle(RecordFollowUpCommand request, CancellationToken cancellationToken)
     {
-        var card = await _context.ReviewCards.FirstOrDefaultAsync(c => c.Id == request.CardId, cancellationToken);
+        var card = await _context.ReviewCards.Include(c => c.Word).FirstOrDefaultAsync(c => c.Id == request.CardId, cancellationToken);
 
         if (card is null)
         {
@@ -43,6 +44,7 @@ public class RecordFollowUpCommandHandler : IRequestHandler<RecordFollowUpComman
 
         _context.ReviewLogs.Add(new Domain.Entities.Study.ReviewLog
         {
+            WordId = card.WordId,
             ReviewCardId = card.Id,
             AttemptId = request.AttemptId,
             ReviewedAtUtc = _timeProvider.GetUtcNow().UtcDateTime,
@@ -54,7 +56,8 @@ public class RecordFollowUpCommandHandler : IRequestHandler<RecordFollowUpComman
             RungBefore = card.CurrentRung,
             IntervalBeforeDays = card.IntervalDays,
             IntervalAfterDays = card.IntervalDays,
-            EaseFactorAfter = card.EaseFactor
+            EaseFactorAfter = card.EaseFactor,
+            RungAfter = card.CurrentRung
         });
 
         await _context.SaveChangesAsync(cancellationToken);
@@ -78,7 +81,7 @@ public class SuspendCardCommandHandler : IRequestHandler<SuspendCardCommand, boo
 
     public async Task<bool> Handle(SuspendCardCommand request, CancellationToken cancellationToken)
     {
-        var card = await _context.ReviewCards.FirstOrDefaultAsync(c => c.Id == request.CardId, cancellationToken);
+        var card = await _context.ReviewCards.Include(c => c.Word).FirstOrDefaultAsync(c => c.Id == request.CardId, cancellationToken);
 
         if (card is null)
         {
@@ -96,6 +99,10 @@ public class SuspendCardCommandHandler : IRequestHandler<SuspendCardCommand, boo
             card.State = card.IntervalDays > 0 ? CardState.Review : CardState.Learning;
             card.DueAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
         }
+
+        _context.RecordActivity(
+            request.Suspended ? ActivityAction.CardSuspended : ActivityAction.CardResumed,
+            card.Word);
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;
@@ -122,7 +129,7 @@ public class ResetCardCommandHandler : IRequestHandler<ResetCardCommand, bool>
 
     public async Task<bool> Handle(ResetCardCommand request, CancellationToken cancellationToken)
     {
-        var card = await _context.ReviewCards.FirstOrDefaultAsync(c => c.Id == request.CardId, cancellationToken);
+        var card = await _context.ReviewCards.Include(c => c.Word).FirstOrDefaultAsync(c => c.Id == request.CardId, cancellationToken);
 
         if (card is null)
         {
@@ -140,6 +147,8 @@ public class ResetCardCommandHandler : IRequestHandler<ResetCardCommand, bool>
         card.RecentSuccessRate = 1.0;
         card.LapsesSinceRecovery = 0;
         card.DueAtUtc = _timeProvider.GetUtcNow().UtcDateTime;
+
+        _context.RecordActivity(ActivityAction.CardReset, card.Word);
 
         await _context.SaveChangesAsync(cancellationToken);
         return true;
@@ -162,6 +171,13 @@ public class MarkWordForStudyCommandHandler : IRequestHandler<MarkWordForStudyCo
         if (word is null)
         {
             return false;
+        }
+
+        if (word.IsMarkedForStudy != request.Marked)
+        {
+            _context.RecordActivity(
+                request.Marked ? ActivityAction.WordMarkedForStudy : ActivityAction.WordUnmarkedForStudy,
+                word);
         }
 
         word.IsMarkedForStudy = request.Marked;

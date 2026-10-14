@@ -1,4 +1,6 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
+using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
 namespace VocabularyBuilder.Application.Lists.Commands;
@@ -33,6 +35,11 @@ public class CreateListItemCommandHandler : IRequestHandler<CreateListItemComman
         };
 
         _context.VocabularyListItems.Add(entity);
+        _context.RecordActivity(
+            ActivityAction.ListItemAdded,
+            language: list.Language,
+            listId: list.Id,
+            summary: $"\"{entity.Text}\" added to \"{list.Title}\"");
         await _context.SaveChangesAsync(cancellationToken);
 
         return entity.Id;

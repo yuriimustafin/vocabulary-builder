@@ -70,6 +70,10 @@ public class E2ETestingEndpoints : EndpointGroupBase
                 command.CommandText = @"
                     PRAGMA foreign_keys = OFF;
                     
+                    DELETE FROM ActivityLog;
+                    DELETE FROM ExternalCallLog;
+                    DELETE FROM VocabularyImportItems;
+                    DELETE FROM VocabularyImports;
                     DELETE FROM ReviewLogs;
                     DELETE FROM ReviewCards;
                     DELETE FROM WordStudyContents;

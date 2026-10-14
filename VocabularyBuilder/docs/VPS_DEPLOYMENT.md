@@ -229,6 +229,12 @@ the data carries over.
 To roll back, check out the previous commit in `app/` and rebuild. **A migration is not undone
 by doing that** — if the release added one, restore the database from a backup instead.
 
+**Take that backup before every release that carries a migration** (see Backups - stopping the
+container is the reliable way), because the new container migrates the volume the moment it
+starts and there is no step in between to do it. Some migrations also leave the database unusable
+by the previous build: after `AddImportsAndHistory`, an older build fails every study answer
+with a foreign-key error, so the backup is the only way back.
+
 ## Backups
 
 The volume is the only thing that cannot be rebuilt from the repo. SQLite runs in WAL mode, so

@@ -1,4 +1,5 @@
-﻿using VocabularyBuilder.Application.Ai;
+﻿using VocabularyBuilder.Application.History;
+using VocabularyBuilder.Application.Ai;
 using VocabularyBuilder.Domain.Enums;
 
 namespace VocabularyBuilder.Application.Exercises.Commands;
@@ -29,7 +30,12 @@ public class CreateTextForAudioCommandHandler : IRequestHandler<CreateTextForAud
         foreach (var word in request.Words)
         {
             var message = String.Format(template, word, request.Language);
-            var response = await _gptClient.SendMessageAsync(message);
+            string? response;
+
+            using (ExternalCallScope.Begin(ExternalCallPurpose.AudioText, target: word))
+            {
+                response = await _gptClient.SendMessageAsync(message);
+            }
             Console.WriteLine(response);
         }
         return await Task.FromResult("null");

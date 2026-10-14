@@ -65,6 +65,7 @@ public class ClearStudyProgressTests
     {
         _db.Context.ReviewLogs.Add(new ReviewLog
         {
+            WordId = card.WordId,
             ReviewCardId = card.Id,
             AttemptId = Guid.NewGuid(),
             ReviewedAtUtc = Start.UtcDateTime.AddDays(-reviewedDaysAgo),
@@ -87,8 +88,26 @@ public class ClearStudyProgressTests
 
         result.CardsRemoved.Should().Be(1);
         (await _db.Context.ReviewCards.CountAsync()).Should().Be(0);
-        (await _db.Context.ReviewLogs.CountAsync()).Should().Be(0);
+        (await LiveLogs()).Should().Be(0);
     }
+
+    /// <summary>The progress is thrown away; the record that the answers were given is not.</summary>
+    [Test]
+    public async Task ClearingVoidsTheAnswersRatherThanDeletingThem()
+    {
+        var today = await AddCard("metToday", introducedDaysAgo: 0);
+        await AddLog(today, reviewedDaysAgo: 0);
+
+        await Clear(ClearStudyScope.Today);
+
+        var log = await _db.Context.ReviewLogs.AsNoTracking().SingleAsync();
+        log.VoidedAtUtc.Should().NotBeNull();
+        log.VoidReason.Should().Be("ClearedToday");
+        log.ReviewCardId.Should().BeNull("its card is gone");
+        log.WordId.Should().Be(today.WordId);
+    }
+
+    private Task<int> LiveLogs() => _db.Context.ReviewLogs.CountAsync(l => l.VoidedAtUtc == null);
 
     [Test]
     public async Task RestartingTodayLeavesOlderWordsInPlace()
@@ -110,7 +129,7 @@ public class ClearStudyProgressTests
         var result = await Clear(ClearStudyScope.Today);
 
         result.ReviewsRemoved.Should().Be(1);
-        (await _db.Context.ReviewLogs.CountAsync()).Should().Be(1, "the older review is history, not today");
+        (await LiveLogs()).Should().Be(1, "the older review is history, not today");
     }
 
     [Test]
@@ -140,7 +159,8 @@ public class ClearStudyProgressTests
         result.CardsRemoved.Should().Be(2);
         result.ReviewsRemoved.Should().Be(2);
         (await _db.Context.ReviewCards.CountAsync()).Should().Be(0);
-        (await _db.Context.ReviewLogs.CountAsync()).Should().Be(0);
+        (await LiveLogs()).Should().Be(0);
+        (await _db.Context.ReviewLogs.CountAsync()).Should().Be(2, "voided, not deleted");
     }
 
     [Test]

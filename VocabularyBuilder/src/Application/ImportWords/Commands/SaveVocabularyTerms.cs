@@ -1,4 +1,4 @@
-using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Application.Words.Commands;
 using VocabularyBuilder.Domain.Enums;
 
@@ -56,6 +56,9 @@ public record SaveVocabularyTermsCommand : IRequest<SaveVocabularyTermsResult>
 
     /// <summary>Labels applied to every word this import touches.</summary>
     public List<string>? Tags { get; init; }
+
+    /// <summary>The import record every term is filed under.</summary>
+    public int? ImportId { get; init; }
 }
 
 public class SaveVocabularyTermsCommandHandler
@@ -105,7 +108,9 @@ public class SaveVocabularyTermsCommandHandler
                 Notes = term.Notes,
                 EncounterForm = term.Form,
                 EncounterSentence = term.Sentence,
-                Tags = request.Tags
+                Tags = request.Tags,
+                ImportId = request.ImportId,
+                ImportSourceTerm = term.SourceTerm
             }, cancellationToken);
         }
 

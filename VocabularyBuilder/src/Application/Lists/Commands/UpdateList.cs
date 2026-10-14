@@ -1,3 +1,4 @@
+﻿using VocabularyBuilder.Application.History;
 using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 
@@ -26,6 +27,22 @@ public class UpdateListCommandHandler : IRequestHandler<UpdateListCommand, bool>
         if (entity == null)
         {
             return false;
+        }
+
+        if (entity.Title != request.Title || entity.Status != request.Status)
+        {
+            _context.RecordActivity(
+                ActivityAction.ListUpdated,
+                language: entity.Language,
+                listId: entity.Id,
+                summary: entity.Title != request.Title
+                    ? $"\"{entity.Title}\" renamed to \"{request.Title}\""
+                    : $"\"{entity.Title}\": {entity.Status} → {request.Status}",
+                details: new
+                {
+                    title = new { from = entity.Title, to = request.Title },
+                    status = new { from = entity.Status, to = request.Status }
+                });
         }
 
         entity.Title = request.Title;

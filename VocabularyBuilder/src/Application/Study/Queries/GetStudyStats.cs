@@ -62,7 +62,7 @@ public class GetStudyStatsQueryHandler : IRequestHandler<GetStudyStatsQuery, Stu
             NewCardsPerDay = _options.NewCardsPerDay,
 
             ReviewedToday = await _context.ReviewLogs.CountAsync(
-                l => !l.IsScaffold && l.ReviewedAtUtc >= dayStart, cancellationToken),
+                l => !l.IsScaffold && l.VoidedAtUtc == null && l.ReviewedAtUtc >= dayStart, cancellationToken),
 
             Learning = await cards.CountAsync(
                 c => c.State == CardState.New || c.State == CardState.Learning || c.State == CardState.Relearning,

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Alert, Table } from 'reactstrap';
+import { Link } from 'react-router-dom';
 
 /**
  * The outcome of a LingQ or lesson-notes import.
@@ -34,6 +35,7 @@ export function ImportResultSummary({ result }) {
         <p className="mb-0 mt-2 text-muted">
           Definitions are fetched from the dictionary later, when the words are exported.
         </p>
+        <ImportLink importId={result.importId} />
       </Alert>
 
       {skipped.length > 0 && (
@@ -60,5 +62,20 @@ export function ImportResultSummary({ result }) {
         </Alert>
       )}
     </>
+  );
+}
+
+/** A link to the import just run, on the Imports page, where its words stay listed. */
+export function ImportLink({ importId }) {
+  if (!importId) {
+    return null;
+  }
+
+  return (
+    <p className="mb-0 mt-2">
+      <Link to={`/imports?open=${importId}`} data-testid="view-import-link">
+        View this import and its words
+      </Link>
+    </p>
   );
 }

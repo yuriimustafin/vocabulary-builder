@@ -1,4 +1,5 @@
-﻿using VocabularyBuilder.Application.Common.Interfaces;
+﻿using VocabularyBuilder.Application.History;
+using VocabularyBuilder.Application.Common.Interfaces;
 using VocabularyBuilder.Domain.Enums;
 using VocabularyBuilder.Domain.Samples.Entities;
 
@@ -38,6 +39,8 @@ public class UpdateWordCommandHandler : IRequestHandler<UpdateWordCommand>
 
         Guard.Against.NotFound(request.Id, entity);
 
+        var before = Snapshot(entity);
+
         entity.Headword = request.Headword;
         entity.Transcription = request.Transcription;
         entity.PartOfSpeech = request.PartOfSpeech;
@@ -46,6 +49,28 @@ public class UpdateWordCommandHandler : IRequestHandler<UpdateWordCommand>
         entity.Frequency = request.Frequency;
         entity.Examples = request.Examples;
 
+        var changes = ActivityRecording.Changes(before, Snapshot(entity));
+
+        if (changes is not null)
+        {
+            _context.RecordActivity(
+                ActivityAction.WordUpdated,
+                entity,
+                summary: "Changed " + string.Join(", ", changes.Keys),
+                details: changes);
+        }
+
         await _context.SaveChangesAsync(cancellationToken);
     }
+
+    private static Dictionary<string, object?> Snapshot(Word word) => new()
+    {
+        [nameof(Word.Headword)] = word.Headword,
+        [nameof(Word.Transcription)] = word.Transcription,
+        [nameof(Word.PartOfSpeech)] = word.PartOfSpeech,
+        [nameof(Word.Gender)] = word.Gender,
+        [nameof(Word.IsPluralOnly)] = word.IsPluralOnly,
+        [nameof(Word.Frequency)] = word.Frequency,
+        [nameof(Word.Examples)] = word.Examples?.ToList()
+    };
 }

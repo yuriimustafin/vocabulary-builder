@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Button, Form, FormGroup, Label, Input, Alert, Card, CardBody, CardHeader, Spinner } from 'reactstrap';
+import { ImportLink } from './ImportResultSummary';
 
 export class KindleImport extends Component {
   static displayName = KindleImport.name;
@@ -52,7 +53,8 @@ export class KindleImport extends Component {
       
       this.setState({ 
         loading: false, 
-        result: `Successfully imported ${result} words from Kindle notes.`,
+        result: `Successfully imported ${result.wordsImported} words from Kindle notes.`,
+        importId: result.importId,
         selectedFile: null,
         error: null
       });
@@ -157,6 +159,7 @@ export class KindleImport extends Component {
             <div style={{ whiteSpace: 'pre-wrap' }}>
               {result}
             </div>
+            <ImportLink importId={this.state.importId} />
           </Alert>
         )}
 

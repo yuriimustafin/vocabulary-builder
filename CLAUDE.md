@@ -79,11 +79,11 @@ SQLite throughout. Three of them, chosen by environment:
 | Production | `src/Web/VocabularyBuilder.Prod.db` |
 | E2ETest | in-memory and shared-cache, built with `EnsureCreated` - see End-to-end |
 
-**Migrations only run automatically in E2ETest.** `Program.cs` calls
-`InitialiseDatabaseSchemaOnlyAsync()` inside an `EnvironmentName == "E2ETest"` branch, so
-Development and Production never migrate on startup. A file database that has fallen behind
-fails at query time with a missing table or column rather than at startup. Apply migrations
-by hand, naming the environment so the right file is targeted:
+**Migrations run on startup in E2ETest, and wherever `ApplyMigrationsOnStartup` is true** -
+which `docker-compose.prod.yml` sets, so **the deployed container migrates its volume every time
+it starts**. A developer machine does not: Development migrates nothing, and a file database
+that has fallen behind fails at query time with a missing table or column rather than at
+startup. Apply migrations by hand there, naming the environment so the right file is targeted:
 
 ```bash
 ASPNETCORE_ENVIRONMENT=Development dotnet ef database update --project VocabularyBuilder/src/Infrastructure --startup-project VocabularyBuilder/src/Web
@@ -220,8 +220,8 @@ endpoint reads whatever server path it is given.
 
 ### Every word belongs to one user
 
-`Word`, `VocabularyList`, `ImportedBookWord` and `TodoList` implement `IOwnedEntity` and carry
-an `OwnerId`, a foreign key to `AspNetUsers` with cascade delete. Each user has **their own
+`Word`, `VocabularyList`, `ImportedBookWord`, `TodoList`, `VocabularyImport`, `ActivityLogEntry`
+and `ExternalCallLog` implement `IOwnedEntity` and carry an `OwnerId`, a foreign key to `AspNetUsers` with cascade delete. Each user has **their own
 copy** of a word, dictionary data and generated study content included; `(OwnerId, Headword,
 Language)` is what is unique. Two users learning `maison` each fetch and pay for it once.
 `FrequencyWords` is the exception - reference data, shared.
@@ -229,7 +229,8 @@ Language)` is what is unique. Two users learning `maison` each fetch and pay for
 `ApplicationDbContext` does all of it, so handlers know nothing about users:
 
 - **Query filters** scope every owned root to `IUser.Id`, and every dependent through its
-  parent - encounters, forms, senses, review cards and logs, study content, list items. The
+  parent - encounters, forms, senses, review cards and logs, study content, list items, import
+  items. The
   dependents need their own because several are queried directly: the study queue starts from
   review cards, encounter counting from word forms. `Find` respects them too, so a handler
   that looks up someone else's id gets "not found" exactly as for an id never used.
@@ -275,6 +276,145 @@ gets a build through without fixing it (the generated client is committed, so no
 `Application.FunctionalTests` pins its own `Admin` credentials in `CustomWebApplicationFactory`
 for that reason - the suite used to inherit whatever was in the developer's Development
 settings and fail all of it in `OneTimeSetUp`.
+
+## History
+
+Four records, each written by the thing it describes, and shown on two pages: **Imports**
+(`/imports`, `Web/Endpoints/Imports.cs`) and **History** (`/history`, `Web/Endpoints/History.cs`),
+whose tabs are activity, study answers, calls, and usage - the calls totalled by service, purpose
+and prompt version. Word details show a word's own slice of all of them.
+
+| Table | Holds | Written |
+| --- | --- | --- |
+| `VocabularyImports`, `VocabularyImportItems` | One row per import run, one item per term it was given - the word it became, or why it became none | By the import, as it runs |
+| `ActivityLog` | What was done to a user's data: edits, status changes, deletes, fills, exports, list changes, card resets | In the same `SaveChanges` as the change |
+| `ExternalCallLog` | Every request to GPT, WordReference or Oxford: prompt and answer in full for the model, URL/status/size for pages | On a context of its own, at once |
+| `ReviewLogs` | Every study answer: exercise, grade, level before and after, the answer as given and how a typed one was marked, the example sentence asked | By the study commands, as before |
+
+None of the first three has a foreign key to a word, except an import item's `WordId`, which is
+**set null** on delete. (Review logs do cascade with their word: deleting a word is deleting its
+study record, and the `WordDeleted` entry says so.) History that cascaded away with its subject would not be history: a deleted
+word keeps its `WordDeleted` entry, by id and by a copy of its headword. Enums in the two log
+tables are stored **by name**, so a member inserted mid-enum does not relabel old rows.
+
+**A new command that changes data should call `_context.RecordActivity(...)`** before its last
+save (`Application/History/ActivityRecording.cs`). It adds, it does not save, which is what ties
+the entry to the change: a failed save leaves no entry claiming it happened. A word's id exists
+only after its first save, so a handler creating one records between its two saves, as
+`CreateWord` does.
+
+**Every model and page request is recorded without the caller doing anything.**
+`AddOutboundCallRecording` wraps whichever `IGptClient` and `IWordReferencePageLoader` are
+registered, the mocks included. Oxford fetches through AngleSharp, so `OxfordParser` records its
+own. What a call was *for* - the purpose, the word, the import - comes from
+`ExternalCallScope`, an ambient scope the code that knows opens around the call
+(`using (ExternalCallScope.Begin(ExternalCallPurpose.Conjugation, target: headword))`). A new
+call site that opens none is still logged, as `Other` and about nothing in particular. Work
+that looks several existing words up in one batch - export - cannot open a scope per word, and
+passes `wordIdsByTarget` instead, so each call is matched to its word by what it was about.
+
+The recorder saves on a context of its own because a call is worth keeping whether or not the
+work around it succeeds - a model call made during an import that then fails was still paid for -
+and because most calls happen inside queries, which never save. It copies the owner from the
+calling scope's `IUser`, which is what keeps the enrichment worker's calls filed under the word's
+owner. It never throws; a row it cannot write is logged and dropped.
+
+### Study content and study answers
+
+**A generation logs what it wrote.** `EnrichWordStudyContent` records `StudyContentGenerated`
+with the prompt version, the examples added and a from/to of every field it replaced - a version
+bump overwrites etymology and mnemonic, and that entry is where the old ones survive - and
+`StudyContentFailed` with the attempt and error. Its call carries `PromptVersion` too
+(`ExternalCallScope.Begin(promptVersion: ...)`), which is what the usage tab totals by: bumping
+`StudyContentPrompt.Version` asks every word again, and shows up there as a new row.
+
+**An import is charged for the generation its new forms cause.** When `UpsertWord.CoverForm`
+reopens Ready content because a form has no example, it logs `StudyContentReopened` against the
+import and stamps `WordStudyContent.ReopenedByImportId`. The enrichment that follows - in a study
+session, possibly days later - opens its call scope with that import, so the call is filed under
+it, and clears the stamp once the content is Ready. The import popup counts those as "later"
+calls. Import items also record the `Form` the term was met in, and whether its sentence became an
+example (`ExampleAdded`) or the content was reopened (`ContentReopened`).
+
+**Study answers are not copied into the activity log** - a session would flood it - but the review
+log is shown alongside it. It now **belongs to the word**: `ReviewLog.WordId` is the owner link
+(and the query filter), and `ReviewCardId` is nullable with `SetNull`, so a card can go without its
+answers. Marking a word known deletes the card and keeps the answers, still counting. Clearing study
+progress deletes cards as before but **voids** the answers (`VoidedAtUtc`, `VoidReason`) instead of
+deleting them; `GetStudyStats` ignores voided ones, so a cleared day still starts from zero. Anything
+new that counts answers should skip voided ones too.
+
+`RungAfter` is null for every answer logged before it was recorded - the level an answer left the
+word on was never kept - and the pages show only the level before for those.
+
+The migration that moved answers onto the word fills `WordId` from each answer's card before the
+table is rebuilt with its new foreign keys. EF warns that an SQL operation runs "while a rebuild
+of table 'ReviewLogs' is pending" - it does, and the order is right: the column is added in place,
+filled, and then copied by the rebuild. Checked on copies of Test (22 answers, all on the right
+word) and Prod. An answer whose card is already gone is deleted first: it names no word, and
+would put a null where the column cannot take one - a migration failing at startup is a container
+restarting for ever. None exist in either copy; foreign keys should have prevented them.
+
+**This migration is one-way for the code.** Once applied, a build from before it cannot record a
+study answer (the log needs a `WordId` it does not set), so rolling a deploy back means restoring
+the database backup taken before it, not just checking out the old commit. On the Prod snapshot
+the whole chain from `AddStudyCards` takes about ten seconds; the import backfill alone took five
+minutes before its lookups were moved into indexed temp tables, which is worth remembering for
+any backfill written the same way.
+
+**Tested end to end against the real services** on a migrated copy of Test.db: every import page,
+GPT, WordReference and Oxford lookups, study-content generation, a study session, word, list and
+card actions, export and the sweeps. Token counts come back from OpenAI's `usage` and are stored;
+WordReference answered 200 from a development machine. The call log's `Succeeded` is the
+transport's answer, not the parser's: a call can succeed while the generation it fed fails - the
+`StudyContentFailed` entry is where that shows, and the call's stored answer is how to see why.
+That is how the run found gpt-4o answering `cognates` for `c'est` as a list of strings, which
+threw the whole generation away; the free-text fields are now read leniently (`LenientTextConverter`
+in `EnrichWordStudyContent` - a list is joined with "; ", an object is dropped) and the prompt asks
+for one string.
+
+**The call log is also the only copy of a forced refill's answer.** `UpsertWord` keeps a word's
+first cached source of each type and ignores later ones, so `fill-dictionary?force=true` parses the
+new answer into senses and discards the raw text. The `ExternalCallLog` row for that call keeps it.
+
+### Imports
+
+Each import page's handler runs inside `ImportRun.TrackAsync`, which opens the record
+(`StartImportCommand`), makes it the scope of every call inside, and marks it `Failed` with the
+error if the work throws. The work passes `ImportId` down to `UpsertWordCommand`, which files an
+item per term: `Created` or `Existing`, and whether the encounter was new. A word an earlier term
+of the same import created counts as `Created` for later terms too. `CompleteImportCommand`
+then adds the skipped terms and counts everything **from the items**, so the list, the popup and
+the page's own result cannot disagree.
+
+A word appears in every import that touched it. Re-importing a file creates a second import
+whose items are all `Existing` with no encounter added - which is what happened.
+
+Imports made before this existed were rebuilt by the `AddImportsAndHistory` migration
+(`Infrastructure/Data/ImportBackfill.cs`, marked `IsReconstructed`). It grouped encounters by
+owner, language, source, identifier base and day. The base is the encounter's context where the
+identifier starts with it, and the text before the first colon otherwise, **because Kindle book
+titles contain colons** ("Mistborn: The Final Empire:ruddy:1"). On a copy of Prod that gave five
+Kindle books and 3,661 items; on Test, 16 imports and 142 items, one per import encounter.
+Reconstructed imports have no skipped terms, since nothing about those survived.
+
+The frequency import is not an import in this sense - its data is shared, not anybody's words - and
+gets an `ActivityLog` entry only.
+
+### NSwag in a fresh worktree
+
+The Web build's NSwag step starts the host **as Production**, whatever `ASPNETCORE_ENVIRONMENT`
+says, so in a worktree with no `src/Web/VocabularyBuilder.Prod.db` it creates an empty one and fails
+with `no such table: AspNetUsers`. Migrate a throwaway one to regenerate the client, and delete it
+afterwards:
+
+```bash
+dotnet ef database update --project VocabularyBuilder/src/Infrastructure --startup-project VocabularyBuilder/src/Web --connection "Data Source=<absolute path>/src/Web/VocabularyBuilder.Prod.db"
+```
+
+The connection string has to be absolute; a relative one resolves somewhere else and fails with
+`unable to open database file`. For the e2e suite, `SkipNSwag=True` in the environment reaches
+the build that `webServer` runs.
 
 ## Tests
 

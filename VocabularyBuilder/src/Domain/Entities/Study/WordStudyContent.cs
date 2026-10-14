@@ -60,6 +60,13 @@ public class WordStudyContent : BaseAuditableEntity
     public string? LastError { get; set; }
 
     /// <summary>
+    /// The import that reopened this content by bringing the word in a form no example used.
+    /// The generation that follows is that import's doing, and its model call is filed under
+    /// it. Cleared once the content is ready again.
+    /// </summary>
+    public int? ReopenedByImportId { get; set; }
+
+    /// <summary>
     /// Prompt revision this content came from, so it can be regenerated selectively. Set
     /// only when a generation succeeds, so a word whose content predates the current prompt
     /// is asked again once for what the new one adds.

@@ -140,12 +140,13 @@ public class MarkWordAsKnownTests
     }
 
     [Test]
-    public async Task AnythingAlreadyRecordedAgainstTheCardGoesWithIt()
+    public async Task TheAnswersAlreadyGivenStayWithTheWord()
     {
         var card = await AddIntroducedWord("obvious");
 
         _db.Context.ReviewLogs.Add(new ReviewLog
         {
+            WordId = card.WordId,
             ReviewCardId = card.Id,
             AttemptId = Guid.NewGuid(),
             ReviewedAtUtc = Start.UtcDateTime,
@@ -157,7 +158,13 @@ public class MarkWordAsKnownTests
 
         await Handler().Handle(new MarkWordAsKnownCommand(card.Id), CancellationToken.None);
 
-        (await _db.Context.ReviewLogs.CountAsync()).Should().Be(0);
+        // The card goes - the word is no longer scheduled - but how it came to be known does not
+        (await _db.Context.ReviewCards.CountAsync()).Should().Be(0);
+
+        var log = await _db.Context.ReviewLogs.AsNoTracking().SingleAsync();
+        log.WordId.Should().Be(card.WordId);
+        log.ReviewCardId.Should().BeNull();
+        log.VoidedAtUtc.Should().BeNull("an answer given before the word was known still counts");
     }
 
     [Test]

@@ -99,7 +99,7 @@ public static class StudyContentPrompt
 
             fields.Add($"""
                   "etymology": where the word comes from, under 25 words, as far as it links to a word a learner may know. null if you are not sure - never invent one
-                  "cognates": {relatedIn} words sharing its origin or root - including any the etymology names - with how their meaning differs when it does; mark a false friend with "false friend:". null only if there really are none
+                  "cognates": {relatedIn} words sharing its origin or root - including any the etymology names - with how their meaning differs when it does; mark a false friend with "false friend:". One string, the words separated by semicolons - not a list. null only if there really are none
                   "mnemonic": one or two {soundAlikesIn} words that sound like it when spoken (by pronunciation, not spelling), and one vivid sentence under 25 words linking them to its meaning. null when the word is already obvious from a related word
                 """.TrimEnd());
         }
